@@ -5,12 +5,18 @@ struct DrinkEntry: Identifiable, Codable, Equatable {
     let type: DrinkType
     let timestamp: Date
     var note: String?
+    var specialEdition: SpecialEdition?
 
-    init(id: UUID = UUID(), type: DrinkType, timestamp: Date = Date(), note: String? = nil) {
+    init(id: UUID = UUID(), type: DrinkType, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil) {
         self.id = id
         self.type = type
         self.timestamp = timestamp
         self.note = note
+        self.specialEdition = specialEdition
+    }
+
+    var isSpecialEdition: Bool {
+        specialEdition != nil
     }
 
     var ounces: Double {

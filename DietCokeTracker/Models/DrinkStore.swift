@@ -19,9 +19,15 @@ class DrinkStore: ObservableObject {
         saveEntries()
     }
 
-    func addDrink(type: DrinkType, note: String? = nil) {
-        let entry = DrinkEntry(type: type, note: note)
+    func addDrink(type: DrinkType, note: String? = nil, specialEdition: SpecialEdition? = nil) {
+        let entry = DrinkEntry(type: type, note: note, specialEdition: specialEdition)
         addEntry(entry)
+    }
+
+    // MARK: - Badge Integration
+
+    func checkBadges(with badgeStore: BadgeStore) {
+        badgeStore.checkAchievements(entries: entries, streak: streakDays)
     }
 
     func deleteEntry(_ entry: DrinkEntry) {

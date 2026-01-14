@@ -3,23 +3,43 @@ import SwiftUI
 struct DrinkRowView: View {
     let entry: DrinkEntry
 
+    private var accentColor: Color {
+        if let edition = entry.specialEdition {
+            return edition.toBadge().rarity.color
+        }
+        return .dietCokeRed
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.dietCokeRed.opacity(0.1))
+                    .fill(accentColor.opacity(0.1))
                     .frame(width: 48, height: 48)
 
-                Image(systemName: entry.type.icon)
+                Image(systemName: entry.specialEdition?.icon ?? entry.type.icon)
                     .font(.system(size: 20))
-                    .foregroundColor(.dietCokeRed)
+                    .foregroundColor(accentColor)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(entry.type.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.dietCokeCharcoal)
+                HStack(spacing: 6) {
+                    Text(entry.type.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.dietCokeCharcoal)
+
+                    if let edition = entry.specialEdition {
+                        Text(edition.rawValue)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(edition.toBadge().rarity.color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(edition.toBadge().rarity.color.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
 
                 HStack(spacing: 6) {
                     Text(entry.formattedTime)
