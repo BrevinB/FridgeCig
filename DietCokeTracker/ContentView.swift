@@ -2,32 +2,81 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var badgeStore: BadgeStore
     @State private var showingAddDrink = false
     @State private var selectedTab = 0
+    @State private var showingBadgeToast = false
+    @State private var showingShareSheet = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView(showingAddDrink: $showingAddDrink)
-                .tabItem {
-                    Label("Today", systemImage: "house.fill")
-                }
-                .tag(0)
+        ZStack {
+            TabView(selection: $selectedTab) {
+                HomeView(showingAddDrink: $showingAddDrink)
+                    .tabItem {
+                        Label("Today", systemImage: "house.fill")
+                    }
+                    .tag(0)
 
-            HistoryView()
-                .tabItem {
-                    Label("History", systemImage: "clock.fill")
-                }
-                .tag(1)
+                HistoryView()
+                    .tabItem {
+                        Label("History", systemImage: "clock.fill")
+                    }
+                    .tag(1)
 
-            StatsView()
-                .tabItem {
-                    Label("Stats", systemImage: "chart.bar.fill")
+                BadgesView()
+                    .tabItem {
+                        Label("Badges", systemImage: "trophy.fill")
+                    }
+                    .tag(2)
+
+                StatsView()
+                    .tabItem {
+                        Label("Stats", systemImage: "chart.bar.fill")
+                    }
+                    .tag(3)
+            }
+            .tint(.dietCokeRed)
+            .sheet(isPresented: $showingAddDrink) {
+                AddDrinkView()
+            }
+
+            // Badge Unlock Toast Overlay
+            if showingBadgeToast, let badge = badgeStore.recentlyUnlocked {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        dismissBadgeToast()
+                    }
+
+                BadgeUnlockToast(badge: badge) {
+                    dismissBadgeToast()
+                } onShare: {
+                    showingShareSheet = true
                 }
-                .tag(2)
+                .transition(.scale.combined(with: .opacity))
+                .zIndex(100)
+            }
         }
-        .tint(.dietCokeRed)
-        .sheet(isPresented: $showingAddDrink) {
-            AddDrinkView()
+        .animation(.spring(response: 0.4), value: showingBadgeToast)
+        .onChange(of: badgeStore.recentlyUnlocked) { _, newBadge in
+            if newBadge != nil {
+                showingBadgeToast = true
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let badge = badgeStore.recentlyUnlocked {
+                ShareBadgeSheet(badge: badge)
+            }
+        }
+        .onAppear {
+            store.checkBadges(with: badgeStore)
+        }
+    }
+
+    private func dismissBadgeToast() {
+        showingBadgeToast = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            badgeStore.dismissRecentBadge()
         }
     }
 }
@@ -119,6 +168,7 @@ struct TodaySummaryCard: View {
 
 struct QuickAddSection: View {
     @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var badgeStore: BadgeStore
     @Binding var showingAddDrink: Bool
 
     let quickTypes: [DrinkType] = [
@@ -152,6 +202,7 @@ struct QuickAddSection: View {
                     QuickAddButton(type: type) {
                         withAnimation(.spring(response: 0.3)) {
                             store.addDrink(type: type)
+                            store.checkBadges(with: badgeStore)
                         }
                     }
                 }
@@ -200,4 +251,5 @@ struct TodayDrinksSection: View {
 #Preview {
     ContentView()
         .environmentObject(DrinkStore())
+        .environmentObject(BadgeStore())
 }
