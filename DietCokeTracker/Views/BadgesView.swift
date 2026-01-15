@@ -273,7 +273,7 @@ struct EmptyBadgesView: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text("Keep drinking Diet Coke to earn badges!")
+            Text("Keep drinking DC to earn badges!")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -310,7 +310,7 @@ struct ShareBadgeSheet: View {
                     ShareLink(
                         item: Image(uiImage: image),
                         preview: SharePreview(
-                            "Diet Coke Badge: \(badge.title)",
+                            "DC Badge: \(badge.title)",
                             image: Image(uiImage: image)
                         )
                     ) {
@@ -355,7 +355,7 @@ struct ShareableBadgeView: View {
             HStack {
                 Image(systemName: "flask.fill")
                     .foregroundColor(.dietCokeRed)
-                Text("Diet Coke Tracker")
+                Text("DC Tracker")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.dietCokeCharcoal)

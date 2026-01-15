@@ -2,26 +2,26 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    // MARK: - Diet Coke Brand Colors (Dark Mode Adaptive)
+    // MARK: - DC Brand Colors (Dark Mode Adaptive)
 
-    /// Classic Diet Coke red accent (same in both modes)
+    /// Classic DC red accent (same in both modes)
     static let dietCokeRed = Color(red: 0.89, green: 0.09, blue: 0.17)
 
-    /// Diet Coke silver/platinum - adapts to dark mode
+    /// DC silver/platinum - adapts to dark mode
     static let dietCokeSilver = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 0.65, green: 0.65, blue: 0.68, alpha: 1)
             : UIColor(red: 0.75, green: 0.75, blue: 0.78, alpha: 1)
     })
 
-    /// Diet Coke dark silver - adapts to dark mode
+    /// DC dark silver - adapts to dark mode
     static let dietCokeDarkSilver = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 0.55, green: 0.55, blue: 0.58, alpha: 1)
             : UIColor(red: 0.45, green: 0.45, blue: 0.48, alpha: 1)
     })
 
-    /// Diet Coke charcoal/text color - inverts for dark mode
+    /// DC charcoal/text color - inverts for dark mode
     static let dietCokeCharcoal = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 0.92, green: 0.92, blue: 0.94, alpha: 1)

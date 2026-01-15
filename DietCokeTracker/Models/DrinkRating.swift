@@ -26,7 +26,7 @@ enum DrinkRating: Int, Codable, CaseIterable, Identifiable {
         case .meh: return "Below average"
         case .decent: return "Solid, gets the job done"
         case .crisp: return "Great refreshment"
-        case .transcendent: return "Perfect Diet Coke moment"
+        case .transcendent: return "Perfect DC moment"
         }
     }
 

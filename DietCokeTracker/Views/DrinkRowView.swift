@@ -8,7 +8,7 @@ struct DrinkRowView: View {
         if let edition = entry.specialEdition {
             return edition.toBadge().rarity.color
         }
-        return .dietCokeRed
+        return entry.brand.color
     }
 
     var body: some View {
@@ -29,6 +29,15 @@ struct DrinkRowView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.dietCokeCharcoal)
+
+                    // Brand badge
+                    Text(entry.brand.shortName)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(entry.brand.color)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(entry.brand.lightColor)
+                        .clipShape(Capsule())
 
                     if let edition = entry.specialEdition {
                         Text(edition.rawValue)

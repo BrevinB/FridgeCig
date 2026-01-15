@@ -1,23 +1,58 @@
 import Foundation
 import Combine
 
-struct DrinkEntry: Identifiable, Codable, Equatable {
+struct DrinkEntry: Identifiable, Equatable {
     let id: UUID
     let type: DrinkType
+    var brand: BeverageBrand
     var timestamp: Date
     var note: String?
     var specialEdition: SpecialEdition?
     var customOunces: Double?
     var rating: DrinkRating?
 
-    init(id: UUID = UUID(), type: DrinkType, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
+    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
         self.id = id
         self.type = type
+        self.brand = brand
         self.timestamp = timestamp
         self.note = note
         self.specialEdition = specialEdition
         self.customOunces = customOunces
         self.rating = rating
+    }
+}
+
+// MARK: - Codable (with backwards compatibility)
+
+extension DrinkEntry: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, type, brand, timestamp, note, specialEdition, customOunces, rating
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        type = try container.decode(DrinkType.self, forKey: .type)
+        // Default to dietCoke for existing entries without brand
+        brand = try container.decodeIfPresent(BeverageBrand.self, forKey: .brand) ?? .dietCoke
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        specialEdition = try container.decodeIfPresent(SpecialEdition.self, forKey: .specialEdition)
+        customOunces = try container.decodeIfPresent(Double.self, forKey: .customOunces)
+        rating = try container.decodeIfPresent(DrinkRating.self, forKey: .rating)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(brand, forKey: .brand)
+        try container.encode(timestamp, forKey: .timestamp)
+        try container.encodeIfPresent(note, forKey: .note)
+        try container.encodeIfPresent(specialEdition, forKey: .specialEdition)
+        try container.encodeIfPresent(customOunces, forKey: .customOunces)
+        try container.encodeIfPresent(rating, forKey: .rating)
     }
 
     var isSpecialEdition: Bool {

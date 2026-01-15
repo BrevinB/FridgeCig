@@ -84,6 +84,7 @@ struct ContentView: View {
 struct HomeView: View {
     @EnvironmentObject var store: DrinkStore
     @Binding var showingAddDrink: Bool
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -101,8 +102,16 @@ struct HomeView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Diet Coke Tracker")
+            .navigationTitle("FridgeCig")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingAddDrink = true
@@ -112,6 +121,9 @@ struct HomeView: View {
                             .foregroundColor(.dietCokeRed)
                     }
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
         }
     }
@@ -130,7 +142,7 @@ struct TodaySummaryCard: View {
                     Text("\(store.todayCount)")
                         .font(.system(size: 48, weight: .bold))
                         .foregroundColor(.dietCokeCharcoal)
-                    Text(store.todayCount == 1 ? "Diet Coke" : "Diet Cokes")
+                    Text(store.todayCount == 1 ? "DC" : "DCs")
                         .font(.headline)
                         .foregroundColor(.dietCokeDarkSilver)
                 }
@@ -169,6 +181,7 @@ struct TodaySummaryCard: View {
 struct QuickAddSection: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var badgeStore: BadgeStore
+    @EnvironmentObject var preferences: UserPreferences
     @Binding var showingAddDrink: Bool
 
     let quickTypes: [DrinkType] = [
@@ -187,6 +200,20 @@ struct QuickAddSection: View {
 
                 Spacer()
 
+                // Show current default brand
+                HStack(spacing: 4) {
+                    Image(systemName: preferences.defaultBrand.icon)
+                        .font(.caption2)
+                    Text(preferences.defaultBrand.shortName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(preferences.defaultBrand.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(preferences.defaultBrand.lightColor)
+                .clipShape(Capsule())
+
                 Button("See All") {
                     showingAddDrink = true
                 }
@@ -201,7 +228,7 @@ struct QuickAddSection: View {
                 ForEach(quickTypes) { type in
                     QuickAddButton(type: type) {
                         withAnimation(.spring(response: 0.3)) {
-                            store.addDrink(type: type)
+                            store.addDrink(type: type, brand: preferences.defaultBrand)
                             store.checkBadges(with: badgeStore)
                         }
                     }
@@ -231,7 +258,7 @@ struct TodayDrinksSection: View {
                     Image(systemName: "cup.and.saucer")
                         .font(.system(size: 40))
                         .foregroundColor(.dietCokeSilver)
-                    Text("No Diet Cokes yet today")
+                    Text("No DCs yet today")
                         .font(.subheadline)
                         .foregroundColor(.dietCokeDarkSilver)
                 }

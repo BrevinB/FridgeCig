@@ -237,7 +237,7 @@ struct FunStatsSection: View {
     @EnvironmentObject var store: DrinkStore
 
     var caffeineToday: Double {
-        // Diet Coke has ~46mg caffeine per 12oz
+        // DC has ~46mg caffeine per 12oz
         (store.todayOunces / 12) * 46
     }
 

@@ -68,7 +68,7 @@ struct ComplicationRectangularView: View {
                 .foregroundStyle(.red)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(entry.todayCount) Diet Cokes")
+                Text("\(entry.todayCount) DCs")
                     .font(.headline)
                     .widgetAccentable()
                 HStack(spacing: 8) {
@@ -102,7 +102,7 @@ struct ComplicationInlineView: View {
     let entry: ComplicationEntry
 
     var body: some View {
-        Label("\(entry.todayCount) Diet Cokes", systemImage: "cup.and.saucer.fill")
+        Label("\(entry.todayCount) DCs", systemImage: "cup.and.saucer.fill")
     }
 }
 
@@ -138,8 +138,8 @@ struct DietCokeWatchWidget: Widget {
             ComplicationEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Diet Coke")
-        .description("Track your daily Diet Coke count.")
+        .configurationDisplayName("DC")
+        .description("Track your daily DC count.")
         .supportedFamilies([
             .accessoryCircular,
             .accessoryRectangular,

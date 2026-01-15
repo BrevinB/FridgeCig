@@ -20,8 +20,8 @@ class DrinkStore: ObservableObject {
         saveEntries()
     }
 
-    func addDrink(type: DrinkType, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
-        let entry = DrinkEntry(type: type, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating)
+    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
+        let entry = DrinkEntry(type: type, brand: brand, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating)
         addEntry(entry)
     }
 

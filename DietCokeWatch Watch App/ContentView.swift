@@ -18,7 +18,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
             }
-            .navigationTitle("Diet Coke")
+            .navigationTitle("DC")
             .onAppear(perform: refreshData)
         }
     }
@@ -43,7 +43,7 @@ struct TodayCard: View {
                 .font(.system(size: 56, weight: .bold, design: .rounded))
                 .foregroundStyle(.red)
 
-            Text("Diet Cokes today")
+            Text("DCs today")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

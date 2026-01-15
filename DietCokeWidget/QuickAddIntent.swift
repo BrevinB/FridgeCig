@@ -2,8 +2,8 @@ import AppIntents
 import WidgetKit
 
 struct QuickAddDrinkIntent: AppIntent {
-    static var title: LocalizedStringResource = "Quick Add Diet Coke"
-    static var description = IntentDescription("Adds a regular can of Diet Coke")
+    static var title: LocalizedStringResource = "Quick Add DC"
+    static var description = IntentDescription("Adds a regular can of DC")
 
     func perform() async throws -> some IntentResult {
         // Add a regular can entry
@@ -35,7 +35,7 @@ struct QuickAddDrinkIntent: AppIntent {
 
 struct QuickAddBottleIntent: AppIntent {
     static var title: LocalizedStringResource = "Quick Add 20oz Bottle"
-    static var description = IntentDescription("Adds a 20oz bottle of Diet Coke")
+    static var description = IntentDescription("Adds a 20oz bottle of DC")
 
     func perform() async throws -> some IntentResult {
         let entry = DrinkEntry(type: .bottle20oz)

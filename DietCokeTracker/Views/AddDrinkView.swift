@@ -3,9 +3,11 @@ import SwiftUI
 struct AddDrinkView: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var badgeStore: BadgeStore
+    @EnvironmentObject var preferences: UserPreferences
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedType: DrinkType = .regularCan
+    @State private var selectedBrand: BeverageBrand?
     @State private var note: String = ""
     @State private var selectedCategory: DrinkCategory? = nil
     @State private var selectedSpecialEdition: SpecialEdition? = nil
@@ -14,6 +16,10 @@ struct AddDrinkView: View {
     @State private var customOuncesText: String = ""
     @State private var selectedRating: DrinkRating? = nil
 
+    private var effectiveBrand: BeverageBrand {
+        selectedBrand ?? preferences.defaultBrand
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -21,9 +27,16 @@ struct AddDrinkView: View {
                     // Selected drink preview
                     SelectedDrinkPreview(
                         type: selectedType,
+                        brand: effectiveBrand,
                         specialEdition: selectedSpecialEdition,
                         customOunces: useCustomOunces ? Double(customOuncesText) : nil,
                         rating: selectedRating
+                    )
+
+                    // Brand selector
+                    BrandSelectorView(
+                        selectedBrand: $selectedBrand,
+                        defaultBrand: preferences.defaultBrand
                     )
 
                     // Category filter
@@ -59,6 +72,7 @@ struct AddDrinkView: View {
                         let customOz: Double? = useCustomOunces ? Double(customOuncesText) : nil
                         store.addDrink(
                             type: selectedType,
+                            brand: effectiveBrand,
                             note: note.isEmpty ? nil : note,
                             specialEdition: selectedSpecialEdition,
                             customOunces: customOz,
@@ -69,7 +83,7 @@ struct AddDrinkView: View {
                     } label: {
                         HStack {
                             Image(systemName: "plus.circle.fill")
-                            Text("Add Diet Coke")
+                            Text("Add \(effectiveBrand.shortName)")
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -79,7 +93,7 @@ struct AddDrinkView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Add Diet Coke")
+            .navigationTitle("Add DC")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -95,6 +109,7 @@ struct AddDrinkView: View {
 
 struct SelectedDrinkPreview: View {
     let type: DrinkType
+    var brand: BeverageBrand = .dietCoke
     var specialEdition: SpecialEdition? = nil
     var customOunces: Double? = nil
     var rating: DrinkRating? = nil
@@ -103,16 +118,23 @@ struct SelectedDrinkPreview: View {
         customOunces ?? type.ounces
     }
 
+    private var accentColor: Color {
+        if let edition = specialEdition {
+            return edition.toBadge().rarity.color
+        }
+        return brand.color
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(specialEdition != nil ? specialEdition!.toBadge().rarity.color.opacity(0.1) : Color.dietCokeRed.opacity(0.1))
+                    .fill(accentColor.opacity(0.1))
                     .frame(width: 80, height: 80)
 
                 Image(systemName: specialEdition?.icon ?? type.icon)
                     .font(.system(size: 36))
-                    .foregroundColor(specialEdition != nil ? specialEdition!.toBadge().rarity.color : .dietCokeRed)
+                    .foregroundColor(accentColor)
             }
 
             VStack(spacing: 4) {
@@ -120,6 +142,20 @@ struct SelectedDrinkPreview: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .foregroundColor(.dietCokeCharcoal)
+
+                // Brand badge
+                HStack(spacing: 4) {
+                    Image(systemName: brand.icon)
+                        .font(.caption2)
+                    Text(brand.shortName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(brand.color)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(brand.lightColor)
+                .clipShape(Capsule())
 
                 HStack(spacing: 4) {
                     Text("\(String(format: "%.1f", displayOunces)) oz")
@@ -167,6 +203,104 @@ struct SelectedDrinkPreview: View {
         .padding(.vertical, 20)
         .frame(maxWidth: .infinity)
         .dietCokeCard()
+    }
+}
+
+// MARK: - Brand Selector
+
+struct BrandSelectorView: View {
+    @Binding var selectedBrand: BeverageBrand?
+    let defaultBrand: BeverageBrand
+
+    private var effectiveBrand: BeverageBrand {
+        selectedBrand ?? defaultBrand
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Beverage")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Spacer()
+
+                if selectedBrand != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedBrand = nil
+                        }
+                    } label: {
+                        Text("Reset to default")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            HStack(spacing: 12) {
+                ForEach(BeverageBrand.allCases) { brand in
+                    BrandButton(
+                        brand: brand,
+                        isSelected: effectiveBrand == brand,
+                        isDefault: defaultBrand == brand && selectedBrand == nil
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedBrand = brand
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.dietCokeCardBackground)
+        .cornerRadius(12)
+    }
+}
+
+struct BrandButton: View {
+    let brand: BeverageBrand
+    let isSelected: Bool
+    let isDefault: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? brand.color : brand.lightColor)
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: brand.icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(isSelected ? .white : brand.color)
+                }
+
+                Text(brand.shortName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(isSelected ? brand.color : .secondary)
+
+                if isDefault {
+                    Text("default")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(" ")
+                        .font(.system(size: 9))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isSelected ? brand.lightColor : Color.clear)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? brand.color : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -536,7 +670,7 @@ struct RatingSection: View {
             HStack {
                 Image(systemName: "star.fill")
                     .foregroundColor(.yellow)
-                Text("Rate this Diet Coke")
+                Text("Rate this DC")
                     .font(.headline)
                     .foregroundColor(.dietCokeCharcoal)
 

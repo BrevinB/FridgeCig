@@ -76,7 +76,7 @@ struct AccessoryRectangularView: View {
                 .font(.title2)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(entry.todayCount) Diet Cokes")
+                Text("\(entry.todayCount) DCs")
                     .font(.headline)
                     .widgetAccentable()
                 Text("\(Int(entry.todayOunces)) oz • \(entry.streak) day streak")
@@ -91,7 +91,7 @@ struct AccessoryInlineView: View {
     let entry: DietCokeEntry
 
     var body: some View {
-        Label("\(entry.todayCount) Diet Cokes today", systemImage: "cup.and.saucer.fill")
+        Label("\(entry.todayCount) DCs today", systemImage: "cup.and.saucer.fill")
     }
 }
 
@@ -186,7 +186,7 @@ struct LargeWidgetView: View {
             HStack {
                 Image(systemName: "cup.and.saucer.fill")
                     .foregroundStyle(.red)
-                Text("Diet Coke Tracker")
+                Text("DC Tracker")
                     .font(.headline)
                 Spacer()
             }
@@ -284,8 +284,8 @@ struct DietCokeWidget: Widget {
                     .background()
             }
         }
-        .configurationDisplayName("Diet Coke Tracker")
-        .description("Track your daily Diet Coke consumption.")
+        .configurationDisplayName("DC Tracker")
+        .description("Track your daily DC consumption.")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,

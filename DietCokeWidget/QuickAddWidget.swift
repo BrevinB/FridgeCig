@@ -19,7 +19,7 @@ struct QuickAddWidget: Widget {
             }
         }
         .configurationDisplayName("Quick Add")
-        .description("Quickly log a Diet Coke without opening the app.")
+        .description("Quickly log a DC without opening the app.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

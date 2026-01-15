@@ -39,7 +39,7 @@ struct EmptyHistoryView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.dietCokeCharcoal)
 
-            Text("Start tracking your Diet Cokes\nand they'll appear here")
+            Text("Start tracking your DCs\nand they'll appear here")
                 .font(.subheadline)
                 .foregroundColor(.dietCokeDarkSilver)
                 .multilineTextAlignment(.center)
@@ -118,7 +118,7 @@ struct HistoryRowView: View {
         if let edition = entry.specialEdition {
             return edition.toBadge().rarity.color
         }
-        return .dietCokeRed
+        return entry.brand.color
     }
 
     var body: some View {
@@ -139,6 +139,15 @@ struct HistoryRowView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.dietCokeCharcoal)
+
+                    // Brand badge
+                    Text(entry.brand.shortName)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(entry.brand.color)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(entry.brand.lightColor)
+                        .clipShape(Capsule())
 
                     if let edition = entry.specialEdition {
                         Text(edition.rawValue)

@@ -32,6 +32,9 @@
 		23CA145A2F1954DF000C7B43 /* DrinkRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA14582F1954DF000C7B43 /* DrinkRating.swift */; };
 		23CA145B2F1954DF000C7B43 /* DrinkRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA14582F1954DF000C7B43 /* DrinkRating.swift */; };
 		23CA145C2F1954DF000C7B43 /* DrinkRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA14582F1954DF000C7B43 /* DrinkRating.swift */; };
+		23CA159F2F19A33D000C7B43 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA159E2F19A33D000C7B43 /* SettingsView.swift */; };
+		23CA15A12F19A347000C7B43 /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15A02F19A347000C7B43 /* UserPreferences.swift */; };
+		23CA15A42F19A347000C7B43 /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15A02F19A347000C7B43 /* UserPreferences.swift */; };
 		A1000001 /* DietCokeTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* DietCokeTrackerApp.swift */; };
 		A1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* ContentView.swift */; };
 		A1000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000003 /* Assets.xcassets */; };
@@ -122,6 +125,8 @@
 		23CA143D2F18ACE1000C7B43 /* DietCokeWatchWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DietCokeWatchWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		23CA14522F18ACF8000C7B43 /* DietCokeWatchWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DietCokeWatchWidgetExtension.entitlements; sourceTree = "<group>"; };
 		23CA14582F1954DF000C7B43 /* DrinkRating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkRating.swift; sourceTree = "<group>"; };
+		23CA159E2F19A33D000C7B43 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		23CA15A02F19A347000C7B43 /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
 		A2000000 /* DietCokeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DietCokeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000001 /* DietCokeTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietCokeTrackerApp.swift; sourceTree = "<group>"; };
 		A2000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -149,6 +154,7 @@
 		23CA14162F18A486000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				BeverageBrand.swift,
 				SharedDataManager.swift,
 			);
 			target = 23CA13F52F189F69000C7B43 /* DietCokeWidgetExtension */;
@@ -156,6 +162,7 @@
 		23CA14312F18A915000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				BeverageBrand.swift,
 				SharedDataManager.swift,
 			);
 			target = 23CA141F2F18A889000C7B43 /* DietCokeWatch Watch App */;
@@ -170,6 +177,7 @@
 		23CA14542F18AD03000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				BeverageBrand.swift,
 				SharedDataManager.swift,
 			);
 			target = 23CA143C2F18ACE1000C7B43 /* DietCokeWatchWidgetExtension */;
@@ -262,6 +270,7 @@
 			isa = PBXGroup;
 			children = (
 				23CA14582F1954DF000C7B43 /* DrinkRating.swift */,
+				23CA15A02F19A347000C7B43 /* UserPreferences.swift */,
 				23CA13DA2F186169000C7B43 /* Badge.swift */,
 				23CA13DB2F186169000C7B43 /* BadgeStore.swift */,
 				A2000005 /* DrinkType.swift */,
@@ -274,6 +283,7 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				23CA159E2F19A33D000C7B43 /* SettingsView.swift */,
 				23CA13F02F1895AD000C7B43 /* EditEntrySheet.swift */,
 				23CA13DE2F18617D000C7B43 /* BadgesView.swift */,
 				23CA13DF2F18617D000C7B43 /* BadgeView.swift */,
@@ -503,6 +513,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				23CA14592F1954DF000C7B43 /* DrinkRating.swift in Sources */,
+				23CA15A12F19A347000C7B43 /* UserPreferences.swift in Sources */,
 				23CA14322F18A921000C7B43 /* Badge.swift in Sources */,
 				23CA14332F18A92B000C7B43 /* DrinkEntry.swift in Sources */,
 				23CA14342F18A932000C7B43 /* DrinkType.swift in Sources */,
@@ -525,10 +536,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				23CA13F12F1895AD000C7B43 /* EditEntrySheet.swift in Sources */,
+				23CA15A42F19A347000C7B43 /* UserPreferences.swift in Sources */,
 				A1000002 /* ContentView.swift in Sources */,
 				A1000001 /* DietCokeTrackerApp.swift in Sources */,
 				A1000005 /* DrinkType.swift in Sources */,
 				23CA145A2F1954DF000C7B43 /* DrinkRating.swift in Sources */,
+				23CA159F2F19A33D000C7B43 /* SettingsView.swift in Sources */,
 				A1000006 /* DrinkEntry.swift in Sources */,
 				23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */,
 				23CA13E12F18617D000C7B43 /* BadgeView.swift in Sources */,
@@ -893,6 +906,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCig;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -922,6 +936,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCig;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -90,11 +90,11 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     var badgeDescription: String {
         switch self {
         case .fifa2026:
-            return "Enjoyed a FIFA World Cup 2026 limited edition Diet Coke"
+            return "Enjoyed a FIFA World Cup 2026 limited edition DC"
         case .summerVibes:
             return "Tried the Summer Vibes limited release"
         case .holidaySeason:
-            return "Celebrated with a Holiday Season Diet Coke"
+            return "Celebrated with a Holiday Season DC"
         case .retroEdition:
             return "Sipped on a classic Retro Edition"
         case .zeroSugarLime:
@@ -144,21 +144,21 @@ struct BadgeDefinitions {
 
     static let milestones: [Badge] = [
         Badge(id: "first_sip", type: .milestone, title: "First Sip",
-              description: "Log your first Diet Coke", icon: "flask.fill", rarity: .common),
+              description: "Log your first DC", icon: "flask.fill", rarity: .common),
         Badge(id: "getting_started", type: .milestone, title: "Getting Started",
-              description: "Log 10 Diet Cokes", icon: "flame.fill", rarity: .common),
+              description: "Log 10 DCs", icon: "flame.fill", rarity: .common),
         Badge(id: "regular", type: .milestone, title: "Regular",
-              description: "Log 25 Diet Cokes", icon: "star.fill", rarity: .uncommon),
+              description: "Log 25 DCs", icon: "star.fill", rarity: .uncommon),
         Badge(id: "enthusiast", type: .milestone, title: "Enthusiast",
-              description: "Log 50 Diet Cokes", icon: "star.circle.fill", rarity: .uncommon),
+              description: "Log 50 DCs", icon: "star.circle.fill", rarity: .uncommon),
         Badge(id: "dedicated", type: .milestone, title: "Dedicated",
-              description: "Log 100 Diet Cokes", icon: "medal.fill", rarity: .rare),
+              description: "Log 100 DCs", icon: "medal.fill", rarity: .rare),
         Badge(id: "centurion", type: .milestone, title: "Centurion",
-              description: "Log 250 Diet Cokes", icon: "crown.fill", rarity: .rare),
+              description: "Log 250 DCs", icon: "crown.fill", rarity: .rare),
         Badge(id: "legend", type: .milestone, title: "Legend",
-              description: "Log 500 Diet Cokes", icon: "trophy.fill", rarity: .epic),
+              description: "Log 500 DCs", icon: "trophy.fill", rarity: .epic),
         Badge(id: "ultimate", type: .milestone, title: "Ultimate Fan",
-              description: "Log 1000 Diet Cokes", icon: "sparkles", rarity: .legendary),
+              description: "Log 1000 DCs", icon: "sparkles", rarity: .legendary),
     ]
 
     static func milestoneThreshold(for badgeId: String) -> Int? {

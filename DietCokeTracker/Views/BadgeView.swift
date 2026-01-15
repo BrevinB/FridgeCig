@@ -477,7 +477,7 @@ struct BadgeUnlockToast: View {
         id: "test",
         type: .milestone,
         title: "First Sip",
-        description: "Log your first Diet Coke",
+        description: "Log your first DC",
         icon: "flask.fill",
         rarity: .common,
         unlockedAt: Date()
@@ -490,7 +490,7 @@ struct BadgeUnlockToast: View {
         id: "test",
         type: .milestone,
         title: "Legend",
-        description: "Log 500 Diet Cokes",
+        description: "Log 500 DCs",
         icon: "trophy.fill",
         rarity: .epic
     )

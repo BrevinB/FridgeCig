@@ -3,9 +3,21 @@ import Foundation
 struct SharedDataManager {
     static let appGroupID = "group.co.brevinb.fridgecig"
     static let entriesKey = "DietCokeEntries"
+    static let defaultBrandKey = "defaultBeverageBrand"
 
     static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
+    }
+
+    // MARK: - User Preferences
+
+    static func getDefaultBrand() -> BeverageBrand {
+        guard let defaults = sharedDefaults,
+              let savedValue = defaults.string(forKey: defaultBrandKey),
+              let brand = BeverageBrand(rawValue: savedValue) else {
+            return .dietCoke
+        }
+        return brand
     }
 
     // MARK: - Read Data for Widgets
