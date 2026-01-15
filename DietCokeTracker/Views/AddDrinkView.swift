@@ -10,13 +10,21 @@ struct AddDrinkView: View {
     @State private var selectedCategory: DrinkCategory? = nil
     @State private var selectedSpecialEdition: SpecialEdition? = nil
     @State private var showSpecialEditions = false
+    @State private var useCustomOunces = false
+    @State private var customOuncesText: String = ""
+    @State private var selectedRating: DrinkRating? = nil
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Selected drink preview
-                    SelectedDrinkPreview(type: selectedType, specialEdition: selectedSpecialEdition)
+                    SelectedDrinkPreview(
+                        type: selectedType,
+                        specialEdition: selectedSpecialEdition,
+                        customOunces: useCustomOunces ? Double(customOuncesText) : nil,
+                        rating: selectedRating
+                    )
 
                     // Category filter
                     AddDrinkCategoryFilterView(selectedCategory: $selectedCategory)
@@ -27,21 +35,34 @@ struct AddDrinkView: View {
                         selectedCategory: selectedCategory
                     )
 
+                    // Custom ounces input
+                    CustomOuncesSection(
+                        useCustomOunces: $useCustomOunces,
+                        customOuncesText: $customOuncesText,
+                        defaultOunces: selectedType.ounces
+                    )
+
                     // Special Edition toggle
                     SpecialEditionSection(
                         showSpecialEditions: $showSpecialEditions,
                         selectedSpecialEdition: $selectedSpecialEdition
                     )
 
+                    // Rating selector
+                    RatingSection(selectedRating: $selectedRating)
+
                     // Optional note
                     NoteInputView(note: $note)
 
                     // Add button
                     Button {
+                        let customOz: Double? = useCustomOunces ? Double(customOuncesText) : nil
                         store.addDrink(
                             type: selectedType,
                             note: note.isEmpty ? nil : note,
-                            specialEdition: selectedSpecialEdition
+                            specialEdition: selectedSpecialEdition,
+                            customOunces: customOz,
+                            rating: selectedRating
                         )
                         store.checkBadges(with: badgeStore)
                         dismiss()
@@ -75,6 +96,12 @@ struct AddDrinkView: View {
 struct SelectedDrinkPreview: View {
     let type: DrinkType
     var specialEdition: SpecialEdition? = nil
+    var customOunces: Double? = nil
+    var rating: DrinkRating? = nil
+
+    private var displayOunces: Double {
+        customOunces ?? type.ounces
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -94,9 +121,17 @@ struct SelectedDrinkPreview: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.dietCokeCharcoal)
 
-                Text("\(String(format: "%.1f", type.ounces)) oz")
-                    .font(.subheadline)
-                    .foregroundColor(.dietCokeDarkSilver)
+                HStack(spacing: 4) {
+                    Text("\(String(format: "%.1f", displayOunces)) oz")
+                        .font(.subheadline)
+                        .foregroundColor(.dietCokeDarkSilver)
+
+                    if customOunces != nil {
+                        Text("(custom)")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeRed)
+                    }
+                }
 
                 if let edition = specialEdition {
                     HStack(spacing: 4) {
@@ -110,6 +145,21 @@ struct SelectedDrinkPreview: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(edition.toBadge().rarity.color.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+
+                if let rating = rating {
+                    HStack(spacing: 4) {
+                        Image(systemName: rating.icon)
+                            .font(.caption2)
+                        Text(rating.displayName)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(rating.color)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(rating.color.opacity(0.1))
                     .clipShape(Capsule())
                 }
             }
@@ -375,6 +425,193 @@ struct NoteInputView: View {
                         .stroke(Color.dietCokeSilver.opacity(0.3), lineWidth: 1)
                 )
         }
+    }
+}
+
+// MARK: - Custom Ounces Section
+
+struct CustomOuncesSection: View {
+    @Binding var useCustomOunces: Bool
+    @Binding var customOuncesText: String
+    let defaultOunces: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    useCustomOunces.toggle()
+                    if useCustomOunces && customOuncesText.isEmpty {
+                        customOuncesText = String(format: "%.1f", defaultOunces)
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "drop.fill")
+                        .foregroundColor(.dietCokeRed)
+                    Text("Custom Amount")
+                        .font(.headline)
+                        .foregroundColor(.dietCokeCharcoal)
+
+                    Spacer()
+
+                    Image(systemName: useCustomOunces ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundColor(useCustomOunces ? .dietCokeRed : .dietCokeDarkSilver)
+                }
+            }
+
+            if useCustomOunces {
+                VStack(spacing: 8) {
+                    Text("Poured some out? Only had half? Enter the actual amount.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(spacing: 12) {
+                        TextField("Amount", text: $customOuncesText)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.plain)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.dietCokeRed.opacity(0.3), lineWidth: 1)
+                            )
+
+                        Text("oz")
+                            .font(.headline)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+
+                    // Quick adjust buttons
+                    HStack(spacing: 8) {
+                        QuickOzButton(label: "1/4", multiplier: 0.25, defaultOunces: defaultOunces, customOuncesText: $customOuncesText)
+                        QuickOzButton(label: "1/2", multiplier: 0.5, defaultOunces: defaultOunces, customOuncesText: $customOuncesText)
+                        QuickOzButton(label: "3/4", multiplier: 0.75, defaultOunces: defaultOunces, customOuncesText: $customOuncesText)
+                        QuickOzButton(label: "Full", multiplier: 1.0, defaultOunces: defaultOunces, customOuncesText: $customOuncesText)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(16)
+        .background(Color.dietCokeCardBackground)
+        .cornerRadius(12)
+    }
+}
+
+struct QuickOzButton: View {
+    let label: String
+    let multiplier: Double
+    let defaultOunces: Double
+    @Binding var customOuncesText: String
+
+    var body: some View {
+        Button {
+            let amount = defaultOunces * multiplier
+            customOuncesText = String(format: "%.1f", amount)
+        } label: {
+            Text(label)
+                .font(.caption)
+                .fontWeight(.medium)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(Color.dietCokeSilver.opacity(0.2))
+                .foregroundColor(.dietCokeCharcoal)
+                .cornerRadius(8)
+        }
+    }
+}
+
+// MARK: - Rating Section
+
+struct RatingSection: View {
+    @Binding var selectedRating: DrinkRating?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
+                Text("Rate this Diet Coke")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Spacer()
+
+                if selectedRating != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedRating = nil
+                        }
+                    } label: {
+                        Text("Clear")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeRed)
+                    }
+                }
+            }
+
+            Text("How was it? (Optional)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 8) {
+                ForEach(DrinkRating.allCases) { rating in
+                    RatingButton(
+                        rating: rating,
+                        isSelected: selectedRating == rating
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            if selectedRating == rating {
+                                selectedRating = nil
+                            } else {
+                                selectedRating = rating
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let rating = selectedRating {
+                Text(rating.description)
+                    .font(.caption)
+                    .foregroundColor(rating.color)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(16)
+        .background(Color.dietCokeCardBackground)
+        .cornerRadius(12)
+    }
+}
+
+struct RatingButton: View {
+    let rating: DrinkRating
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: rating.icon)
+                    .font(.title3)
+                Text(rating.displayName)
+                    .font(.system(size: 9))
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isSelected ? rating.color : rating.color.opacity(0.1))
+            .foregroundColor(isSelected ? .white : rating.color)
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
     }
 }
 

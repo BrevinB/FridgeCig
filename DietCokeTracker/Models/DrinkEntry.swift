@@ -7,21 +7,29 @@ struct DrinkEntry: Identifiable, Codable, Equatable {
     var timestamp: Date
     var note: String?
     var specialEdition: SpecialEdition?
+    var customOunces: Double?
+    var rating: DrinkRating?
 
-    init(id: UUID = UUID(), type: DrinkType, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil) {
+    init(id: UUID = UUID(), type: DrinkType, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
         self.id = id
         self.type = type
         self.timestamp = timestamp
         self.note = note
         self.specialEdition = specialEdition
+        self.customOunces = customOunces
+        self.rating = rating
     }
 
     var isSpecialEdition: Bool {
         specialEdition != nil
     }
 
+    var hasCustomOunces: Bool {
+        customOunces != nil
+    }
+
     var ounces: Double {
-        type.ounces
+        customOunces ?? type.ounces
     }
 
     var formattedTime: String {

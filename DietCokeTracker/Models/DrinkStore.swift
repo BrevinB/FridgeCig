@@ -20,8 +20,8 @@ class DrinkStore: ObservableObject {
         saveEntries()
     }
 
-    func addDrink(type: DrinkType, note: String? = nil, specialEdition: SpecialEdition? = nil) {
-        let entry = DrinkEntry(type: type, note: note, specialEdition: specialEdition)
+    func addDrink(type: DrinkType, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
+        let entry = DrinkEntry(type: type, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating)
         addEntry(entry)
     }
 
@@ -56,6 +56,24 @@ class DrinkStore: ObservableObject {
             updated.timestamp = timestamp
             entries[index] = updated
             entries.sort { $0.timestamp > $1.timestamp }
+            saveEntries()
+        }
+    }
+
+    func updateRating(for entry: DrinkEntry, rating: DrinkRating?) {
+        if let index = entries.firstIndex(where: { $0.id == entry.id }) {
+            var updated = entries[index]
+            updated.rating = rating
+            entries[index] = updated
+            saveEntries()
+        }
+    }
+
+    func updateCustomOunces(for entry: DrinkEntry, customOunces: Double?) {
+        if let index = entries.firstIndex(where: { $0.id == entry.id }) {
+            var updated = entries[index]
+            updated.customOunces = customOunces
+            entries[index] = updated
             saveEntries()
         }
     }
