@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		23CA13DC2F186169000C7B43 /* Badge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DA2F186169000C7B43 /* Badge.swift */; };
+		23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DB2F186169000C7B43 /* BadgeStore.swift */; };
+		23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DE2F18617D000C7B43 /* BadgesView.swift */; };
+		23CA13E12F18617D000C7B43 /* BadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DF2F18617D000C7B43 /* BadgeView.swift */; };
 		A1000001 /* DietCokeTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* DietCokeTrackerApp.swift */; };
 		A1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* ContentView.swift */; };
 		A1000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000003 /* Assets.xcassets */; };
@@ -23,6 +27,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		23CA13DA2F186169000C7B43 /* Badge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Badge.swift; sourceTree = "<group>"; };
+		23CA13DB2F186169000C7B43 /* BadgeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeStore.swift; sourceTree = "<group>"; };
+		23CA13DE2F18617D000C7B43 /* BadgesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgesView.swift; sourceTree = "<group>"; };
+		23CA13DF2F18617D000C7B43 /* BadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeView.swift; sourceTree = "<group>"; };
 		A2000000 /* DietCokeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DietCokeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000001 /* DietCokeTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietCokeTrackerApp.swift; sourceTree = "<group>"; };
 		A2000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -75,6 +83,8 @@
 		A4000002 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				23CA13DA2F186169000C7B43 /* Badge.swift */,
+				23CA13DB2F186169000C7B43 /* BadgeStore.swift */,
 				A2000005 /* DrinkType.swift */,
 				A2000006 /* DrinkEntry.swift */,
 				A2000007 /* DrinkStore.swift */,
@@ -85,6 +95,8 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				23CA13DE2F18617D000C7B43 /* BadgesView.swift */,
+				23CA13DF2F18617D000C7B43 /* BadgeView.swift */,
 				A2000009 /* AddDrinkView.swift */,
 				A2000010 /* HistoryView.swift */,
 				A2000011 /* StatsView.swift */,
@@ -192,10 +204,14 @@
 				A1000001 /* DietCokeTrackerApp.swift in Sources */,
 				A1000005 /* DrinkType.swift in Sources */,
 				A1000006 /* DrinkEntry.swift in Sources */,
+				23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */,
+				23CA13E12F18617D000C7B43 /* BadgeView.swift in Sources */,
 				A1000007 /* DrinkStore.swift in Sources */,
 				A1000008 /* Color+DietCoke.swift in Sources */,
 				A1000009 /* AddDrinkView.swift in Sources */,
 				A1000010 /* HistoryView.swift in Sources */,
+				23CA13DC2F186169000C7B43 /* Badge.swift in Sources */,
+				23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */,
 				A1000011 /* StatsView.swift in Sources */,
 				A1000012 /* DrinkRowView.swift in Sources */,
 				A1000013 /* QuickAddButton.swift in Sources */,

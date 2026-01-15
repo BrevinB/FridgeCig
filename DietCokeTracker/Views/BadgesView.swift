@@ -91,6 +91,18 @@ enum BadgeCategory: String, CaseIterable {
         case .special: return "star.fill"
         }
     }
+
+    var color: Color {
+        switch self {
+        case .all: return .dietCokeRed
+        case .earned: return .green
+        case .milestones: return .blue
+        case .streaks: return .orange
+        case .volume: return .cyan
+        case .variety: return .purple
+        case .special: return .yellow
+        }
+    }
 }
 
 // MARK: - Progress Header
@@ -106,24 +118,24 @@ struct ProgressHeaderView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your Progress")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.8))
 
                     Text("\(earned) of \(total)")
                         .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                 }
 
                 Spacer()
 
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 8)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 8)
                         .frame(width: 70, height: 70)
 
                     Circle()
                         .trim(from: 0, to: percentage / 100)
                         .stroke(
-                            Color.dietCokeRed,
+                            Color.white,
                             style: StrokeStyle(lineWidth: 8, lineCap: .round)
                         )
                         .frame(width: 70, height: 70)
@@ -131,7 +143,7 @@ struct ProgressHeaderView: View {
 
                     Text("\(Int(percentage))%")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.dietCokeRed)
+                        .foregroundColor(.white)
                 }
             }
 
@@ -139,18 +151,26 @@ struct ProgressHeaderView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(Color.white.opacity(0.2))
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.dietCokeRed)
+                        .fill(Color.white)
                         .frame(width: geometry.size.width * (percentage / 100), height: 8)
                 }
             }
             .frame(height: 8)
         }
         .padding()
-        .dietCokeCard()
+        .background(
+            LinearGradient(
+                colors: [Color.dietCokeRed, Color.dietCokeRed.opacity(0.8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: Color.dietCokeRed.opacity(0.3), radius: 10, y: 5)
     }
 }
 
@@ -164,8 +184,7 @@ struct CategoryFilterView: View {
             HStack(spacing: 10) {
                 ForEach(BadgeCategory.allCases, id: \.self) { category in
                     CategoryChip(
-                        title: category.rawValue,
-                        icon: category.icon,
+                        category: category,
                         isSelected: selectedCategory == category
                     ) {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -180,25 +199,37 @@ struct CategoryFilterView: View {
 }
 
 struct CategoryChip: View {
-    let title: String
-    let icon: String
+    let category: BadgeCategory
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image(systemName: category.icon)
                     .font(.caption)
-                Text(title)
+                Text(category.rawValue)
                     .font(.subheadline)
                     .fontWeight(.medium)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(isSelected ? Color.dietCokeRed : Color.dietCokeCardBackground)
+            .background(
+                Group {
+                    if isSelected {
+                        LinearGradient(
+                            colors: [category.color, category.color.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    } else {
+                        Color.dietCokeCardBackground
+                    }
+                }
+            )
             .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(20)
+            .clipShape(Capsule())
+            .shadow(color: isSelected ? category.color.opacity(0.4) : .clear, radius: 4, y: 2)
         }
         .buttonStyle(.plain)
     }

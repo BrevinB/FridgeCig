@@ -121,10 +121,46 @@ struct BadgeGridItem: View {
     let badge: Badge
     var onTap: (() -> Void)?
 
+    private var backgroundGradient: LinearGradient {
+        if badge.isUnlocked {
+            return LinearGradient(
+                colors: [
+                    badge.rarity.color.opacity(0.2),
+                    badge.rarity.color.opacity(0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            return LinearGradient(
+                colors: [Color(.systemGray6), Color(.systemGray5)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
+    private var borderColor: Color {
+        badge.isUnlocked ? badge.rarity.color.opacity(0.4) : Color.gray.opacity(0.2)
+    }
+
+    private var shadowColor: Color {
+        badge.isUnlocked ? badge.rarity.color.opacity(0.25) : Color.clear
+    }
+
     var body: some View {
         Button(action: { onTap?() }) {
             BadgeView(badge: badge, size: .medium)
-                .padding(8)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(backgroundGradient)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(borderColor, lineWidth: 1.5)
+                )
+                .shadow(color: shadowColor, radius: 8, y: 4)
         }
         .buttonStyle(.plain)
     }
@@ -139,62 +175,93 @@ struct BadgeDetailSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Colored header card
+                    VStack(spacing: 16) {
+                        BadgeView(badge: badge, size: .large)
+                            .padding(.top, 8)
 
-                BadgeView(badge: badge, size: .large)
+                        HStack(spacing: 8) {
+                            Text(badge.rarity.displayName)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .fill(badge.rarity.color.gradient)
+                                )
 
-                VStack(spacing: 8) {
-                    HStack {
-                        Text(badge.rarity.displayName)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(badge.rarity.color)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(badge.rarity.color.opacity(0.15))
-                            .clipShape(Capsule())
-
-                        Text(badge.type.rawValue.capitalized)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.1))
-                            .clipShape(Capsule())
-                    }
-
-                    Text(badge.description)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-
-                    if let unlockDate = badge.formattedUnlockDate {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Earned on \(unlockDate)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                            Text(badge.type.rawValue.capitalized)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(badge.rarity.color)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .fill(badge.rarity.color.opacity(0.15))
+                                )
                         }
-                        .padding(.top, 8)
                     }
-                }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                badge.rarity.color.opacity(0.25),
+                                badge.rarity.color.opacity(0.1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
 
-                Spacer()
+                    // Content
+                    VStack(spacing: 16) {
+                        Text(badge.description)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .padding(.top, 20)
 
-                if badge.isUnlocked {
-                    Button(action: { onShare?() }) {
-                        Label("Share Badge", systemImage: "square.and.arrow.up")
+                        if let unlockDate = badge.formattedUnlockDate {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Earned on \(unlockDate)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        if badge.isUnlocked {
+                            Button(action: { onShare?() }) {
+                                Label("Share Badge", systemImage: "square.and.arrow.up")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 14)
+                            .background(
+                                LinearGradient(
+                                    colors: [badge.rarity.color, badge.rarity.color.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .clipShape(Capsule())
+                            .shadow(color: badge.rarity.color.opacity(0.4), radius: 8, y: 4)
+                            .padding(.top, 16)
+                        }
                     }
-                    .buttonStyle(.dietCokePrimary)
+                    .padding(.bottom, 32)
                 }
-
-                Spacer()
             }
-            .padding()
+            .background(Color(.systemGroupedBackground))
             .navigationTitle(badge.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -215,78 +282,189 @@ struct BadgeUnlockToast: View {
     var onDismiss: () -> Void
     var onShare: () -> Void
 
-    @State private var isAnimating = false
+    @State private var iconScale: CGFloat = 0.5
+    @State private var glowOpacity: Double = 0.0
+    @State private var isPulsing: Bool = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Badge Unlocked!")
-                .font(.headline)
-                .foregroundColor(.white)
+        VStack(spacing: 20) {
+            // Header with subtle styling
+            Text("Achievement Unlocked")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.white.opacity(0.8))
+                .textCase(.uppercase)
+                .tracking(1.5)
 
+            // Badge icon with glow effect
             ZStack {
+                // Outer glow with pulse
                 Circle()
-                    .fill(badge.rarity.color.opacity(0.2))
+                    .fill(
+                        RadialGradient(
+                            colors: [badge.rarity.color.opacity(0.5), badge.rarity.color.opacity(0)],
+                            center: .center,
+                            startRadius: 40,
+                            endRadius: 90
+                        )
+                    )
+                    .frame(width: 180, height: 180)
+                    .scaleEffect(isPulsing ? 1.15 : 0.95)
+                    .opacity(glowOpacity)
+
+                // Badge background
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                badge.rarity.color.opacity(0.3),
+                                badge.rarity.color.opacity(0.15)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 100, height: 100)
-                    .scaleEffect(isAnimating ? 1.2 : 0.8)
 
+                // Border ring
                 Circle()
-                    .stroke(badge.rarity.color, lineWidth: 3)
-                    .frame(width: 80, height: 80)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.9),
+                                badge.rarity.color
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 3
+                    )
+                    .frame(width: 100, height: 100)
 
+                // Icon
                 Image(systemName: badge.icon)
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundColor(badge.rarity.color)
+                    .font(.system(size: 40, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .scaleEffect(iconScale)
             }
 
-            VStack(spacing: 4) {
+            // Badge info
+            VStack(spacing: 8) {
                 Text(badge.title)
-                    .font(.title3)
+                    .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
 
                 Text(badge.description)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
+                // Rarity pill
                 Text(badge.rarity.displayName)
-                    .font(.caption2)
+                    .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(badge.rarity.color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(badge.rarity.color.opacity(0.2))
-                    .clipShape(Capsule())
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(.white.opacity(0.2))
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                            )
+                    )
             }
+            .padding(.horizontal)
 
-            HStack(spacing: 12) {
-                Button("Share") {
-                    onShare()
+            // Action buttons
+            HStack(spacing: 16) {
+                Button(action: onShare) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.subheadline)
+                        Text("Share")
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(badge.rarity.color)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(.white)
+                    .clipShape(Capsule())
                 }
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.dietCokeCharcoal)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Color.white)
-                .cornerRadius(8)
 
-                Button("Dismiss") {
-                    onDismiss()
+                Button(action: onDismiss) {
+                    Text("Continue")
+                        .fontWeight(.medium)
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(.white.opacity(0.15))
+                                .overlay(
+                                    Capsule()
+                                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                                )
+                        )
                 }
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
             }
         }
-        .padding(24)
+        .padding(28)
+        .frame(maxWidth: 320)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.dietCokeCharcoal)
-                .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+            ZStack {
+                // Colored glassmorphism background
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(badge.rarity.color.gradient)
+
+                // Glass overlay
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(.ultraThinMaterial.opacity(0.5))
+
+                // Subtle gradient overlay for depth
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                // Border
+                RoundedRectangle(cornerRadius: 28)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.6),
+                                Color.white.opacity(0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
         )
+        .shadow(color: badge.rarity.color.opacity(0.4), radius: 30, y: 15)
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                isAnimating = true
+            // Animate icon entrance
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                iconScale = 1.0
+            }
+            // Animate glow
+            withAnimation(.easeOut(duration: 0.8)) {
+                glowOpacity = 1.0
+            }
+            // Start pulsing
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                isPulsing = true
             }
         }
     }

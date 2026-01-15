@@ -1,0 +1,56 @@
+{
+  "source": "/Users/brevin/Developer/FridgeCig/DietCokeTracker/Views/BadgeView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Earned on %@",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share Badge",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 269
+        }
+      },
+      {
+        "comment": "",
+        "key": "Achievement Unlocked",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 292
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 388
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 399
+        }
+      }
+    ]
+  },
+  "version": 1
+}
