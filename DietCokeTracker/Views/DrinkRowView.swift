@@ -51,9 +51,31 @@ struct DrinkRowView: View {
                         .font(.caption)
                         .foregroundColor(.dietCokeDarkSilver)
 
-                    Text("\(String(format: "%.0f", entry.ounces)) oz")
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
+                    HStack(spacing: 2) {
+                        Text("\(String(format: "%.0f", entry.ounces)) oz")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+
+                        if entry.hasCustomOunces {
+                            Text("*")
+                                .font(.caption)
+                                .foregroundColor(.dietCokeRed)
+                        }
+                    }
+
+                    if let rating = entry.rating {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+
+                        HStack(spacing: 2) {
+                            Image(systemName: rating.icon)
+                                .font(.caption2)
+                            Text(rating.displayName)
+                                .font(.caption)
+                        }
+                        .foregroundColor(rating.color)
+                    }
 
                     if let note = entry.note, !note.isEmpty {
                         Text("•")
