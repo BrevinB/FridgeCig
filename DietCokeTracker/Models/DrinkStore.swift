@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WidgetKit
 
 @MainActor
 class DrinkStore: ObservableObject {
@@ -45,6 +46,16 @@ class DrinkStore: ObservableObject {
             var updated = entries[index]
             updated.note = note
             entries[index] = updated
+            saveEntries()
+        }
+    }
+
+    func updateTimestamp(for entry: DrinkEntry, timestamp: Date) {
+        if let index = entries.firstIndex(where: { $0.id == entry.id }) {
+            var updated = entries[index]
+            updated.timestamp = timestamp
+            entries[index] = updated
+            entries.sort { $0.timestamp > $1.timestamp }
             saveEntries()
         }
     }
@@ -143,19 +154,26 @@ class DrinkStore: ObservableObject {
         }.reversed()
     }
 
-    // MARK: - Persistence
+    // MARK: - Persistence (App Groups for Widget sharing)
+
+    private var sharedDefaults: UserDefaults? {
+        UserDefaults(suiteName: SharedDataManager.appGroupID)
+    }
 
     private func saveEntries() {
         do {
             let data = try JSONEncoder().encode(entries)
-            UserDefaults.standard.set(data, forKey: saveKey)
+            sharedDefaults?.set(data, forKey: saveKey)
+
+            // Refresh widgets
+            WidgetCenter.shared.reloadAllTimelines()
         } catch {
             print("Failed to save entries: \(error)")
         }
     }
 
     private func loadEntries() {
-        guard let data = UserDefaults.standard.data(forKey: saveKey) else {
+        guard let data = sharedDefaults?.data(forKey: saveKey) else {
             return
         }
 

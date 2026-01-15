@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DrinkRowView: View {
     let entry: DrinkEntry
+    @State private var showingEditSheet = false
 
     private var accentColor: Color {
         if let edition = entry.specialEdition {
@@ -74,6 +75,13 @@ struct DrinkRowView: View {
                 .foregroundColor(.dietCokeSilver)
         }
         .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showingEditSheet = true
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EditEntrySheet(entry: entry)
+        }
     }
 }
 

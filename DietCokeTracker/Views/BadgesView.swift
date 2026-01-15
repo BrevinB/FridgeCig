@@ -86,7 +86,7 @@ enum BadgeCategory: String, CaseIterable {
         case .earned: return "checkmark.seal.fill"
         case .milestones: return "flag.fill"
         case .streaks: return "flame.fill"
-        case .volume: return "drop.fill"
+        case .volume: return "flask.fill"
         case .variety: return "square.stack.3d.up.fill"
         case .special: return "star.fill"
         }
@@ -353,7 +353,7 @@ struct ShareableBadgeView: View {
         VStack(spacing: 16) {
             // Header
             HStack {
-                Image(systemName: "drop.fill")
+                Image(systemName: "flask.fill")
                     .foregroundColor(.dietCokeRed)
                 Text("Diet Coke Tracker")
                     .font(.caption)

@@ -138,7 +138,7 @@ struct TodaySummaryCard: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Image(systemName: "drop.fill")
+                    Image(systemName: "flask.fill")
                         .font(.system(size: 40))
                         .foregroundColor(.dietCokeRed)
 

@@ -144,7 +144,7 @@ struct BadgeDefinitions {
 
     static let milestones: [Badge] = [
         Badge(id: "first_sip", type: .milestone, title: "First Sip",
-              description: "Log your first Diet Coke", icon: "drop.fill", rarity: .common),
+              description: "Log your first Diet Coke", icon: "flask.fill", rarity: .common),
         Badge(id: "getting_started", type: .milestone, title: "Getting Started",
               description: "Log 10 Diet Cokes", icon: "flame.fill", rarity: .common),
         Badge(id: "regular", type: .milestone, title: "Regular",
@@ -205,9 +205,9 @@ struct BadgeDefinitions {
 
     static let volume: [Badge] = [
         Badge(id: "volume_100", type: .volume, title: "First Gallon",
-              description: "Drink 128+ ounces total", icon: "drop.circle.fill", rarity: .common),
+              description: "Drink 128+ ounces total", icon: "flask.circle.fill", rarity: .common),
         Badge(id: "volume_500", type: .volume, title: "Half Grand",
-              description: "Drink 500+ ounces total", icon: "drop.degreesign.fill", rarity: .uncommon),
+              description: "Drink 500+ ounces total", icon: "flask.degreesign.fill", rarity: .uncommon),
         Badge(id: "volume_1000", type: .volume, title: "Kiloounce Club",
               description: "Drink 1000+ ounces total", icon: "waterbottle.fill", rarity: .rare),
         Badge(id: "volume_5000", type: .volume, title: "Ocean Sipper",

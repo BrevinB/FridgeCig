@@ -112,24 +112,45 @@ struct HistorySectionHeader: View {
 
 struct HistoryRowView: View {
     let entry: DrinkEntry
+    @State private var showingEditSheet = false
+
+    private var accentColor: Color {
+        if let edition = entry.specialEdition {
+            return edition.toBadge().rarity.color
+        }
+        return .dietCokeRed
+    }
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.dietCokeRed.opacity(0.1))
+                    .fill(accentColor.opacity(0.1))
                     .frame(width: 44, height: 44)
 
-                Image(systemName: entry.type.icon)
+                Image(systemName: entry.specialEdition?.icon ?? entry.type.icon)
                     .font(.system(size: 18))
-                    .foregroundColor(.dietCokeRed)
+                    .foregroundColor(accentColor)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(entry.type.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.dietCokeCharcoal)
+                HStack(spacing: 6) {
+                    Text(entry.type.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.dietCokeCharcoal)
+
+                    if let edition = entry.specialEdition {
+                        Text(edition.rawValue)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(edition.toBadge().rarity.color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(edition.toBadge().rarity.color.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
 
                 HStack(spacing: 8) {
                     Text(entry.formattedTime)
@@ -153,8 +174,19 @@ struct HistoryRowView: View {
             Text("\(String(format: "%.0f", entry.ounces)) oz")
                 .font(.subheadline)
                 .foregroundColor(.dietCokeDarkSilver)
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.dietCokeSilver)
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showingEditSheet = true
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EditEntrySheet(entry: entry)
+        }
     }
 }
 

@@ -1,22 +1,39 @@
 import SwiftUI
+import UIKit
 
 extension Color {
-    // MARK: - Diet Coke Brand Colors
+    // MARK: - Diet Coke Brand Colors (Dark Mode Adaptive)
 
-    /// Classic Diet Coke red accent
+    /// Classic Diet Coke red accent (same in both modes)
     static let dietCokeRed = Color(red: 0.89, green: 0.09, blue: 0.17)
 
-    /// Diet Coke silver/platinum
-    static let dietCokeSilver = Color(red: 0.75, green: 0.75, blue: 0.78)
+    /// Diet Coke silver/platinum - adapts to dark mode
+    static let dietCokeSilver = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.65, green: 0.65, blue: 0.68, alpha: 1)
+            : UIColor(red: 0.75, green: 0.75, blue: 0.78, alpha: 1)
+    })
 
-    /// Diet Coke dark silver
-    static let dietCokeDarkSilver = Color(red: 0.45, green: 0.45, blue: 0.48)
+    /// Diet Coke dark silver - adapts to dark mode
+    static let dietCokeDarkSilver = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.55, green: 0.55, blue: 0.58, alpha: 1)
+            : UIColor(red: 0.45, green: 0.45, blue: 0.48, alpha: 1)
+    })
 
-    /// Diet Coke charcoal/black
-    static let dietCokeCharcoal = Color(red: 0.15, green: 0.15, blue: 0.17)
+    /// Diet Coke charcoal/text color - inverts for dark mode
+    static let dietCokeCharcoal = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.92, green: 0.92, blue: 0.94, alpha: 1)
+            : UIColor(red: 0.15, green: 0.15, blue: 0.17, alpha: 1)
+    })
 
-    /// Light background for cards
-    static let dietCokeCardBackground = Color(red: 0.95, green: 0.95, blue: 0.96)
+    /// Background for cards - adapts to dark mode
+    static let dietCokeCardBackground = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.17, green: 0.17, blue: 0.19, alpha: 1)
+            : UIColor(red: 0.95, green: 0.95, blue: 0.96, alpha: 1)
+    })
 
     /// Gradient for backgrounds
     static let dietCokeGradient = LinearGradient(
@@ -52,11 +69,18 @@ extension Color {
 // MARK: - View Modifiers
 
 struct DietCokeCardStyle: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
         content
             .background(Color.dietCokeCardBackground)
             .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08),
+                radius: colorScheme == .dark ? 4 : 8,
+                x: 0,
+                y: colorScheme == .dark ? 2 : 4
+            )
     }
 }
 

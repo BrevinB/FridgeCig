@@ -1,9 +1,10 @@
 import Foundation
+import Combine
 
 struct DrinkEntry: Identifiable, Codable, Equatable {
     let id: UUID
     let type: DrinkType
-    let timestamp: Date
+    var timestamp: Date
     var note: String?
     var specialEdition: SpecialEdition?
 

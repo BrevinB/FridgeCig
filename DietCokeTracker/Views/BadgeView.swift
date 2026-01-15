@@ -478,7 +478,7 @@ struct BadgeUnlockToast: View {
         type: .milestone,
         title: "First Sip",
         description: "Log your first Diet Coke",
-        icon: "drop.fill",
+        icon: "flask.fill",
         rarity: .common,
         unlockedAt: Date()
     )

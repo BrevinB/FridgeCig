@@ -26,7 +26,7 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
         case .regularCan, .tallCan, .miniCan:
             return "cylinder.fill"
         case .bottle20oz, .bottle2Liter, .glassBottle:
-            return "waterbottle.fill"
+            return "flask.fill"
         case .mcdonaldsSmall, .mcdonaldsMedium, .mcdonaldsLarge:
             return "m.circle.fill"
         case .chickfilaSmall, .chickfilaMedium, .chickfilaLarge:
@@ -34,7 +34,7 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
         case .fountainSmall, .fountainMedium, .fountainLarge:
             return "cup.and.saucer.fill"
         case .cafeFreestyle:
-            return "drop.circle.fill"
+            return "flask.circle.fill"
         }
     }
 
@@ -116,7 +116,7 @@ enum DrinkCategory: String, CaseIterable {
     var icon: String {
         switch self {
         case .cans: return "cylinder.fill"
-        case .bottles: return "waterbottle.fill"
+        case .bottles: return "flask.fill"
         case .mcdonalds: return "m.circle.fill"
         case .chickfila: return "c.circle.fill"
         case .fountain: return "cup.and.saucer.fill"
