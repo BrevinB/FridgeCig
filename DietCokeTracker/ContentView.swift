@@ -23,17 +23,23 @@ struct ContentView: View {
                     }
                     .tag(1)
 
+                SocialTabView()
+                    .tabItem {
+                        Label("Social", systemImage: "person.2.fill")
+                    }
+                    .tag(2)
+
                 BadgesView()
                     .tabItem {
                         Label("Badges", systemImage: "trophy.fill")
                     }
-                    .tag(2)
+                    .tag(3)
 
                 StatsView()
                     .tabItem {
                         Label("Stats", systemImage: "chart.bar.fill")
                     }
-                    .tag(3)
+                    .tag(4)
             }
             .tint(.dietCokeRed)
             .sheet(isPresented: $showingAddDrink) {

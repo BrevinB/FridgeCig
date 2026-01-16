@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CloudKit
 
 struct DrinkEntry: Identifiable, Equatable {
     let id: UUID
@@ -136,5 +137,77 @@ extension Array where Element == DrinkEntry {
 
     func groupedByType() -> [DrinkType: [DrinkEntry]] {
         Dictionary(grouping: self) { $0.type }
+    }
+}
+
+// MARK: - CloudKit Conversion
+
+extension DrinkEntry {
+    static let recordType = "DrinkEntry"
+
+    /// Create from CloudKit record
+    init?(from record: CKRecord) {
+        guard let idString = record["entryID"] as? String,
+              let id = UUID(uuidString: idString),
+              let typeRaw = record["type"] as? String,
+              let type = DrinkType(rawValue: typeRaw),
+              let timestamp = record["timestamp"] as? Date else {
+            return nil
+        }
+
+        self.id = id
+        self.type = type
+        self.timestamp = timestamp
+
+        // Optional fields
+        if let brandRaw = record["brand"] as? String {
+            self.brand = BeverageBrand(rawValue: brandRaw) ?? .dietCoke
+        } else {
+            self.brand = .dietCoke
+        }
+
+        self.note = record["note"] as? String
+
+        if let specialRaw = record["specialEdition"] as? String {
+            self.specialEdition = SpecialEdition(rawValue: specialRaw)
+        } else {
+            self.specialEdition = nil
+        }
+
+        self.customOunces = record["customOunces"] as? Double
+
+        if let ratingInt = record["rating"] as? Int64 {
+            self.rating = DrinkRating(rawValue: Int(ratingInt))
+        } else {
+            self.rating = nil
+        }
+
+        self.photoFilename = record["photoFilename"] as? String
+    }
+
+    /// Convert to CloudKit record
+    func toCKRecord() -> CKRecord {
+        let record = CKRecord(recordType: Self.recordType)
+        populateRecord(record)
+        return record
+    }
+
+    /// Convert to CloudKit record with existing ID (for updates)
+    func toCKRecord(existingRecordID: CKRecord.ID) -> CKRecord {
+        let record = CKRecord(recordType: Self.recordType, recordID: existingRecordID)
+        populateRecord(record)
+        return record
+    }
+
+    private func populateRecord(_ record: CKRecord) {
+        record["entryID"] = id.uuidString
+        record["type"] = type.rawValue
+        record["brand"] = brand.rawValue
+        record["timestamp"] = timestamp
+        record["note"] = note
+        record["specialEdition"] = specialEdition?.rawValue
+        record["customOunces"] = customOunces
+        record["rating"] = rating?.rawValue
+        record["photoFilename"] = photoFilename
     }
 }

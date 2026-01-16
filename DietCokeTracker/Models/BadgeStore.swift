@@ -1,15 +1,24 @@
 import Foundation
 import SwiftUI
+import CloudKit
 
 @MainActor
 class BadgeStore: ObservableObject {
     @Published private(set) var unlockedBadges: [String: Date] = [:]
     @Published var recentlyUnlocked: Badge?
+    @Published var isSyncing = false
 
     private let saveKey = "UnlockedBadges"
+    private let recordType = "BadgeData"
+    private let recordIDKey = "BadgeDataRecordID"
+
+    /// CloudKit manager for syncing (set by app)
+    var cloudKitManager: CloudKitManager?
+    private var cloudRecordID: CKRecord.ID?
 
     init() {
         loadBadges()
+        loadRecordID()
     }
 
     // MARK: - Badge Status
@@ -151,6 +160,11 @@ class BadgeStore: ObservableObject {
         } catch {
             print("Failed to save badges: \(error)")
         }
+
+        // Sync to CloudKit
+        Task {
+            try? await syncToCloud()
+        }
     }
 
     private func loadBadges() {
@@ -162,6 +176,91 @@ class BadgeStore: ObservableObject {
             unlockedBadges = try JSONDecoder().decode([String: Date].self, from: data)
         } catch {
             print("Failed to load badges: \(error)")
+        }
+    }
+
+    // MARK: - CloudKit Sync
+
+    func performSync() async {
+        guard let cloudKitManager = cloudKitManager, cloudKitManager.isAvailable else { return }
+
+        isSyncing = true
+        defer { isSyncing = false }
+
+        do {
+            // Fetch from cloud
+            let cloudBadges = try await fetchFromCloud()
+
+            // Merge: keep all badges from both (union with newest date wins)
+            var merged = unlockedBadges
+            for (badgeId, cloudDate) in cloudBadges {
+                if let localDate = merged[badgeId] {
+                    // Keep the earlier unlock date
+                    merged[badgeId] = min(localDate, cloudDate)
+                } else {
+                    merged[badgeId] = cloudDate
+                }
+            }
+
+            // Update local if changed
+            if merged != unlockedBadges {
+                unlockedBadges = merged
+                let data = try JSONEncoder().encode(unlockedBadges)
+                UserDefaults.standard.set(data, forKey: saveKey)
+            }
+
+            // Upload merged data
+            try await syncToCloud()
+        } catch {
+            print("Badge sync failed: \(error)")
+        }
+    }
+
+    private func fetchFromCloud() async throws -> [String: Date] {
+        guard let cloudKitManager = cloudKitManager else { return [:] }
+
+        let records = try await cloudKitManager.fetchFromPrivate(recordType: recordType)
+        guard let record = records.first,
+              let jsonData = record["badgesJSON"] as? String,
+              let data = jsonData.data(using: .utf8) else {
+            return [:]
+        }
+
+        cloudRecordID = record.recordID
+        saveRecordID()
+
+        return try JSONDecoder().decode([String: Date].self, from: data)
+    }
+
+    private func syncToCloud() async throws {
+        guard let cloudKitManager = cloudKitManager, cloudKitManager.isAvailable else { return }
+
+        let jsonData = try JSONEncoder().encode(unlockedBadges)
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+
+        let record: CKRecord
+        if let existingID = cloudRecordID {
+            record = CKRecord(recordType: recordType, recordID: existingID)
+        } else {
+            record = CKRecord(recordType: recordType)
+        }
+
+        record["badgesJSON"] = jsonString
+
+        try await cloudKitManager.saveToPrivate(record)
+        cloudRecordID = record.recordID
+        saveRecordID()
+    }
+
+    private func loadRecordID() {
+        if let recordName = UserDefaults.standard.string(forKey: recordIDKey) {
+            cloudRecordID = CKRecord.ID(recordName: recordName)
+        }
+    }
+
+    private func saveRecordID() {
+        if let recordID = cloudRecordID {
+            UserDefaults.standard.set(recordID.recordName, forKey: recordIDKey)
         }
     }
 

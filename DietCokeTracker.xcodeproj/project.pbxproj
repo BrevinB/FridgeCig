@@ -38,6 +38,11 @@
 		23CA15AA2F19A825000C7B43 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15A92F19A825000C7B43 /* CameraView.swift */; };
 		23CA15AF2F19B764000C7B43 /* fridgecig.icon in Resources */ = {isa = PBXBuildFile; fileRef = 23CA15AE2F19B6D7000C7B43 /* fridgecig.icon */; };
 		23CA15B02F19B764000C7B43 /* fridgecig.icon in Resources */ = {isa = PBXBuildFile; fileRef = 23CA15AE2F19B6D7000C7B43 /* fridgecig.icon */; };
+		23CA15B22F19EC86000C7B43 /* EditEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15B12F19EC86000C7B43 /* EditEntrySheet.swift */; };
+		23CA15BB2F19ECA4000C7B43 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15BA2F19ECA4000C7B43 /* UserIdentity.swift */; };
+		23CA15BD2F19ECAD000C7B43 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15BC2F19ECAD000C7B43 /* UserProfile.swift */; };
+		23CA15D52F19F322000C7B43 /* FriendConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15D42F19F322000C7B43 /* FriendConnection.swift */; };
+		23CA15D72F19F351000C7B43 /* LeaderboardCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15D62F19F351000C7B43 /* LeaderboardCategory.swift */; };
 		A1000001 /* DietCokeTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* DietCokeTrackerApp.swift */; };
 		A1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* ContentView.swift */; };
 		A1000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000003 /* Assets.xcassets */; };
@@ -133,6 +138,11 @@
 		23CA15A92F19A825000C7B43 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		23CA15AB2F19A8A4000C7B43 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		23CA15AE2F19B6D7000C7B43 /* fridgecig.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = fridgecig.icon; sourceTree = "<group>"; };
+		23CA15B12F19EC86000C7B43 /* EditEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditEntrySheet.swift; sourceTree = "<group>"; };
+		23CA15BA2F19ECA4000C7B43 /* UserIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserIdentity.swift; sourceTree = "<group>"; };
+		23CA15BC2F19ECAD000C7B43 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
+		23CA15D42F19F322000C7B43 /* FriendConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendConnection.swift; sourceTree = "<group>"; };
+		23CA15D62F19F351000C7B43 /* LeaderboardCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardCategory.swift; sourceTree = "<group>"; };
 		A2000000 /* DietCokeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DietCokeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000001 /* DietCokeTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietCokeTrackerApp.swift; sourceTree = "<group>"; };
 		A2000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -195,6 +205,8 @@
 		23CA14132F18A480000C7B43 /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14162F18A486000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14312F18A915000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14542F18AD03000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
 		23CA14212F18A889000C7B43 /* DietCokeWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "DietCokeWatch Watch App"; sourceTree = "<group>"; };
 		23CA14402F18ACE1000C7B43 /* DietCokeWatchWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14502F18ACE2000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DietCokeWatchWidget; sourceTree = "<group>"; };
+		23CA15B62F19EC8E000C7B43 /* Social */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Social; sourceTree = "<group>"; };
+		23CA15C12F19ECC4000C7B43 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -259,6 +271,7 @@
 		A4000001 /* DietCokeTracker */ = {
 			isa = PBXGroup;
 			children = (
+				23CA15C12F19ECC4000C7B43 /* Services */,
 				23CA15AB2F19A8A4000C7B43 /* Info.plist */,
 				23CA14132F18A480000C7B43 /* Shared */,
 				23CA140E2F189FAF000C7B43 /* DietCokeTracker.entitlements */,
@@ -277,6 +290,10 @@
 		A4000002 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				23CA15D62F19F351000C7B43 /* LeaderboardCategory.swift */,
+				23CA15D42F19F322000C7B43 /* FriendConnection.swift */,
+				23CA15BC2F19ECAD000C7B43 /* UserProfile.swift */,
+				23CA15BA2F19ECA4000C7B43 /* UserIdentity.swift */,
 				23CA14582F1954DF000C7B43 /* DrinkRating.swift */,
 				23CA15A02F19A347000C7B43 /* UserPreferences.swift */,
 				23CA13DA2F186169000C7B43 /* Badge.swift */,
@@ -291,6 +308,8 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				23CA15B62F19EC8E000C7B43 /* Social */,
+				23CA15B12F19EC86000C7B43 /* EditEntrySheet.swift */,
 				23CA15A92F19A825000C7B43 /* CameraView.swift */,
 				23CA159E2F19A33D000C7B43 /* SettingsView.swift */,
 				23CA13F02F1895AD000C7B43 /* EditEntrySheet.swift */,
@@ -421,6 +440,8 @@
 			);
 			fileSystemSynchronizedGroups = (
 				23CA14132F18A480000C7B43 /* Shared */,
+				23CA15B62F19EC8E000C7B43 /* Social */,
+				23CA15C12F19ECC4000C7B43 /* Services */,
 			);
 			name = DietCokeTracker;
 			productName = DietCokeTracker;
@@ -546,6 +567,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				23CA15D72F19F351000C7B43 /* LeaderboardCategory.swift in Sources */,
 				23CA13F12F1895AD000C7B43 /* EditEntrySheet.swift in Sources */,
 				23CA15A42F19A347000C7B43 /* UserPreferences.swift in Sources */,
 				A1000002 /* ContentView.swift in Sources */,
@@ -554,16 +576,20 @@
 				23CA145A2F1954DF000C7B43 /* DrinkRating.swift in Sources */,
 				23CA159F2F19A33D000C7B43 /* SettingsView.swift in Sources */,
 				A1000006 /* DrinkEntry.swift in Sources */,
+				23CA15BD2F19ECAD000C7B43 /* UserProfile.swift in Sources */,
 				23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */,
 				23CA13E12F18617D000C7B43 /* BadgeView.swift in Sources */,
 				A1000007 /* DrinkStore.swift in Sources */,
 				A1000008 /* Color+DietCoke.swift in Sources */,
 				A1000009 /* AddDrinkView.swift in Sources */,
+				23CA15BB2F19ECA4000C7B43 /* UserIdentity.swift in Sources */,
 				A1000010 /* HistoryView.swift in Sources */,
+				23CA15B22F19EC86000C7B43 /* EditEntrySheet.swift in Sources */,
 				23CA13DC2F186169000C7B43 /* Badge.swift in Sources */,
 				23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */,
 				23CA15AA2F19A825000C7B43 /* CameraView.swift in Sources */,
 				A1000011 /* StatsView.swift in Sources */,
+				23CA15D52F19F322000C7B43 /* FriendConnection.swift in Sources */,
 				A1000012 /* DrinkRowView.swift in Sources */,
 				A1000013 /* QuickAddButton.swift in Sources */,
 			);
@@ -922,6 +948,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = FridgeCig;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your drinks to add to your log";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Find friends who use FridgeCig";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -955,6 +982,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = FridgeCig;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your drinks to add to your log";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Find friends who use FridgeCig";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

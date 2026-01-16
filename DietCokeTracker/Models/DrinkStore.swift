@@ -2,15 +2,41 @@ import Foundation
 import SwiftUI
 import WidgetKit
 import UIKit
+import Combine
 
 @MainActor
 class DrinkStore: ObservableObject {
     @Published private(set) var entries: [DrinkEntry] = []
+    @Published var isSyncing = false
+
+    /// Publisher that emits when entries change (for stats sync)
+    let entriesDidChange = PassthroughSubject<Void, Never>()
 
     private let saveKey = "DietCokeEntries"
 
+    /// Sync service for CloudKit (set by app on launch)
+    var syncService: DrinkSyncService?
+
     init() {
         loadEntries()
+    }
+
+    // MARK: - CloudKit Sync
+
+    /// Perform full sync with CloudKit
+    func performSync() async {
+        guard let syncService = syncService else { return }
+
+        isSyncing = true
+        defer { isSyncing = false }
+
+        do {
+            let merged = try await syncService.performFullSync(localEntries: entries)
+            entries = merged
+            saveEntries(triggerCloudSync: false)
+        } catch {
+            print("Sync failed: \(error)")
+        }
     }
 
     // MARK: - CRUD Operations
@@ -19,6 +45,11 @@ class DrinkStore: ObservableObject {
         entries.append(entry)
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
+
+        // Sync to cloud
+        Task {
+            try? await syncService?.uploadEntry(entry)
+        }
     }
 
     func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photo: UIImage? = nil) {
@@ -49,17 +80,32 @@ class DrinkStore: ObservableObject {
         }
         entries.removeAll { $0.id == entry.id }
         saveEntries()
+
+        // Sync deletion to cloud
+        Task {
+            try? await syncService?.deleteEntry(entry)
+        }
     }
 
     func deleteEntries(at offsets: IndexSet) {
+        // Collect entries to delete for cloud sync
+        let entriesToDelete = offsets.map { entries[$0] }
+
         // Delete associated photos
-        for index in offsets {
-            if let photoFilename = entries[index].photoFilename {
+        for entry in entriesToDelete {
+            if let photoFilename = entry.photoFilename {
                 PhotoStorage.deletePhoto(filename: photoFilename)
             }
         }
         entries.remove(atOffsets: offsets)
         saveEntries()
+
+        // Sync deletions to cloud
+        Task {
+            for entry in entriesToDelete {
+                try? await syncService?.deleteEntry(entry)
+            }
+        }
     }
 
     func updateNote(for entry: DrinkEntry, note: String?) {
@@ -68,6 +114,7 @@ class DrinkStore: ObservableObject {
             updated.note = note
             entries[index] = updated
             saveEntries()
+            syncEntry(updated)
         }
     }
 
@@ -78,6 +125,7 @@ class DrinkStore: ObservableObject {
             entries[index] = updated
             entries.sort { $0.timestamp > $1.timestamp }
             saveEntries()
+            syncEntry(updated)
         }
     }
 
@@ -87,6 +135,7 @@ class DrinkStore: ObservableObject {
             updated.rating = rating
             entries[index] = updated
             saveEntries()
+            syncEntry(updated)
         }
     }
 
@@ -96,6 +145,13 @@ class DrinkStore: ObservableObject {
             updated.customOunces = customOunces
             entries[index] = updated
             saveEntries()
+            syncEntry(updated)
+        }
+    }
+
+    private func syncEntry(_ entry: DrinkEntry) {
+        Task {
+            try? await syncService?.updateEntry(entry)
         }
     }
 
@@ -199,13 +255,18 @@ class DrinkStore: ObservableObject {
         UserDefaults(suiteName: SharedDataManager.appGroupID)
     }
 
-    private func saveEntries() {
+    private func saveEntries(triggerCloudSync: Bool = true) {
         do {
             let data = try JSONEncoder().encode(entries)
             sharedDefaults?.set(data, forKey: saveKey)
 
             // Refresh widgets
             WidgetCenter.shared.reloadAllTimelines()
+
+            // Notify listeners for stats sync
+            if triggerCloudSync {
+                entriesDidChange.send()
+            }
         } catch {
             print("Failed to save entries: \(error)")
         }
