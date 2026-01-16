@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AddDrinkView: View {
     @EnvironmentObject var store: DrinkStore
@@ -15,6 +16,8 @@ struct AddDrinkView: View {
     @State private var useCustomOunces = false
     @State private var customOuncesText: String = ""
     @State private var selectedRating: DrinkRating? = nil
+    @State private var capturedPhoto: UIImage? = nil
+    @State private var showingCamera = false
 
     private var effectiveBrand: BeverageBrand {
         selectedBrand ?? preferences.defaultBrand
@@ -64,6 +67,12 @@ struct AddDrinkView: View {
                     // Rating selector
                     RatingSection(selectedRating: $selectedRating)
 
+                    // Photo section
+                    PhotoSection(
+                        capturedPhoto: $capturedPhoto,
+                        showingCamera: $showingCamera
+                    )
+
                     // Optional note
                     NoteInputView(note: $note)
 
@@ -76,7 +85,8 @@ struct AddDrinkView: View {
                             note: note.isEmpty ? nil : note,
                             specialEdition: selectedSpecialEdition,
                             customOunces: customOz,
-                            rating: selectedRating
+                            rating: selectedRating,
+                            photo: capturedPhoto
                         )
                         store.checkBadges(with: badgeStore)
                         dismiss()
@@ -102,6 +112,9 @@ struct AddDrinkView: View {
                     }
                     .foregroundColor(.dietCokeRed)
                 }
+            }
+            .sheet(isPresented: $showingCamera) {
+                CameraView(capturedImage: $capturedPhoto)
             }
         }
     }
@@ -746,6 +759,102 @@ struct RatingButton: View {
             .cornerRadius(10)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Photo Section
+
+struct PhotoSection: View {
+    @Binding var capturedPhoto: UIImage?
+    @Binding var showingCamera: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "camera.fill")
+                    .foregroundColor(.dietCokeRed)
+                Text("Photo")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Spacer()
+
+                if capturedPhoto != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            capturedPhoto = nil
+                        }
+                    } label: {
+                        Text("Remove")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeRed)
+                    }
+                }
+            }
+
+            Text("Take a photo of your drink (Optional)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if let photo = capturedPhoto {
+                // Photo preview
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 200)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .cornerRadius(12)
+                    .overlay(
+                        Button {
+                            if CameraView.isAvailable {
+                                showingCamera = true
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "camera.fill")
+                                Text("Retake")
+                            }
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(8)
+                        }
+                        .padding(8),
+                        alignment: .bottomTrailing
+                    )
+            } else {
+                // Camera button
+                Button {
+                    if CameraView.isAvailable {
+                        showingCamera = true
+                    }
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "camera.fill")
+                            .font(.title2)
+                        Text(CameraView.isAvailable ? "Take Photo" : "Camera Unavailable")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(CameraView.isAvailable ? .dietCokeRed : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.dietCokeSilver.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .disabled(!CameraView.isAvailable)
+            }
+        }
+        .padding(16)
+        .background(Color.dietCokeCardBackground)
+        .cornerRadius(12)
     }
 }
 

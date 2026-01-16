@@ -10,8 +10,9 @@ struct DrinkEntry: Identifiable, Equatable {
     var specialEdition: SpecialEdition?
     var customOunces: Double?
     var rating: DrinkRating?
+    var photoFilename: String?
 
-    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
+    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photoFilename: String? = nil) {
         self.id = id
         self.type = type
         self.brand = brand
@@ -20,6 +21,11 @@ struct DrinkEntry: Identifiable, Equatable {
         self.specialEdition = specialEdition
         self.customOunces = customOunces
         self.rating = rating
+        self.photoFilename = photoFilename
+    }
+
+    var hasPhoto: Bool {
+        photoFilename != nil
     }
 }
 
@@ -27,7 +33,7 @@ struct DrinkEntry: Identifiable, Equatable {
 
 extension DrinkEntry: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, type, brand, timestamp, note, specialEdition, customOunces, rating
+        case id, type, brand, timestamp, note, specialEdition, customOunces, rating, photoFilename
     }
 
     init(from decoder: Decoder) throws {
@@ -41,6 +47,7 @@ extension DrinkEntry: Codable {
         specialEdition = try container.decodeIfPresent(SpecialEdition.self, forKey: .specialEdition)
         customOunces = try container.decodeIfPresent(Double.self, forKey: .customOunces)
         rating = try container.decodeIfPresent(DrinkRating.self, forKey: .rating)
+        photoFilename = try container.decodeIfPresent(String.self, forKey: .photoFilename)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -53,6 +60,7 @@ extension DrinkEntry: Codable {
         try container.encodeIfPresent(specialEdition, forKey: .specialEdition)
         try container.encodeIfPresent(customOunces, forKey: .customOunces)
         try container.encodeIfPresent(rating, forKey: .rating)
+        try container.encodeIfPresent(photoFilename, forKey: .photoFilename)
     }
 
     var isSpecialEdition: Bool {

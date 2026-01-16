@@ -96,6 +96,16 @@ struct DrinkRowView: View {
                             .foregroundColor(.dietCokeDarkSilver)
                             .lineLimit(1)
                     }
+
+                    if entry.hasPhoto {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+
+                        Image(systemName: "camera.fill")
+                            .font(.caption2)
+                            .foregroundColor(.dietCokeRed)
+                    }
                 }
             }
 

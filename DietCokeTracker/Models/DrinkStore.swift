@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import WidgetKit
+import UIKit
 
 @MainActor
 class DrinkStore: ObservableObject {
@@ -20,8 +21,18 @@ class DrinkStore: ObservableObject {
         saveEntries()
     }
 
-    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil) {
-        let entry = DrinkEntry(type: type, brand: brand, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating)
+    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photo: UIImage? = nil) {
+        var photoFilename: String? = nil
+
+        // Save photo if provided
+        if let photo = photo {
+            let filename = PhotoStorage.generateFilename()
+            if PhotoStorage.savePhoto(photo, filename: filename) {
+                photoFilename = filename
+            }
+        }
+
+        let entry = DrinkEntry(type: type, brand: brand, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating, photoFilename: photoFilename)
         addEntry(entry)
     }
 
@@ -32,11 +43,21 @@ class DrinkStore: ObservableObject {
     }
 
     func deleteEntry(_ entry: DrinkEntry) {
+        // Delete associated photo if exists
+        if let photoFilename = entry.photoFilename {
+            PhotoStorage.deletePhoto(filename: photoFilename)
+        }
         entries.removeAll { $0.id == entry.id }
         saveEntries()
     }
 
     func deleteEntries(at offsets: IndexSet) {
+        // Delete associated photos
+        for index in offsets {
+            if let photoFilename = entries[index].photoFilename {
+                PhotoStorage.deletePhoto(filename: photoFilename)
+            }
+        }
         entries.remove(atOffsets: offsets)
         saveEntries()
     }
