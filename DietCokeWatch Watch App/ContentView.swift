@@ -5,8 +5,18 @@ struct ContentView: View {
     @State private var todayCount = 0
     @State private var todayOunces = 0.0
     @State private var streak = 0
+    @State private var isPremium = false
 
     var body: some View {
+        if isPremium {
+            mainContent
+        } else {
+            WatchUpgradePromptView()
+                .onAppear(perform: checkPremiumStatus)
+        }
+    }
+
+    private var mainContent: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
@@ -27,6 +37,31 @@ struct ContentView: View {
         todayCount = SharedDataManager.getTodayCount()
         todayOunces = SharedDataManager.getTodayOunces()
         streak = SharedDataManager.getStreak()
+    }
+
+    private func checkPremiumStatus() {
+        isPremium = SubscriptionStatusManager.isPremium()
+    }
+}
+
+// MARK: - Upgrade Prompt View
+
+struct WatchUpgradePromptView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(.red)
+
+            Text("FridgeCig Pro")
+                .font(.headline)
+
+            Text("Open iPhone app to upgrade")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
     }
 }
 

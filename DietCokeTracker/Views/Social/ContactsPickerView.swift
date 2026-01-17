@@ -21,7 +21,7 @@ struct ContactsPickerView: View {
                 RequestAccessView()
             case .denied, .restricted:
                 AccessDeniedView()
-            case .authorized:
+            case .authorized, .limited:
                 ContactsListView(
                     searchText: $searchText,
                     selectedContact: $selectedContact

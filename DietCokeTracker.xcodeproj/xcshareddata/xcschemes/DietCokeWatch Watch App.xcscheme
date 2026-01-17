@@ -58,21 +58,12 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "A5000000"
-            BuildableName = "DietCokeTracker.app"
-            BlueprintName = "DietCokeTracker"
-            ReferencedContainer = "container:DietCokeTracker.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
             BlueprintIdentifier = "23CA141F2F18A889000C7B43"
             BuildableName = "DietCokeWatch Watch App.app"
             BlueprintName = "DietCokeWatch Watch App"
             ReferencedContainer = "container:DietCokeTracker.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

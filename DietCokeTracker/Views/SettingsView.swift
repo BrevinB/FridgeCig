@@ -2,11 +2,34 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var preferences: UserPreferences
+    @EnvironmentObject var purchaseService: PurchaseService
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
+                // Subscription Section
+                Section {
+                    NavigationLink {
+                        SubscriptionStatusView()
+                    } label: {
+                        HStack {
+                            Image(systemName: purchaseService.isPremium ? "crown.fill" : "crown")
+                                .foregroundColor(.dietCokeRed)
+                                .font(.title3)
+                            Text(purchaseService.isPremium ? "FridgeCig Pro" : "Upgrade to Pro")
+                            Spacer()
+                            if purchaseService.isPremium {
+                                Text("Active")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Subscription")
+                }
+
                 Section {
                     ForEach(BeverageBrand.allCases) { brand in
                         Button {
@@ -66,4 +89,5 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .environmentObject(UserPreferences())
+        .environmentObject(PurchaseService.shared)
 }

@@ -9,13 +9,14 @@ struct DietCokeEntry: TimelineEntry {
     let todayOunces: Double
     let streak: Int
     let weekCount: Int
+    let isPremium: Bool
 }
 
 // MARK: - Timeline Provider
 
 struct DietCokeProvider: TimelineProvider {
     func placeholder(in context: Context) -> DietCokeEntry {
-        DietCokeEntry(date: Date(), todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+        DietCokeEntry(date: Date(), todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DietCokeEntry) -> ()) {
@@ -24,7 +25,8 @@ struct DietCokeProvider: TimelineProvider {
             todayCount: SharedDataManager.getTodayCount(),
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
-            weekCount: SharedDataManager.getThisWeekCount()
+            weekCount: SharedDataManager.getThisWeekCount(),
+            isPremium: SubscriptionStatusManager.isPremium()
         )
         completion(entry)
     }
@@ -35,7 +37,8 @@ struct DietCokeProvider: TimelineProvider {
             todayCount: SharedDataManager.getTodayCount(),
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
-            weekCount: SharedDataManager.getThisWeekCount()
+            weekCount: SharedDataManager.getThisWeekCount(),
+            isPremium: SubscriptionStatusManager.isPremium()
         )
 
         // Refresh at the start of next hour or in 15 minutes, whichever is sooner
@@ -242,6 +245,81 @@ struct LargeWidgetView: View {
     }
 }
 
+// MARK: - Premium Required Views
+
+struct PremiumRequiredSmallView: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "crown.fill")
+                .font(.title)
+                .foregroundStyle(.red)
+
+            Text("FridgeCig Pro")
+                .font(.caption.bold())
+
+            Text("Tap to upgrade")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+    }
+}
+
+struct PremiumRequiredMediumView: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(.red)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("FridgeCig Pro")
+                    .font(.headline)
+                Text("Unlock widgets with a subscription")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("Tap to upgrade")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding()
+    }
+}
+
+struct PremiumRequiredLargeView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Image(systemName: "crown.fill")
+                .font(.system(size: 50))
+                .foregroundStyle(.red)
+
+            Text("FridgeCig Pro")
+                .font(.title2.bold())
+
+            Text("Unlock widgets to track your Diet Cokes at a glance")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text("Tap to upgrade")
+                .font(.caption)
+                .foregroundStyle(.red)
+
+            Spacer()
+        }
+        .padding()
+    }
+}
+
+struct PremiumRequiredAccessoryView: View {
+    var body: some View {
+        Image(systemName: "crown.fill")
+    }
+}
+
 // MARK: - Main Widget Entry View
 
 struct DietCokeWidgetEntryView: View {
@@ -249,6 +327,15 @@ struct DietCokeWidgetEntryView: View {
     var entry: DietCokeProvider.Entry
 
     var body: some View {
+        if entry.isPremium {
+            premiumContent
+        } else {
+            lockedContent
+        }
+    }
+
+    @ViewBuilder
+    private var premiumContent: some View {
         switch family {
         case .systemSmall:
             SmallWidgetView(entry: entry)
@@ -264,6 +351,22 @@ struct DietCokeWidgetEntryView: View {
             AccessoryInlineView(entry: entry)
         default:
             SmallWidgetView(entry: entry)
+        }
+    }
+
+    @ViewBuilder
+    private var lockedContent: some View {
+        switch family {
+        case .systemSmall:
+            PremiumRequiredSmallView()
+        case .systemMedium:
+            PremiumRequiredMediumView()
+        case .systemLarge:
+            PremiumRequiredLargeView()
+        case .accessoryCircular, .accessoryRectangular, .accessoryInline:
+            PremiumRequiredAccessoryView()
+        default:
+            PremiumRequiredSmallView()
         }
     }
 }
@@ -302,35 +405,48 @@ struct DietCokeWidget: Widget {
 #Preview(as: .systemSmall) {
     DietCokeWidget()
 } timeline: {
-    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
 }
 
 #Preview(as: .systemMedium) {
     DietCokeWidget()
 } timeline: {
-    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
 }
 
 #Preview(as: .systemLarge) {
     DietCokeWidget()
 } timeline: {
-    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
 }
 
 #Preview(as: .accessoryCircular) {
     DietCokeWidget()
 } timeline: {
-    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
 }
 
 #Preview(as: .accessoryRectangular) {
     DietCokeWidget()
 } timeline: {
-    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
 }
 
 #Preview(as: .accessoryInline) {
     DietCokeWidget()
 } timeline: {
-    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15)
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
+}
+
+// Preview locked state
+#Preview("Small Locked", as: .systemSmall) {
+    DietCokeWidget()
+} timeline: {
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: false)
+}
+
+#Preview("Medium Locked", as: .systemMedium) {
+    DietCokeWidget()
+} timeline: {
+    DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: false)
 }

@@ -28,13 +28,14 @@ struct QuickAddWidget: Widget {
 
 struct QuickAddProvider: TimelineProvider {
     func placeholder(in context: Context) -> QuickAddEntry {
-        QuickAddEntry(date: Date(), todayCount: 3)
+        QuickAddEntry(date: Date(), todayCount: 3, isPremium: true)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (QuickAddEntry) -> ()) {
         let entry = QuickAddEntry(
             date: Date(),
-            todayCount: SharedDataManager.getTodayCount()
+            todayCount: SharedDataManager.getTodayCount(),
+            isPremium: SubscriptionStatusManager.isPremium()
         )
         completion(entry)
     }
@@ -42,7 +43,8 @@ struct QuickAddProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuickAddEntry>) -> ()) {
         let entry = QuickAddEntry(
             date: Date(),
-            todayCount: SharedDataManager.getTodayCount()
+            todayCount: SharedDataManager.getTodayCount(),
+            isPremium: SubscriptionStatusManager.isPremium()
         )
 
         let refreshDate = Date().addingTimeInterval(15 * 60)
@@ -54,6 +56,7 @@ struct QuickAddProvider: TimelineProvider {
 struct QuickAddEntry: TimelineEntry {
     let date: Date
     let todayCount: Int
+    let isPremium: Bool
 }
 
 // MARK: - Widget Views
@@ -63,13 +66,24 @@ struct QuickAddWidgetView: View {
     var entry: QuickAddEntry
 
     var body: some View {
-        switch family {
-        case .systemSmall:
-            SmallQuickAddView(entry: entry)
-        case .systemMedium:
-            MediumQuickAddView(entry: entry)
-        default:
-            SmallQuickAddView(entry: entry)
+        if entry.isPremium {
+            switch family {
+            case .systemSmall:
+                SmallQuickAddView(entry: entry)
+            case .systemMedium:
+                MediumQuickAddView(entry: entry)
+            default:
+                SmallQuickAddView(entry: entry)
+            }
+        } else {
+            switch family {
+            case .systemSmall:
+                PremiumRequiredSmallView()
+            case .systemMedium:
+                PremiumRequiredMediumView()
+            default:
+                PremiumRequiredSmallView()
+            }
         }
     }
 }
@@ -189,11 +203,17 @@ struct MediumQuickAddView: View {
 #Preview(as: .systemSmall) {
     QuickAddWidget()
 } timeline: {
-    QuickAddEntry(date: .now, todayCount: 3)
+    QuickAddEntry(date: .now, todayCount: 3, isPremium: true)
 }
 
 #Preview(as: .systemMedium) {
     QuickAddWidget()
 } timeline: {
-    QuickAddEntry(date: .now, todayCount: 3)
+    QuickAddEntry(date: .now, todayCount: 3, isPremium: true)
+}
+
+#Preview("Small Locked", as: .systemSmall) {
+    QuickAddWidget()
+} timeline: {
+    QuickAddEntry(date: .now, todayCount: 3, isPremium: false)
 }

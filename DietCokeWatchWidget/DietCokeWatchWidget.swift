@@ -8,13 +8,14 @@ struct ComplicationEntry: TimelineEntry {
     let todayCount: Int
     let todayOunces: Double
     let streak: Int
+    let isPremium: Bool
 }
 
 // MARK: - Complication Provider
 
 struct ComplicationProvider: TimelineProvider {
     func placeholder(in context: Context) -> ComplicationEntry {
-        ComplicationEntry(date: Date(), todayCount: 3, todayOunces: 36, streak: 5)
+        ComplicationEntry(date: Date(), todayCount: 3, todayOunces: 36, streak: 5, isPremium: true)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ComplicationEntry) -> ()) {
@@ -22,7 +23,8 @@ struct ComplicationProvider: TimelineProvider {
             date: Date(),
             todayCount: SharedDataManager.getTodayCount(),
             todayOunces: SharedDataManager.getTodayOunces(),
-            streak: SharedDataManager.getStreak()
+            streak: SharedDataManager.getStreak(),
+            isPremium: SubscriptionStatusManager.isPremium()
         )
         completion(entry)
     }
@@ -32,7 +34,8 @@ struct ComplicationProvider: TimelineProvider {
             date: Date(),
             todayCount: SharedDataManager.getTodayCount(),
             todayOunces: SharedDataManager.getTodayOunces(),
-            streak: SharedDataManager.getStreak()
+            streak: SharedDataManager.getStreak(),
+            isPremium: SubscriptionStatusManager.isPremium()
         )
 
         let refreshDate = Date().addingTimeInterval(15 * 60)
@@ -106,6 +109,34 @@ struct ComplicationInlineView: View {
     }
 }
 
+// MARK: - Locked Views (Non-Premium)
+
+struct LockedCircularView: View {
+    var body: some View {
+        Image(systemName: "crown.fill")
+            .font(.title2)
+            .foregroundStyle(.red)
+    }
+}
+
+struct LockedRectangularView: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "crown.fill")
+                .font(.title3)
+                .foregroundStyle(.red)
+
+            VStack(alignment: .leading) {
+                Text("FridgeCig Pro")
+                    .font(.caption)
+                Text("Upgrade to unlock")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 // MARK: - Complication Entry View
 
 struct ComplicationEntryView: View {
@@ -113,6 +144,15 @@ struct ComplicationEntryView: View {
     var entry: ComplicationProvider.Entry
 
     var body: some View {
+        if entry.isPremium {
+            premiumContent
+        } else {
+            lockedContent
+        }
+    }
+
+    @ViewBuilder
+    private var premiumContent: some View {
         switch family {
         case .accessoryCircular:
             ComplicationCircularView(entry: entry)
@@ -124,6 +164,20 @@ struct ComplicationEntryView: View {
             ComplicationInlineView(entry: entry)
         default:
             ComplicationCircularView(entry: entry)
+        }
+    }
+
+    @ViewBuilder
+    private var lockedContent: some View {
+        switch family {
+        case .accessoryCircular, .accessoryCorner:
+            LockedCircularView()
+        case .accessoryRectangular:
+            LockedRectangularView()
+        case .accessoryInline:
+            Label("Upgrade to Pro", systemImage: "crown.fill")
+        default:
+            LockedCircularView()
         }
     }
 }
@@ -154,17 +208,29 @@ struct DietCokeWatchWidget: Widget {
 #Preview(as: .accessoryCircular) {
     DietCokeWatchWidget()
 } timeline: {
-    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5)
+    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, isPremium: true)
 }
 
 #Preview(as: .accessoryRectangular) {
     DietCokeWatchWidget()
 } timeline: {
-    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5)
+    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, isPremium: true)
 }
 
 #Preview(as: .accessoryCorner) {
     DietCokeWatchWidget()
 } timeline: {
-    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5)
+    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, isPremium: true)
+}
+
+#Preview("Circular Locked", as: .accessoryCircular) {
+    DietCokeWatchWidget()
+} timeline: {
+    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, isPremium: false)
+}
+
+#Preview("Rectangular Locked", as: .accessoryRectangular) {
+    DietCokeWatchWidget()
+} timeline: {
+    ComplicationEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, isPremium: false)
 }
