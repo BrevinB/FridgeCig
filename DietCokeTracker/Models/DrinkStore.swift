@@ -17,8 +17,82 @@ class DrinkStore: ObservableObject {
     /// Sync service for CloudKit (set by app on launch)
     var syncService: DrinkSyncService?
 
+    // MARK: - Rate Limiting State
+
+    /// Last time an entry was added (for rate limiting)
+    @Published private(set) var lastEntryTime: Date?
+
     init() {
         loadEntries()
+        updateRateLimitState()
+    }
+
+    // MARK: - Rate Limiting
+
+    /// Check if a new entry can be added (rate limiting)
+    func canAddEntry() -> EntryValidator.ValidationResult {
+        return EntryValidator.canAddEntry(lastEntryTime: lastEntryTime)
+    }
+
+    /// Validate a timestamp before allowing entry
+    func validateTimestamp(_ date: Date) -> EntryValidator.ValidationResult {
+        return EntryValidator.validateTimestamp(date)
+    }
+
+    /// Validate custom ounces amount
+    func validateOunces(_ ounces: Double) -> EntryValidator.ValidationResult {
+        return EntryValidator.validateOunces(ounces)
+    }
+
+    /// Check if entry would be a duplicate
+    func checkDuplicate(ounces: Double, type: DrinkType) -> EntryValidator.ValidationResult {
+        return EntryValidator.isDuplicate(
+            ounces: ounces,
+            type: type,
+            timestamp: Date(),
+            existingEntries: entries
+        )
+    }
+
+    /// Full validation before adding a drink
+    func validateNewEntry(
+        type: DrinkType,
+        customOunces: Double?,
+        timestamp: Date = Date()
+    ) -> EntryValidator.ValidationResult {
+        // Check rate limiting
+        let rateResult = canAddEntry()
+        if !rateResult.isValid {
+            return rateResult
+        }
+
+        // Check timestamp
+        let timestampResult = validateTimestamp(timestamp)
+        if !timestampResult.isValid {
+            return timestampResult
+        }
+
+        // Check ounces if custom
+        if let oz = customOunces {
+            let ouncesResult = validateOunces(oz)
+            if !ouncesResult.isValid {
+                return ouncesResult
+            }
+        }
+
+        // Check duplicate
+        let ounces = customOunces ?? type.ounces
+        let duplicateResult = checkDuplicate(ounces: ounces, type: type)
+        if !duplicateResult.isValid {
+            return duplicateResult
+        }
+
+        return .valid()
+    }
+
+    private func updateRateLimitState() {
+        // Find the most recent entry timestamp
+        lastEntryTime = entries.first?.timestamp
     }
 
     // MARK: - CloudKit Sync
@@ -45,6 +119,12 @@ class DrinkStore: ObservableObject {
         entries.append(entry)
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
+
+        // Update rate limiting state
+        lastEntryTime = Date()
+
+        // Sync rate limiting to shared storage (for widgets/watch)
+        SharedDataManager.recordEntryAdded()
 
         // Sync to cloud
         Task {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var store: DrinkStore
@@ -190,6 +191,15 @@ struct QuickAddSection: View {
     @EnvironmentObject var preferences: UserPreferences
     @Binding var showingAddDrink: Bool
 
+    @State private var showingRateLimitAlert = false
+    @State private var rateLimitMessage = ""
+    @State private var showingCamera = false
+    @State private var selectedTypeForPhoto: DrinkType?
+    @State private var pendingPhoto: UIImage?
+    @State private var showingVerificationAlert = false
+    @State private var verificationMessage = ""
+    @StateObject private var verificationService = ImageVerificationService()
+
     let quickTypes: [DrinkType] = [
         .regularCan,
         .mcdonaldsLarge,
@@ -233,16 +243,116 @@ struct QuickAddSection: View {
             ], spacing: 12) {
                 ForEach(quickTypes) { type in
                     QuickAddButton(type: type) {
-                        withAnimation(.spring(response: 0.3)) {
-                            store.addDrink(type: type, brand: preferences.defaultBrand)
-                            store.checkBadges(with: badgeStore)
-                        }
+                        quickAdd(type: type)
+                    } onAddWithRating: { rating in
+                        quickAddWithRating(type: type, rating: rating)
+                    } onAddWithPhoto: {
+                        showCameraForType(type)
                     }
                 }
             }
         }
         .padding(20)
         .dietCokeCard()
+        .alert("Too Fast!", isPresented: $showingRateLimitAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(rateLimitMessage)
+        }
+        .sheet(isPresented: $showingCamera) {
+            CameraView(capturedImage: $pendingPhoto)
+        }
+        .onChange(of: pendingPhoto) { _, newPhoto in
+            guard let photo = newPhoto, let type = selectedTypeForPhoto else { return }
+            verifyAndAddPhoto(photo, for: type)
+        }
+        .alert("Not a Diet Coke?", isPresented: $showingVerificationAlert) {
+            Button("Use Anyway", role: .destructive) {
+                if let photo = pendingPhoto, let type = selectedTypeForPhoto {
+                    addDrinkWithPhoto(type: type, photo: photo)
+                }
+                pendingPhoto = nil
+                selectedTypeForPhoto = nil
+            }
+            Button("Retake", role: .cancel) {
+                pendingPhoto = nil
+                showingCamera = true
+            }
+        } message: {
+            Text(verificationMessage)
+        }
+    }
+
+    private func quickAdd(type: DrinkType) {
+        let validation = store.validateNewEntry(type: type, customOunces: nil)
+
+        if !validation.isValid {
+            rateLimitMessage = validation.errorMessage ?? "Please wait before adding another drink."
+            showingRateLimitAlert = true
+            return
+        }
+
+        withAnimation(.spring(response: 0.3)) {
+            store.addDrink(type: type, brand: preferences.defaultBrand)
+            store.checkBadges(with: badgeStore)
+        }
+    }
+
+    private func quickAddWithRating(type: DrinkType, rating: DrinkRating) {
+        let validation = store.validateNewEntry(type: type, customOunces: nil)
+
+        if !validation.isValid {
+            rateLimitMessage = validation.errorMessage ?? "Please wait before adding another drink."
+            showingRateLimitAlert = true
+            return
+        }
+
+        withAnimation(.spring(response: 0.3)) {
+            store.addDrink(type: type, brand: preferences.defaultBrand, rating: rating)
+            store.checkBadges(with: badgeStore)
+        }
+    }
+
+    private func showCameraForType(_ type: DrinkType) {
+        let validation = store.validateNewEntry(type: type, customOunces: nil)
+
+        if !validation.isValid {
+            rateLimitMessage = validation.errorMessage ?? "Please wait before adding another drink."
+            showingRateLimitAlert = true
+            return
+        }
+
+        selectedTypeForPhoto = type
+        showingCamera = true
+    }
+
+    private func verifyAndAddPhoto(_ photo: UIImage, for type: DrinkType) {
+        guard ImageVerificationService.isAvailable else {
+            addDrinkWithPhoto(type: type, photo: photo)
+            pendingPhoto = nil
+            selectedTypeForPhoto = nil
+            return
+        }
+
+        Task {
+            let result = await verificationService.verifyImage(photo)
+
+            if result.isValid {
+                addDrinkWithPhoto(type: type, photo: photo)
+                pendingPhoto = nil
+                selectedTypeForPhoto = nil
+            } else {
+                verificationMessage = result.message
+                showingVerificationAlert = true
+            }
+        }
+    }
+
+    private func addDrinkWithPhoto(type: DrinkType, photo: UIImage) {
+        withAnimation(.spring(response: 0.3)) {
+            store.addDrink(type: type, brand: preferences.defaultBrand, photo: photo)
+            store.checkBadges(with: badgeStore)
+        }
     }
 }
 

@@ -4,9 +4,37 @@ struct SharedDataManager {
     static let appGroupID = "group.co.brevinb.fridgecig"
     static let entriesKey = "DietCokeEntries"
     static let defaultBrandKey = "defaultBeverageBrand"
+    static let lastEntryTimeKey = "lastEntryTime"
 
     static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
+    }
+
+    // MARK: - Rate Limiting
+
+    /// Minimum seconds between entries (2 minutes)
+    static let minimumEntryInterval: TimeInterval = 120
+
+    /// Check if we can add a new entry (rate limiting)
+    static func canAddEntry() -> (allowed: Bool, message: String?) {
+        guard let defaults = sharedDefaults else {
+            return (true, nil)
+        }
+
+        // Check minimum interval
+        if let lastTime = defaults.object(forKey: lastEntryTimeKey) as? Date {
+            let elapsed = Date().timeIntervalSince(lastTime)
+            if elapsed < minimumEntryInterval {
+                return (false, "Please wait a moment before adding another drink.")
+            }
+        }
+
+        return (true, nil)
+    }
+
+    /// Record that an entry was just added
+    static func recordEntryAdded() {
+        sharedDefaults?.set(Date(), forKey: lastEntryTimeKey)
     }
 
     // MARK: - User Preferences

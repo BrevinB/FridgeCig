@@ -105,6 +105,9 @@ struct TodayCard: View {
 struct QuickAddSection: View {
     let onAdd: () -> Void
 
+    @State private var showingRateLimitAlert = false
+    @State private var rateLimitMessage = ""
+
     var body: some View {
         VStack(spacing: 8) {
             Text("Quick Add")
@@ -147,9 +150,23 @@ struct QuickAddSection: View {
                 .buttonStyle(.bordered)
             }
         }
+        .alert("Too Fast!", isPresented: $showingRateLimitAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(rateLimitMessage)
+        }
     }
 
     private func addDrink(_ type: DrinkType) {
+        // Check rate limiting
+        let (allowed, message) = SharedDataManager.canAddEntry()
+        guard allowed else {
+            rateLimitMessage = message ?? "Please wait before adding another drink."
+            showingRateLimitAlert = true
+            WKInterfaceDevice.current().play(.failure)
+            return
+        }
+
         let entry = DrinkEntry(type: type)
 
         guard let defaults = UserDefaults(suiteName: SharedDataManager.appGroupID) else { return }
@@ -165,6 +182,9 @@ struct QuickAddSection: View {
         if let encoded = try? JSONEncoder().encode(entries) {
             defaults.set(encoded, forKey: SharedDataManager.entriesKey)
         }
+
+        // Record for rate limiting
+        SharedDataManager.recordEntryAdded()
 
         // Refresh widgets
         WidgetCenter.shared.reloadAllTimelines()

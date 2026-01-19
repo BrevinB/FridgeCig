@@ -18,6 +18,12 @@ struct UserProfile: Codable, Identifiable {
     var allTimeOunces: Double
     var statsUpdatedAt: Date
 
+    // Anti-abuse verification fields
+    var entryCount: Int
+    var averageOuncesPerEntry: Double
+    var isSuspicious: Bool
+    var suspiciousFlags: [String]
+
     var userIDString: String {
         id.uuidString
     }
@@ -36,6 +42,12 @@ struct UserProfile: Codable, Identifiable {
         self.allTimeDrinks = 0
         self.allTimeOunces = 0
         self.statsUpdatedAt = Date()
+
+        // Verification defaults
+        self.entryCount = 0
+        self.averageOuncesPerEntry = 0
+        self.isSuspicious = false
+        self.suspiciousFlags = []
     }
 }
 
@@ -66,6 +78,12 @@ extension UserProfile {
         self.allTimeDrinks = (record["allTimeDrinks"] as? Int64).map { Int($0) } ?? 0
         self.allTimeOunces = record["allTimeOunces"] as? Double ?? 0
         self.statsUpdatedAt = record["statsUpdatedAt"] as? Date ?? Date()
+
+        // Anti-abuse verification fields
+        self.entryCount = (record["entryCount"] as? Int64).map { Int($0) } ?? 0
+        self.averageOuncesPerEntry = record["averageOuncesPerEntry"] as? Double ?? 0
+        self.isSuspicious = (record["isSuspicious"] as? Int64 ?? 0) == 1
+        self.suspiciousFlags = record["suspiciousFlags"] as? [String] ?? []
     }
 
     func toCKRecord() -> CKRecord {
@@ -95,13 +113,29 @@ extension UserProfile {
         record["allTimeDrinks"] = allTimeDrinks
         record["allTimeOunces"] = allTimeOunces
         record["statsUpdatedAt"] = statsUpdatedAt
+
+        // Anti-abuse verification fields
+        record["entryCount"] = entryCount
+        record["averageOuncesPerEntry"] = averageOuncesPerEntry
+        record["isSuspicious"] = isSuspicious ? 1 : 0
+        record["suspiciousFlags"] = suspiciousFlags
     }
 }
 
 // MARK: - Stats Update
 
 extension UserProfile {
-    mutating func updateStats(streak: Int, weeklyDrinks: Int, weeklyOunces: Double, monthlyDrinks: Int, monthlyOunces: Double, allTimeDrinks: Int, allTimeOunces: Double) {
+    mutating func updateStats(
+        streak: Int,
+        weeklyDrinks: Int,
+        weeklyOunces: Double,
+        monthlyDrinks: Int,
+        monthlyOunces: Double,
+        allTimeDrinks: Int,
+        allTimeOunces: Double,
+        entryCount: Int,
+        patternResult: SuspiciousPatternResult
+    ) {
         self.currentStreak = streak
         self.weeklyDrinks = weeklyDrinks
         self.weeklyOunces = weeklyOunces
@@ -110,5 +144,26 @@ extension UserProfile {
         self.allTimeDrinks = allTimeDrinks
         self.allTimeOunces = allTimeOunces
         self.statsUpdatedAt = Date()
+
+        // Verification fields
+        self.entryCount = entryCount
+        self.averageOuncesPerEntry = entryCount > 0 ? allTimeOunces / Double(entryCount) : 0
+        self.isSuspicious = patternResult.isSuspicious
+        self.suspiciousFlags = patternResult.flags
+    }
+
+    /// Legacy method for backwards compatibility
+    mutating func updateStats(streak: Int, weeklyDrinks: Int, weeklyOunces: Double, monthlyDrinks: Int, monthlyOunces: Double, allTimeDrinks: Int, allTimeOunces: Double) {
+        updateStats(
+            streak: streak,
+            weeklyDrinks: weeklyDrinks,
+            weeklyOunces: weeklyOunces,
+            monthlyDrinks: monthlyDrinks,
+            monthlyOunces: monthlyOunces,
+            allTimeDrinks: allTimeDrinks,
+            allTimeOunces: allTimeOunces,
+            entryCount: allTimeDrinks, // Approximate
+            patternResult: SuspiciousPatternResult(isSuspicious: false, flags: [], confidenceScore: 0)
+        )
     }
 }

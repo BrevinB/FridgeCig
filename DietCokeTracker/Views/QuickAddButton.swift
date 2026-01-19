@@ -1,8 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct QuickAddButton: View {
     let type: DrinkType
     let action: () -> Void
+    var onAddWithRating: ((DrinkRating) -> Void)? = nil
+    var onAddWithPhoto: (() -> Void)? = nil
 
     @State private var isPressed = false
 
@@ -12,7 +15,6 @@ struct QuickAddButton: View {
                 isPressed = true
             }
 
-            // Haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
 
@@ -57,6 +59,38 @@ struct QuickAddButton: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            // Rating options
+            Section("Rate this DC") {
+                ForEach(DrinkRating.allCases) { rating in
+                    Button {
+                        onAddWithRating?(rating)
+                    } label: {
+                        Label(rating.displayName, systemImage: rating.icon)
+                    }
+                }
+            }
+
+            // Photo option
+            if onAddWithPhoto != nil {
+                Section {
+                    Button {
+                        onAddWithPhoto?()
+                    } label: {
+                        Label("Add with Photo", systemImage: "camera.fill")
+                    }
+                }
+            }
+
+            // Quick add (no extras)
+            Section {
+                Button {
+                    action()
+                } label: {
+                    Label("Quick Add", systemImage: "plus.circle")
+                }
+            }
+        }
     }
 }
 
@@ -90,8 +124,13 @@ struct QuickAddButtonCompact: View {
 
 #Preview {
     VStack(spacing: 20) {
-        QuickAddButton(type: .regularCan) {}
-        QuickAddButton(type: .mcdonaldsLarge) {}
+        QuickAddButton(
+            type: .regularCan,
+            action: { print("Quick add") },
+            onAddWithRating: { rating in print("Add with rating: \(rating)") },
+            onAddWithPhoto: { print("Add with photo") }
+        )
+        QuickAddButton(type: .mcdonaldsLarge, action: {})
 
         HStack(spacing: 20) {
             QuickAddButtonCompact(type: .regularCan) {}

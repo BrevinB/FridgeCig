@@ -19,8 +19,40 @@ struct AddDrinkView: View {
     @State private var capturedPhoto: UIImage? = nil
     @State private var showingCamera = false
 
+    // Validation state
+    @State private var showingValidationAlert = false
+    @State private var validationAlertMessage = ""
+
     private var effectiveBrand: BeverageBrand {
         selectedBrand ?? preferences.defaultBrand
+    }
+
+    private var effectiveOunces: Double {
+        if useCustomOunces, let oz = Double(customOuncesText) {
+            return oz
+        }
+        return selectedType.ounces
+    }
+
+    private var ouncesValidation: EntryValidator.ValidationResult {
+        guard useCustomOunces, let oz = Double(customOuncesText) else {
+            return .valid()
+        }
+        return EntryValidator.validateOunces(oz)
+    }
+
+    private var canAddDrink: Bool {
+        // Check ounces if custom
+        if useCustomOunces {
+            guard let oz = Double(customOuncesText), oz > 0 else {
+                return false
+            }
+            if !ouncesValidation.isValid {
+                return false
+            }
+        }
+
+        return true
     }
 
     var body: some View {
@@ -78,18 +110,7 @@ struct AddDrinkView: View {
 
                     // Add button
                     Button {
-                        let customOz: Double? = useCustomOunces ? Double(customOuncesText) : nil
-                        store.addDrink(
-                            type: selectedType,
-                            brand: effectiveBrand,
-                            note: note.isEmpty ? nil : note,
-                            specialEdition: selectedSpecialEdition,
-                            customOunces: customOz,
-                            rating: selectedRating,
-                            photo: capturedPhoto
-                        )
-                        store.checkBadges(with: badgeStore)
-                        dismiss()
+                        addDrink()
                     } label: {
                         HStack {
                             Image(systemName: "plus.circle.fill")
@@ -98,6 +119,8 @@ struct AddDrinkView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.dietCokePrimary)
+                    .disabled(!canAddDrink)
+                    .opacity(canAddDrink ? 1 : 0.6)
                     .padding(.top, 8)
                 }
                 .padding()
@@ -113,10 +136,41 @@ struct AddDrinkView: View {
                     .foregroundColor(.dietCokeRed)
                 }
             }
-            .sheet(isPresented: $showingCamera) {
-                CameraView(capturedImage: $capturedPhoto)
+            .alert("Too Fast!", isPresented: $showingValidationAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(validationAlertMessage)
             }
         }
+    }
+
+    private func addDrink() {
+        let customOz: Double? = useCustomOunces ? Double(customOuncesText) : nil
+
+        // Full validation
+        let validation = store.validateNewEntry(
+            type: selectedType,
+            customOunces: customOz
+        )
+
+        if !validation.isValid {
+            validationAlertMessage = validation.errorMessage ?? "Please wait before adding another drink."
+            showingValidationAlert = true
+            return
+        }
+
+        // Validation passed, add the drink
+        store.addDrink(
+            type: selectedType,
+            brand: effectiveBrand,
+            note: note.isEmpty ? nil : note,
+            specialEdition: selectedSpecialEdition,
+            customOunces: customOz,
+            rating: selectedRating,
+            photo: capturedPhoto
+        )
+        store.checkBadges(with: badgeStore)
+        dismiss()
     }
 }
 
@@ -582,6 +636,17 @@ struct CustomOuncesSection: View {
     @Binding var customOuncesText: String
     let defaultOunces: Double
 
+    private var ouncesValidation: EntryValidator.ValidationResult {
+        guard let oz = Double(customOuncesText) else {
+            return .valid()
+        }
+        return EntryValidator.validateOunces(oz)
+    }
+
+    private var hasError: Bool {
+        useCustomOunces && !ouncesValidation.isValid
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
@@ -614,6 +679,12 @@ struct CustomOuncesSection: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                    // Limits reminder
+                    Text("Min: \(Int(EntryValidator.minOuncesPerEntry)) oz • Max: \(Int(EntryValidator.maxOuncesPerEntry)) oz")
+                        .font(.caption2)
+                        .foregroundColor(.dietCokeDarkSilver)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                     HStack(spacing: 12) {
                         TextField("Amount", text: $customOuncesText)
                             .keyboardType(.decimalPad)
@@ -624,12 +695,24 @@ struct CustomOuncesSection: View {
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.dietCokeRed.opacity(0.3), lineWidth: 1)
+                                    .stroke(hasError ? Color.red : Color.dietCokeRed.opacity(0.3), lineWidth: hasError ? 2 : 1)
                             )
 
                         Text("oz")
                             .font(.headline)
                             .foregroundColor(.dietCokeDarkSilver)
+                    }
+
+                    // Error message
+                    if hasError, let message = ouncesValidation.errorMessage {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                            Text(message)
+                                .font(.caption)
+                        }
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     // Quick adjust buttons
@@ -768,6 +851,11 @@ struct PhotoSection: View {
     @Binding var capturedPhoto: UIImage?
     @Binding var showingCamera: Bool
 
+    @StateObject private var verificationService = ImageVerificationService()
+    @State private var pendingPhoto: UIImage?
+    @State private var showingVerificationAlert = false
+    @State private var verificationMessage = ""
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -855,6 +943,67 @@ struct PhotoSection: View {
         .padding(16)
         .background(Color.dietCokeCardBackground)
         .cornerRadius(12)
+        .sheet(isPresented: $showingCamera) {
+            CameraView(capturedImage: $pendingPhoto)
+        }
+        .onChange(of: pendingPhoto) { _, newPhoto in
+            guard let photo = newPhoto else { return }
+            verifyPhoto(photo)
+        }
+        .alert("Not a Diet Coke?", isPresented: $showingVerificationAlert) {
+            Button("Use Anyway", role: .destructive) {
+                if let photo = pendingPhoto {
+                    capturedPhoto = photo
+                }
+                pendingPhoto = nil
+            }
+            Button("Retake", role: .cancel) {
+                pendingPhoto = nil
+                showingCamera = true
+            }
+        } message: {
+            Text(verificationMessage)
+        }
+        .overlay {
+            if verificationService.isVerifying {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .cornerRadius(12)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Verifying photo...")
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(12)
+                }
+            }
+        }
+    }
+
+    private func verifyPhoto(_ photo: UIImage) {
+        // Only verify on iOS 26+ with Apple Intelligence
+        guard ImageVerificationService.isAvailable else {
+            // No verification available, just accept the photo
+            capturedPhoto = photo
+            pendingPhoto = nil
+            return
+        }
+
+        Task {
+            let result = await verificationService.verifyImage(photo)
+
+            if result.isValid {
+                capturedPhoto = photo
+                pendingPhoto = nil
+            } else {
+                verificationMessage = result.message
+                showingVerificationAlert = true
+            }
+        }
     }
 }
 

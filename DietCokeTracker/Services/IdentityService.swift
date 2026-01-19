@@ -192,6 +192,9 @@ class IdentityService: ObservableObject {
     func syncStats(from drinkStore: DrinkStore) async throws {
         guard var profile = currentProfile else { return }
 
+        // Run pattern detection on entries
+        let patternResult = EntryValidator.detectSuspiciousPatterns(entries: drinkStore.entries)
+
         profile.updateStats(
             streak: drinkStore.streakDays,
             weeklyDrinks: drinkStore.thisWeekCount,
@@ -199,7 +202,9 @@ class IdentityService: ObservableObject {
             monthlyDrinks: drinkStore.thisMonthCount,
             monthlyOunces: drinkStore.thisMonthOunces,
             allTimeDrinks: drinkStore.allTimeCount,
-            allTimeOunces: drinkStore.allTimeOunces
+            allTimeOunces: drinkStore.allTimeOunces,
+            entryCount: drinkStore.entries.count,
+            patternResult: patternResult
         )
 
         currentProfile = profile

@@ -13,7 +13,10 @@ struct DrinkEntry: Identifiable, Equatable {
     var rating: DrinkRating?
     var photoFilename: String?
 
-    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photoFilename: String? = nil) {
+    /// Immutable timestamp of when the entry was actually created (for audit trail)
+    let createdAt: Date
+
+    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photoFilename: String? = nil, createdAt: Date = Date()) {
         self.id = id
         self.type = type
         self.brand = brand
@@ -23,6 +26,7 @@ struct DrinkEntry: Identifiable, Equatable {
         self.customOunces = customOunces
         self.rating = rating
         self.photoFilename = photoFilename
+        self.createdAt = createdAt
     }
 
     var hasPhoto: Bool {
@@ -34,7 +38,7 @@ struct DrinkEntry: Identifiable, Equatable {
 
 extension DrinkEntry: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, type, brand, timestamp, note, specialEdition, customOunces, rating, photoFilename
+        case id, type, brand, timestamp, note, specialEdition, customOunces, rating, photoFilename, createdAt
     }
 
     init(from decoder: Decoder) throws {
@@ -49,6 +53,8 @@ extension DrinkEntry: Codable {
         customOunces = try container.decodeIfPresent(Double.self, forKey: .customOunces)
         rating = try container.decodeIfPresent(DrinkRating.self, forKey: .rating)
         photoFilename = try container.decodeIfPresent(String.self, forKey: .photoFilename)
+        // Default createdAt to timestamp for existing entries (backwards compatibility)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? timestamp
     }
 
     func encode(to encoder: Encoder) throws {
@@ -62,6 +68,7 @@ extension DrinkEntry: Codable {
         try container.encodeIfPresent(customOunces, forKey: .customOunces)
         try container.encodeIfPresent(rating, forKey: .rating)
         try container.encodeIfPresent(photoFilename, forKey: .photoFilename)
+        try container.encode(createdAt, forKey: .createdAt)
     }
 
     var isSpecialEdition: Bool {
@@ -183,6 +190,9 @@ extension DrinkEntry {
         }
 
         self.photoFilename = record["photoFilename"] as? String
+
+        // Default createdAt to timestamp for older records
+        self.createdAt = record["createdAt"] as? Date ?? timestamp
     }
 
     /// Convert to CloudKit record
@@ -209,5 +219,6 @@ extension DrinkEntry {
         record["customOunces"] = customOunces
         record["rating"] = rating?.rawValue
         record["photoFilename"] = photoFilename
+        record["createdAt"] = createdAt
     }
 }
