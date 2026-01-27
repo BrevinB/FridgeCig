@@ -109,6 +109,34 @@ class CloudKitManager: ObservableObject {
         }
     }
 
+    func saveToPublicAndReturn(_ record: CKRecord) async throws -> CKRecord {
+        let (saveResults, _) = try await publicDatabase.modifyRecords(
+            saving: [record],
+            deleting: [],
+            savePolicy: .allKeys,
+            atomically: false
+        )
+
+        for (recordID, result) in saveResults {
+            switch result {
+            case .success(let savedRecord):
+                return savedRecord
+            case .failure(let error):
+                throw error
+            }
+        }
+
+        throw CKError(.unknownItem)
+    }
+
+    func fetchFromPublic(recordID: CKRecord.ID) async throws -> CKRecord? {
+        do {
+            return try await publicDatabase.record(for: recordID)
+        } catch let error as CKError where error.code == .unknownItem {
+            return nil
+        }
+    }
+
     func fetchFromPublic(recordType: String, predicate: NSPredicate, sortDescriptors: [NSSortDescriptor]? = nil, limit: Int = 100) async throws -> [CKRecord] {
         let query = CKQuery(recordType: recordType, predicate: predicate)
         if let sortDescriptors = sortDescriptors {
@@ -141,11 +169,17 @@ class CloudKitManager: ObservableObject {
 
     func fetchUserProfile(byUserID userID: String) async throws -> CKRecord? {
         let predicate = NSPredicate(format: "userID == %@", userID)
+        print("[CloudKit] fetchUserProfile byUserID: \(userID)")
         do {
             let results = try await fetchFromPublic(recordType: "UserProfile", predicate: predicate, limit: 1)
+            print("[CloudKit] fetchUserProfile returned \(results.count) records")
             return results.first
         } catch let error as CKError where error.code == .unknownItem {
+            print("[CloudKit] fetchUserProfile: schema doesn't exist")
             return nil
+        } catch {
+            print("[CloudKit] fetchUserProfile ERROR: \(error)")
+            throw error
         }
     }
 
@@ -189,29 +223,89 @@ class CloudKitManager: ObservableObject {
     // MARK: - Friend Connection Operations
 
     func fetchFriendConnections(forUserID userID: String) async throws -> [CKRecord] {
-        let predicate = NSPredicate(format: "(requesterID == %@ OR targetID == %@) AND status == %@", userID, userID, "accepted")
+        // CloudKit doesn't support OR in predicates, so we need two separate queries
+        print("[CloudKit] fetchFriendConnections for userID: \(userID)")
+
+        var allRecords: [CKRecord] = []
+        var seenRecordIDs = Set<String>()
+
+        // Query 1: Where user is the requester
+        let predicate1 = NSPredicate(format: "requesterID == %@ AND status == %@", userID, "accepted")
+        print("[CloudKit] fetchFriendConnections query 1: \(predicate1)")
         do {
-            return try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate)
+            let records1 = try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate1)
+            print("[CloudKit] fetchFriendConnections query 1 returned \(records1.count) records")
+            for record in records1 {
+                if !seenRecordIDs.contains(record.recordID.recordName) {
+                    seenRecordIDs.insert(record.recordID.recordName)
+                    allRecords.append(record)
+                }
+            }
         } catch let error as CKError where error.code == .unknownItem {
-            return []
+            print("[CloudKit] fetchFriendConnections query 1: schema doesn't exist yet")
+        } catch {
+            print("[CloudKit] fetchFriendConnections query 1 ERROR: \(error)")
+            // Continue to try the second query
         }
+
+        // Query 2: Where user is the target
+        let predicate2 = NSPredicate(format: "targetID == %@ AND status == %@", userID, "accepted")
+        print("[CloudKit] fetchFriendConnections query 2: \(predicate2)")
+        do {
+            let records2 = try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate2)
+            print("[CloudKit] fetchFriendConnections query 2 returned \(records2.count) records")
+            for record in records2 {
+                if !seenRecordIDs.contains(record.recordID.recordName) {
+                    seenRecordIDs.insert(record.recordID.recordName)
+                    allRecords.append(record)
+                }
+            }
+        } catch let error as CKError where error.code == .unknownItem {
+            print("[CloudKit] fetchFriendConnections query 2: schema doesn't exist yet")
+        } catch {
+            print("[CloudKit] fetchFriendConnections query 2 ERROR: \(error)")
+        }
+
+        print("[CloudKit] fetchFriendConnections total: \(allRecords.count) records")
+        return allRecords
     }
 
     func fetchPendingRequests(forUserID userID: String) async throws -> [CKRecord] {
         let predicate = NSPredicate(format: "targetID == %@ AND status == %@", userID, "pending")
+        print("[CloudKit] fetchPendingRequests for targetID: \(userID)")
+        print("[CloudKit] fetchPendingRequests predicate: \(predicate)")
         do {
-            return try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate)
+            let records = try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate)
+            print("[CloudKit] fetchPendingRequests returned \(records.count) records")
+            for record in records {
+                let requesterID = record["requesterID"] as? String ?? "nil"
+                let targetID = record["targetID"] as? String ?? "nil"
+                let status = record["status"] as? String ?? "nil"
+                print("[CloudKit]   - Record: requesterID=\(requesterID), targetID=\(targetID), status=\(status)")
+            }
+            return records
         } catch let error as CKError where error.code == .unknownItem {
+            print("[CloudKit] fetchPendingRequests: schema doesn't exist yet")
             return []
+        } catch {
+            print("[CloudKit] fetchPendingRequests ERROR: \(error)")
+            throw error
         }
     }
 
     func fetchSentRequests(forUserID userID: String) async throws -> [CKRecord] {
         let predicate = NSPredicate(format: "requesterID == %@ AND status == %@", userID, "pending")
+        print("[CloudKit] fetchSentRequests for requesterID: \(userID)")
         do {
-            return try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate)
+            let records = try await fetchFromPublic(recordType: "FriendConnection", predicate: predicate)
+            print("[CloudKit] fetchSentRequests returned \(records.count) records")
+            return records
         } catch let error as CKError where error.code == .unknownItem {
+            print("[CloudKit] fetchSentRequests: schema doesn't exist yet")
             return []
+        } catch {
+            print("[CloudKit] fetchSentRequests ERROR: \(error)")
+            throw error
         }
     }
 

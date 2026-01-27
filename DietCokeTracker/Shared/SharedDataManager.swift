@@ -123,4 +123,109 @@ struct SharedDataManager {
             return (date: date, count: dayEntries.count, ounces: dayEntries.reduce(0) { $0 + $1.ounces })
         }.reversed()
     }
+
+    // MARK: - Graph Widget Helpers
+
+    /// Get the maximum count from the last 7 days for scaling
+    static func getLast7DaysMaxCount() -> Int {
+        let data = getLast7DaysData()
+        return data.map { $0.count }.max() ?? 1
+    }
+
+    /// Get the maximum ounces from the last 7 days for scaling
+    static func getLast7DaysMaxOunces() -> Double {
+        let data = getLast7DaysData()
+        return data.map { $0.ounces }.max() ?? 1.0
+    }
+
+    /// Get totals for the last 7 days
+    static func getLast7DaysTotals() -> (count: Int, ounces: Double) {
+        let data = getLast7DaysData()
+        let totalCount = data.reduce(0) { $0 + $1.count }
+        let totalOunces = data.reduce(0) { $0 + $1.ounces }
+        return (count: totalCount, ounces: totalOunces)
+    }
+
+    // MARK: - Streak Widget Helpers
+
+    /// Milestone thresholds for streak achievements
+    static let streakMilestones = [7, 14, 30, 60, 90, 100, 180, 365]
+
+    /// Get current streak milestone information
+    static func getStreakMilestoneInfo() -> (current: Int, next: Int, progress: Double) {
+        let streak = getStreak()
+
+        // Find the next milestone
+        let nextMilestone = streakMilestones.first { $0 > streak } ?? (streak + 30)
+
+        // Find the previous milestone (or 0 if none)
+        let previousMilestone = streakMilestones.reversed().first { $0 <= streak } ?? 0
+
+        // Calculate progress towards next milestone
+        let range = nextMilestone - previousMilestone
+        let progress = range > 0 ? Double(streak - previousMilestone) / Double(range) : 1.0
+
+        return (current: streak, next: nextMilestone, progress: min(progress, 1.0))
+    }
+
+    /// Check if current streak is exactly on a milestone
+    static func isOnMilestone() -> Bool {
+        let streak = getStreak()
+        return streakMilestones.contains(streak)
+    }
+
+    /// Get encouragement text based on streak progress
+    static func getStreakEncouragement() -> String {
+        let info = getStreakMilestoneInfo()
+        let daysToGo = info.next - info.current
+
+        if daysToGo <= 1 {
+            return "Almost there!"
+        } else if daysToGo <= 3 {
+            return "So close!"
+        } else if daysToGo <= 7 {
+            return "Keep it up!"
+        } else {
+            return "\(daysToGo) days to go"
+        }
+    }
+
+    // MARK: - Average Calculations
+
+    /// Get average daily count over the last 30 days
+    static func getAverageDailyCount() -> Double {
+        let entries = getEntries()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: today) else {
+            return 0
+        }
+
+        let recentEntries = entries.filter { $0.timestamp >= thirtyDaysAgo }
+        let daysWithEntries = Set(recentEntries.map { calendar.startOfDay(for: $0.timestamp) })
+
+        guard !daysWithEntries.isEmpty else { return 0 }
+
+        return Double(recentEntries.count) / Double(min(30, daysWithEntries.count))
+    }
+
+    /// Get average daily ounces over the last 30 days
+    static func getAverageDailyOunces() -> Double {
+        let entries = getEntries()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: today) else {
+            return 0
+        }
+
+        let recentEntries = entries.filter { $0.timestamp >= thirtyDaysAgo }
+        let daysWithEntries = Set(recentEntries.map { calendar.startOfDay(for: $0.timestamp) })
+
+        guard !daysWithEntries.isEmpty else { return 0 }
+
+        let totalOunces = recentEntries.reduce(0) { $0 + $1.ounces }
+        return totalOunces / Double(min(30, daysWithEntries.count))
+    }
 }

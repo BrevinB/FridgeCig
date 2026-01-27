@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		237342E72F21D1B7007CD14A /* WeeklyRecap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237342E42F21D1B7007CD14A /* WeeklyRecap.swift */; };
+		237342E82F21D1B7007CD14A /* MilestoneCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237342E12F21D1B7007CD14A /* MilestoneCard.swift */; };
+		237342E92F21D1B7007CD14A /* ActivityItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237342E02F21D1B7007CD14A /* ActivityItem.swift */; };
 		23CA13DC2F186169000C7B43 /* Badge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DA2F186169000C7B43 /* Badge.swift */; };
 		23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DB2F186169000C7B43 /* BadgeStore.swift */; };
 		23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DE2F18617D000C7B43 /* BadgesView.swift */; };
@@ -121,6 +124,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		237342E02F21D1B7007CD14A /* ActivityItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityItem.swift; sourceTree = "<group>"; };
+		237342E12F21D1B7007CD14A /* MilestoneCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneCard.swift; sourceTree = "<group>"; };
+		237342E42F21D1B7007CD14A /* WeeklyRecap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyRecap.swift; sourceTree = "<group>"; };
 		23CA13DA2F186169000C7B43 /* Badge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Badge.swift; sourceTree = "<group>"; };
 		23CA13DB2F186169000C7B43 /* BadgeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeStore.swift; sourceTree = "<group>"; };
 		23CA13DE2F18617D000C7B43 /* BadgesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgesView.swift; sourceTree = "<group>"; };
@@ -207,6 +213,9 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		237342D02F21D184007CD14A /* MilestoneCard */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MilestoneCard; sourceTree = "<group>"; };
+		237342D72F21D184007CD14A /* WeeklyRecap */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = WeeklyRecap; sourceTree = "<group>"; };
+		237342EC2F21D1D3007CD14A /* ActivityFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ActivityFeed; sourceTree = "<group>"; };
 		23CA13FC2F189F69000C7B43 /* DietCokeWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14092F189F6B000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DietCokeWidget; sourceTree = "<group>"; };
 		23CA14132F18A480000C7B43 /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14162F18A486000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14312F18A915000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14542F18AD03000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
 		23CA14212F18A889000C7B43 /* DietCokeWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "DietCokeWatch Watch App"; sourceTree = "<group>"; };
@@ -300,6 +309,9 @@
 		A4000002 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				237342E02F21D1B7007CD14A /* ActivityItem.swift */,
+				237342E12F21D1B7007CD14A /* MilestoneCard.swift */,
+				237342E42F21D1B7007CD14A /* WeeklyRecap.swift */,
 				23CA15D62F19F351000C7B43 /* LeaderboardCategory.swift */,
 				23CA15D42F19F322000C7B43 /* FriendConnection.swift */,
 				23CA15BC2F19ECAD000C7B43 /* UserProfile.swift */,
@@ -318,6 +330,9 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				237342EC2F21D1D3007CD14A /* ActivityFeed */,
+				237342D02F21D184007CD14A /* MilestoneCard */,
+				237342D72F21D184007CD14A /* WeeklyRecap */,
 				23CA15E72F1AF9C7000C7B43 /* Subscription */,
 				23CA15B62F19EC8E000C7B43 /* Social */,
 				23CA15B12F19EC86000C7B43 /* EditEntrySheet.swift */,
@@ -450,6 +465,9 @@
 				23CA14292F18A88B000C7B43 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				237342D02F21D184007CD14A /* MilestoneCard */,
+				237342D72F21D184007CD14A /* WeeklyRecap */,
+				237342EC2F21D1D3007CD14A /* ActivityFeed */,
 				23CA14132F18A480000C7B43 /* Shared */,
 				23CA15B62F19EC8E000C7B43 /* Social */,
 				23CA15C12F19ECC4000C7B43 /* Services */,
@@ -595,6 +613,9 @@
 				23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */,
 				23CA13E12F18617D000C7B43 /* BadgeView.swift in Sources */,
 				A1000007 /* DrinkStore.swift in Sources */,
+				237342E72F21D1B7007CD14A /* WeeklyRecap.swift in Sources */,
+				237342E82F21D1B7007CD14A /* MilestoneCard.swift in Sources */,
+				237342E92F21D1B7007CD14A /* ActivityItem.swift in Sources */,
 				A1000008 /* Color+DietCoke.swift in Sources */,
 				A1000009 /* AddDrinkView.swift in Sources */,
 				23CA15BB2F19ECA4000C7B43 /* UserIdentity.swift in Sources */,
@@ -641,7 +662,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DietCokeWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = DietCokeWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCigWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -672,7 +693,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DietCokeWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = DietCokeWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCigWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -703,7 +724,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DietCokeWatch;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCigWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = co.brevinb.fridgecig;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -736,7 +757,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DietCokeWatch;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCigWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = co.brevinb.fridgecig;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -769,7 +790,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DietCokeWatchWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = DietCokeWatchWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCigWatchWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -802,7 +823,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DietCokeWatchWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = DietCokeWatchWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = FridgeCigWatchWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -955,7 +976,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -989,7 +1010,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

@@ -4,10 +4,12 @@ import UIKit
 struct ContentView: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var badgeStore: BadgeStore
+    @EnvironmentObject var milestoneService: MilestoneCardService
     @State private var showingAddDrink = false
     @State private var selectedTab = 0
     @State private var showingBadgeToast = false
     @State private var showingShareSheet = false
+    @State private var showingMilestoneCard = false
 
     var body: some View {
         ZStack {
@@ -63,11 +65,25 @@ struct ContentView: View {
                 .transition(.scale.combined(with: .opacity))
                 .zIndex(100)
             }
+
         }
         .animation(.spring(response: 0.4), value: showingBadgeToast)
         .onChange(of: badgeStore.recentlyUnlocked) { _, newBadge in
             if newBadge != nil {
                 showingBadgeToast = true
+            }
+        }
+        .onChange(of: milestoneService.pendingCard) { _, newCard in
+            if newCard != nil {
+                showingMilestoneCard = true
+            }
+        }
+        .sheet(isPresented: $showingMilestoneCard) {
+            if let card = milestoneService.pendingCard {
+                MilestoneCardPreviewSheet(card: card)
+                    .onDisappear {
+                        milestoneService.dismissCard()
+                    }
             }
         }
         .sheet(isPresented: $showingShareSheet) {
@@ -395,4 +411,5 @@ struct TodayDrinksSection: View {
     ContentView()
         .environmentObject(DrinkStore())
         .environmentObject(BadgeStore())
+        .environmentObject(MilestoneCardService())
 }

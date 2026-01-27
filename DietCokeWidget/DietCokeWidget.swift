@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - Timeline Entry
 
@@ -449,4 +450,351 @@ struct DietCokeWidget: Widget {
     DietCokeWidget()
 } timeline: {
     DietCokeEntry(date: .now, todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: false)
+}
+
+// MARK: - Configurable Widget Entry
+
+struct ConfigurableDietCokeEntry: TimelineEntry {
+    let date: Date
+    let todayCount: Int
+    let todayOunces: Double
+    let streak: Int
+    let weekCount: Int
+    let isPremium: Bool
+    let configuration: ConfigurableWidgetIntent
+}
+
+// MARK: - Configurable Widget Provider
+
+struct ConfigurableDietCokeProvider: AppIntentTimelineProvider {
+    typealias Entry = ConfigurableDietCokeEntry
+    typealias Intent = ConfigurableWidgetIntent
+
+    func placeholder(in context: Context) -> ConfigurableDietCokeEntry {
+        ConfigurableDietCokeEntry(
+            date: Date(),
+            todayCount: 3,
+            todayOunces: 36,
+            streak: 5,
+            weekCount: 15,
+            isPremium: true,
+            configuration: ConfigurableWidgetIntent()
+        )
+    }
+
+    func snapshot(for configuration: ConfigurableWidgetIntent, in context: Context) async -> ConfigurableDietCokeEntry {
+        ConfigurableDietCokeEntry(
+            date: Date(),
+            todayCount: SharedDataManager.getTodayCount(),
+            todayOunces: SharedDataManager.getTodayOunces(),
+            streak: SharedDataManager.getStreak(),
+            weekCount: SharedDataManager.getThisWeekCount(),
+            isPremium: SubscriptionStatusManager.isPremium(),
+            configuration: configuration
+        )
+    }
+
+    func timeline(for configuration: ConfigurableWidgetIntent, in context: Context) async -> Timeline<ConfigurableDietCokeEntry> {
+        let entry = ConfigurableDietCokeEntry(
+            date: Date(),
+            todayCount: SharedDataManager.getTodayCount(),
+            todayOunces: SharedDataManager.getTodayOunces(),
+            streak: SharedDataManager.getStreak(),
+            weekCount: SharedDataManager.getThisWeekCount(),
+            isPremium: SubscriptionStatusManager.isPremium(),
+            configuration: configuration
+        )
+
+        let calendar = Calendar.current
+        let nextHour = calendar.nextDate(after: Date(), matching: DateComponents(minute: 0), matchingPolicy: .nextTime) ?? Date().addingTimeInterval(3600)
+        let fifteenMinutes = Date().addingTimeInterval(15 * 60)
+        let refreshDate = min(nextHour, fifteenMinutes)
+
+        return Timeline(entries: [entry], policy: .after(refreshDate))
+    }
+}
+
+// MARK: - Configurable Widget Views
+
+struct ConfigurableSmallWidgetView: View {
+    let entry: ConfigurableDietCokeEntry
+
+    var body: some View {
+        let config = entry.configuration
+
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: config.primaryStat.icon)
+                    .font(.caption)
+                    .foregroundStyle(config.accentColor.color.opacity(0.8))
+                Spacer()
+                Text("TODAY")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(config.primaryStat.getValue(from: toDietCokeEntry(entry)))
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .foregroundStyle(config.accentColor.color)
+
+            Text(config.primaryStat.label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let secondaryValue = config.secondaryStat.getValue(from: toDietCokeEntry(entry)) {
+                Text(secondaryValue)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
+        }
+        .padding()
+    }
+}
+
+struct ConfigurableMediumWidgetView: View {
+    let entry: ConfigurableDietCokeEntry
+
+    var body: some View {
+        let config = entry.configuration
+        let dietCokeEntry = toDietCokeEntry(entry)
+
+        HStack(spacing: 16) {
+            // Left side - Primary stat
+            VStack(spacing: 4) {
+                Text("TODAY")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+
+                Text(config.primaryStat.getValue(from: dietCokeEntry))
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(config.accentColor.color)
+
+                Text(config.primaryStat.label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            Divider()
+
+            // Right side - Other stats
+            VStack(alignment: .leading, spacing: 12) {
+                if config.primaryStat != .streak {
+                    HStack {
+                        Image(systemName: "flame.fill")
+                            .foregroundStyle(.orange)
+                        Text("\(entry.streak) day streak")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                }
+
+                if config.primaryStat != .count {
+                    HStack {
+                        Image(systemName: "cup.and.saucer.fill")
+                            .foregroundStyle(config.accentColor.color)
+                        Text("\(entry.todayCount) today")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                }
+
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.blue)
+                    Text("\(entry.weekCount) this week")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding()
+    }
+}
+
+struct ConfigurableLargeWidgetView: View {
+    let entry: ConfigurableDietCokeEntry
+
+    var body: some View {
+        let config = entry.configuration
+
+        VStack(spacing: 16) {
+            // Header
+            HStack {
+                Image(systemName: "cup.and.saucer.fill")
+                    .foregroundStyle(config.accentColor.color)
+                Text("DC Tracker")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Divider()
+
+            // Main stats
+            HStack(spacing: 24) {
+                VStack(spacing: 4) {
+                    Text("\(entry.todayCount)")
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundStyle(config.accentColor.color)
+                    Text("Today")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: 4) {
+                    Text("\(Int(entry.todayOunces))")
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundStyle(config.accentColor.secondaryColor)
+                    Text("Ounces")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: 4) {
+                    Text("\(entry.streak)")
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundStyle(.orange)
+                    Text("Streak")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Divider()
+
+            // Bottom stats
+            HStack {
+                Label("\(entry.weekCount) this week", systemImage: "calendar")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text("Tap to log")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding()
+    }
+}
+
+// MARK: - Configurable Widget Entry View
+
+struct ConfigurableDietCokeWidgetEntryView: View {
+    @Environment(\.widgetFamily) var family
+    var entry: ConfigurableDietCokeProvider.Entry
+
+    var body: some View {
+        if entry.isPremium {
+            premiumContent
+        } else {
+            lockedContent
+        }
+    }
+
+    @ViewBuilder
+    private var premiumContent: some View {
+        switch family {
+        case .systemSmall:
+            ConfigurableSmallWidgetView(entry: entry)
+        case .systemMedium:
+            ConfigurableMediumWidgetView(entry: entry)
+        case .systemLarge:
+            ConfigurableLargeWidgetView(entry: entry)
+        default:
+            ConfigurableSmallWidgetView(entry: entry)
+        }
+    }
+
+    @ViewBuilder
+    private var lockedContent: some View {
+        switch family {
+        case .systemSmall:
+            PremiumRequiredSmallView()
+        case .systemMedium:
+            PremiumRequiredMediumView()
+        case .systemLarge:
+            PremiumRequiredLargeView()
+        default:
+            PremiumRequiredSmallView()
+        }
+    }
+}
+
+// MARK: - Configurable Widget Configuration
+
+struct ConfigurableDietCokeWidget: Widget {
+    let kind: String = "ConfigurableDietCokeWidget"
+
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: kind, intent: ConfigurableWidgetIntent.self, provider: ConfigurableDietCokeProvider()) { entry in
+            if #available(iOS 17.0, *) {
+                ConfigurableDietCokeWidgetEntryView(entry: entry)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                ConfigurableDietCokeWidgetEntryView(entry: entry)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName("Customizable Tracker")
+        .description("Customize which stats to display.")
+        .supportedFamilies([
+            .systemSmall,
+            .systemMedium,
+            .systemLarge
+        ])
+    }
+}
+
+// MARK: - Helper
+
+/// Convert ConfigurableDietCokeEntry to DietCokeEntry for stat calculations
+private func toDietCokeEntry(_ entry: ConfigurableDietCokeEntry) -> DietCokeEntry {
+    DietCokeEntry(
+        date: entry.date,
+        todayCount: entry.todayCount,
+        todayOunces: entry.todayOunces,
+        streak: entry.streak,
+        weekCount: entry.weekCount,
+        isPremium: entry.isPremium
+    )
+}
+
+// MARK: - Configurable Widget Previews
+
+#Preview("Configurable Small", as: .systemSmall) {
+    ConfigurableDietCokeWidget()
+} timeline: {
+    ConfigurableDietCokeEntry(
+        date: .now,
+        todayCount: 3,
+        todayOunces: 36,
+        streak: 5,
+        weekCount: 15,
+        isPremium: true,
+        configuration: ConfigurableWidgetIntent()
+    )
+}
+
+#Preview("Configurable Medium", as: .systemMedium) {
+    ConfigurableDietCokeWidget()
+} timeline: {
+    ConfigurableDietCokeEntry(
+        date: .now,
+        todayCount: 3,
+        todayOunces: 36,
+        streak: 5,
+        weekCount: 15,
+        isPremium: true,
+        configuration: ConfigurableWidgetIntent()
+    )
 }

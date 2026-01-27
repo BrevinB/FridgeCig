@@ -2,11 +2,16 @@ import SwiftUI
 
 struct StatsView: View {
     @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var recapService: WeeklyRecapService
+    @State private var showingWeeklyRecap = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Weekly Recap Button
+                    WeeklyRecapButton(showingRecap: $showingWeeklyRecap)
+
                     // Overview cards
                     OverviewStatsSection()
 
@@ -23,7 +28,53 @@ struct StatsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Statistics")
+            .sheet(isPresented: $showingWeeklyRecap) {
+                WeeklyRecapSheet()
+            }
         }
+    }
+}
+
+// MARK: - Weekly Recap Button
+
+struct WeeklyRecapButton: View {
+    @Binding var showingRecap: Bool
+
+    var body: some View {
+        Button {
+            showingRecap = true
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.title2)
+                            .foregroundColor(.dietCokeRed)
+
+                        Text("Weekly Recap")
+                            .font(.headline)
+                            .foregroundColor(.dietCokeCharcoal)
+                    }
+
+                    Text("See how your week stacked up")
+                        .font(.caption)
+                        .foregroundColor(.dietCokeDarkSilver)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.body)
+                    .foregroundColor(.dietCokeDarkSilver)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -317,4 +368,5 @@ struct FunStatRow: View {
 #Preview {
     StatsView()
         .environmentObject(DrinkStore())
+        .environmentObject(WeeklyRecapService())
 }

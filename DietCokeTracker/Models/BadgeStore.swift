@@ -1,12 +1,16 @@
 import Foundation
 import SwiftUI
 import CloudKit
+import Combine
 
 @MainActor
 class BadgeStore: ObservableObject {
     @Published private(set) var unlockedBadges: [String: Date] = [:]
     @Published var recentlyUnlocked: Badge?
     @Published var isSyncing = false
+
+    /// Publisher that emits when a new badge is unlocked (for activity feed integration)
+    let badgeUnlocked = PassthroughSubject<Badge, Never>()
 
     private let saveKey = "UnlockedBadges"
     private let recordType = "BadgeData"
@@ -73,6 +77,8 @@ class BadgeStore: ObservableObject {
 
         if let badge = badge(for: badgeId) {
             recentlyUnlocked = badge
+            // Notify listeners (for activity feed)
+            badgeUnlocked.send(badge)
         }
     }
 

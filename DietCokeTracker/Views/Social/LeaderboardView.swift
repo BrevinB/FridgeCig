@@ -83,6 +83,20 @@ struct LeaderboardView: View {
 
         do {
             let currentUserID = identityService.currentIdentity?.userIDString
+
+            #if DEBUG
+            // Use fake data if available
+            if friendService.isUsingFakeData && selectedScope == .friends {
+                entries = friendService.getFakeLeaderboard(
+                    category: selectedCategory,
+                    currentUserID: currentUserID,
+                    currentUserProfile: identityService.currentProfile
+                )
+                isLoading = false
+                return
+            }
+            #endif
+
             entries = try await friendService.fetchLeaderboard(
                 category: selectedCategory,
                 scope: selectedScope,

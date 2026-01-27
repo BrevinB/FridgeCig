@@ -35,15 +35,31 @@ extension FriendConnection {
     static let recordType = "FriendConnection"
 
     init?(from record: CKRecord) {
-        guard let idString = record["connectionID"] as? String,
-              let id = UUID(uuidString: idString),
-              let requesterID = record["requesterID"] as? String,
+        // Required fields
+        guard let requesterID = record["requesterID"] as? String,
               let targetID = record["targetID"] as? String,
               let statusString = record["status"] as? String,
-              let status = FriendStatus(rawValue: statusString),
-              let createdAt = record["createdAt"] as? Date else {
+              let status = FriendStatus(rawValue: statusString) else {
+            print("[FriendConnection] Parse failed - missing required field")
+            print("[FriendConnection]   requesterID: \(record["requesterID"] ?? "nil")")
+            print("[FriendConnection]   targetID: \(record["targetID"] ?? "nil")")
+            print("[FriendConnection]   status: \(record["status"] ?? "nil")")
             return nil
         }
+
+        // Optional fields with fallbacks
+        let id: UUID
+        if let idString = record["connectionID"] as? String,
+           let parsedID = UUID(uuidString: idString) {
+            id = parsedID
+        } else {
+            // Generate deterministic ID from record name to ensure consistency
+            id = UUID(uuidString: record.recordID.recordName) ?? UUID()
+            print("[FriendConnection] connectionID missing, using recordID: \(id)")
+        }
+
+        // Use createdAt field, fall back to CloudKit's creation date
+        let createdAt = record["createdAt"] as? Date ?? record.creationDate ?? Date()
 
         self.id = id
         self.requesterID = requesterID

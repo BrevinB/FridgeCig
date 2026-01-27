@@ -7,6 +7,8 @@ struct DietCokeTrackerApp: App {
     @StateObject private var store = DrinkStore()
     @StateObject private var badgeStore = BadgeStore()
     @StateObject private var preferences = UserPreferences()
+    @StateObject private var milestoneService = MilestoneCardService()
+    @StateObject private var recapService = WeeklyRecapService()
 
     // Social/Leaderboard services
     @StateObject private var cloudKitManager = CloudKitManager()
@@ -14,6 +16,7 @@ struct DietCokeTrackerApp: App {
     @StateObject private var friendService: FriendConnectionService
     @StateObject private var contactsService = ContactsService()
     @StateObject private var drinkSyncService: DrinkSyncService
+    @StateObject private var activityService: ActivityFeedService
 
     // Subscription service
     @StateObject private var purchaseService = PurchaseService.shared
@@ -24,6 +27,7 @@ struct DietCokeTrackerApp: App {
         _identityService = StateObject(wrappedValue: IdentityService(cloudKitManager: ckManager))
         _friendService = StateObject(wrappedValue: FriendConnectionService(cloudKitManager: ckManager))
         _drinkSyncService = StateObject(wrappedValue: DrinkSyncService(cloudKitManager: ckManager))
+        _activityService = StateObject(wrappedValue: ActivityFeedService(cloudKitManager: ckManager))
 
         // Configure RevenueCat - Replace with your API key from RevenueCat dashboard
         PurchaseService.shared.configure(apiKey: "appl_cbqDsdjUplQQKgcSBAFeMuyCHlo")
@@ -40,6 +44,9 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(friendService)
                 .environmentObject(contactsService)
                 .environmentObject(purchaseService)
+                .environmentObject(milestoneService)
+                .environmentObject(recapService)
+                .environmentObject(activityService)
                 .task {
                     // Set up sync services
                     store.syncService = drinkSyncService
@@ -59,12 +66,84 @@ struct DietCokeTrackerApp: App {
                     if newState == .ready {
                         Task {
                             try? await identityService.syncStats(from: store)
+
+                            // Configure activity service with current user
+                            if let userID = identityService.currentProfile?.userIDString {
+                                activityService.configure(
+                                    currentUserID: userID,
+                                    friendIDs: Array(friendService.friendIDs)
+                                )
+                            }
                         }
+                    }
+                }
+                .onChange(of: friendService.friends) { _, _ in
+                    // Update activity service when friends list changes
+                    if let userID = identityService.currentProfile?.userIDString {
+                        activityService.configure(
+                            currentUserID: userID,
+                            friendIDs: Array(friendService.friendIDs)
+                        )
                     }
                 }
                 .onReceive(store.entriesDidChange.debounce(for: .seconds(2), scheduler: RunLoop.main)) { _ in
                     Task {
                         try? await identityService.syncStats(from: store)
+                    }
+                }
+                .onReceive(store.entriesDidChange) { _ in
+                    // Check for drink count milestones
+                    let username = identityService.currentProfile?.username
+                    milestoneService.checkForMilestones(
+                        drinkCount: store.allTimeCount,
+                        streakDays: store.streakDays,
+                        username: username
+                    )
+                }
+                .onReceive(store.drinkAdded) { entry, photo in
+                    print("[App] Received drinkAdded notification for: \(entry.type.displayName)")
+                    // Post to activity feed if user has sharing enabled
+                    guard let userID = identityService.currentProfile?.userIDString,
+                          let displayName = identityService.currentProfile?.displayName else {
+                        print("[App] No identity found, skipping activity post")
+                        return
+                    }
+
+                    print("[App] Posting drink activity for user: \(displayName)")
+                    Task {
+                        await activityService.postDrinkActivity(
+                            type: entry.type,
+                            note: entry.note,
+                            photo: photo,
+                            userID: userID,
+                            displayName: displayName
+                        )
+                    }
+                }
+                .onReceive(badgeStore.badgeUnlocked) { badge in
+                    // Post badge unlock to activity feed
+                    guard let userID = identityService.currentProfile?.userIDString,
+                          let displayName = identityService.currentProfile?.displayName else { return }
+
+                    Task {
+                        await activityService.postBadgeActivity(
+                            badge: badge,
+                            userID: userID,
+                            displayName: displayName
+                        )
+                    }
+                }
+                .onReceive(store.streakChanged) { newStreak in
+                    // Post streak milestone to activity feed
+                    guard let userID = identityService.currentProfile?.userIDString,
+                          let displayName = identityService.currentProfile?.displayName else { return }
+
+                    Task {
+                        await activityService.postStreakActivity(
+                            days: newStreak,
+                            userID: userID,
+                            displayName: displayName
+                        )
                     }
                 }
         }

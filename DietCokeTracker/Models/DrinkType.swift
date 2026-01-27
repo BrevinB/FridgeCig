@@ -102,7 +102,8 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-enum DrinkCategory: String, CaseIterable {
+enum DrinkCategory: String, CaseIterable, Codable, Identifiable {
+    var id: String { rawValue }
     case cans = "Cans"
     case bottles = "Bottles"
     case mcdonalds = "McDonald's"

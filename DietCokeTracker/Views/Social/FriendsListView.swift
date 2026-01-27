@@ -3,6 +3,7 @@ import SwiftUI
 struct FriendsListView: View {
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingAddFriend = false
 
     var body: some View {
@@ -26,6 +27,14 @@ struct FriendsListView: View {
         }
         .sheet(isPresented: $showingAddFriend) {
             AddFriendView()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                print("[FriendsListView] App became active, refreshing friends...")
+                Task {
+                    await loadFriends()
+                }
+            }
         }
     }
 
@@ -83,8 +92,20 @@ private struct PendingRequestRow: View {
     @EnvironmentObject var friendService: FriendConnectionService
     let request: FriendConnection
     @State private var requesterProfile: UserProfile?
+    @State private var isLoading = true
     @State private var isAccepting = false
     @State private var isDeclining = false
+
+    private var displayName: String {
+        requesterProfile?.displayName ?? "Unknown User"
+    }
+
+    private var displayInitial: String {
+        if let profile = requesterProfile {
+            return String(profile.displayName.prefix(1)).uppercased()
+        }
+        return "?"
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -94,26 +115,26 @@ private struct PendingRequestRow: View {
                     .fill(Color.dietCokeRed.opacity(0.1))
                     .frame(width: 44, height: 44)
 
-                if let profile = requesterProfile {
-                    Text(profile.displayName.prefix(1).uppercased())
+                if isLoading {
+                    ProgressView()
+                } else {
+                    Text(displayInitial)
                         .font(.headline)
                         .foregroundColor(.dietCokeRed)
-                } else {
-                    ProgressView()
                 }
             }
 
             // Name
             VStack(alignment: .leading, spacing: 2) {
-                if let profile = requesterProfile {
-                    Text(profile.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.dietCokeCharcoal)
-                } else {
+                if isLoading {
                     Text("Loading...")
                         .font(.subheadline)
                         .foregroundColor(.dietCokeDarkSilver)
+                } else {
+                    Text(displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.dietCokeCharcoal)
                 }
 
                 Text("Wants to be friends")
@@ -123,7 +144,7 @@ private struct PendingRequestRow: View {
 
             Spacer()
 
-            // Actions
+            // Actions - always enabled once loading is done
             HStack(spacing: 8) {
                 Button {
                     decline()
@@ -137,7 +158,7 @@ private struct PendingRequestRow: View {
                             .foregroundColor(.dietCokeDarkSilver)
                     }
                 }
-                .disabled(isAccepting || isDeclining)
+                .disabled(isLoading || isAccepting || isDeclining)
 
                 Button {
                     accept()
@@ -151,7 +172,7 @@ private struct PendingRequestRow: View {
                             .foregroundColor(.green)
                     }
                 }
-                .disabled(isAccepting || isDeclining)
+                .disabled(isLoading || isAccepting || isDeclining)
             }
         }
         .padding(12)
@@ -163,30 +184,43 @@ private struct PendingRequestRow: View {
     }
 
     private func loadRequesterProfile() async {
+        isLoading = true
         do {
-            requesterProfile = try await friendService.lookupUserByFriendCode("")
-            // Actually we need to look up by user ID, let me fix this
-            // For now we'll show a placeholder
-        } catch {}
+            requesterProfile = try await friendService.lookupUserByID(request.requesterID)
+        } catch {
+            print("Failed to load requester profile: \(error)")
+        }
+        isLoading = false
     }
 
     private func accept() {
-        guard let userID = identityService.currentIdentity?.userIDString else { return }
+        guard let userID = identityService.currentIdentity?.userIDString else {
+            print("[PendingRequestRow] Accept failed: no userID")
+            return
+        }
+        print("[PendingRequestRow] Accepting request: \(request.id)")
         isAccepting = true
         Task {
             do {
                 try await friendService.acceptRequest(request, currentUserID: userID)
-            } catch {}
+                print("[PendingRequestRow] Accept succeeded")
+            } catch {
+                print("[PendingRequestRow] Accept failed: \(error)")
+            }
             isAccepting = false
         }
     }
 
     private func decline() {
+        print("[PendingRequestRow] Declining request: \(request.id)")
         isDeclining = true
         Task {
             do {
                 try await friendService.declineRequest(request)
-            } catch {}
+                print("[PendingRequestRow] Decline succeeded")
+            } catch {
+                print("[PendingRequestRow] Decline failed: \(error)")
+            }
             isDeclining = false
         }
     }
@@ -279,41 +313,44 @@ private struct FriendRow: View {
     let friend: UserProfile
 
     var body: some View {
-        HStack(spacing: 14) {
-            // Avatar
-            ZStack {
-                Circle()
-                    .fill(Color.dietCokeRed.opacity(0.1))
-                    .frame(width: 48, height: 48)
+        NavigationLink(destination: FriendDetailView(friend: friend)) {
+            HStack(spacing: 14) {
+                // Avatar
+                ZStack {
+                    Circle()
+                        .fill(Color.dietCokeRed.opacity(0.1))
+                        .frame(width: 48, height: 48)
 
-                Text(friend.displayName.prefix(1).uppercased())
-                    .font(.headline)
-                    .foregroundColor(.dietCokeRed)
-            }
-
-            // Info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(friend.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.dietCokeCharcoal)
-
-                // Stats preview
-                HStack(spacing: 12) {
-                    StatBadge(icon: "flame.fill", value: "\(friend.currentStreak)", color: .orange)
-                    StatBadge(icon: "cup.and.saucer.fill", value: "\(friend.allTimeDrinks)", color: .dietCokeRed)
+                    Text(friend.displayName.prefix(1).uppercased())
+                        .font(.headline)
+                        .foregroundColor(.dietCokeRed)
                 }
+
+                // Info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(friend.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.dietCokeCharcoal)
+
+                    // Stats preview
+                    HStack(spacing: 12) {
+                        StatBadge(icon: "flame.fill", value: "\(friend.currentStreak)", color: .orange)
+                        StatBadge(icon: "cup.and.saucer.fill", value: "\(friend.allTimeDrinks)", color: .dietCokeRed)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.dietCokeSilver)
             }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.dietCokeSilver)
+            .padding(12)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
         }
-        .padding(12)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
+        .buttonStyle(.plain)
     }
 }
 

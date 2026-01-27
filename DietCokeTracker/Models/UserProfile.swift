@@ -1,7 +1,7 @@
 import Foundation
 import CloudKit
 
-struct UserProfile: Codable, Identifiable {
+struct UserProfile: Codable, Identifiable, Equatable {
     let id: UUID
     var displayName: String
     var friendCode: String
@@ -118,7 +118,8 @@ extension UserProfile {
         record["entryCount"] = entryCount
         record["averageOuncesPerEntry"] = averageOuncesPerEntry
         record["isSuspicious"] = isSuspicious ? 1 : 0
-        record["suspiciousFlags"] = suspiciousFlags
+        // CloudKit can't initialize a new field with an empty array, so only set if non-empty
+        record["suspiciousFlags"] = suspiciousFlags.isEmpty ? nil : suspiciousFlags
     }
 }
 

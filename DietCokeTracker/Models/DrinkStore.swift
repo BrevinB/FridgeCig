@@ -12,7 +12,14 @@ class DrinkStore: ObservableObject {
     /// Publisher that emits when entries change (for stats sync)
     let entriesDidChange = PassthroughSubject<Void, Never>()
 
+    /// Publisher that emits when a new drink is added (for activity feed)
+    let drinkAdded = PassthroughSubject<(entry: DrinkEntry, photo: UIImage?), Never>()
+
+    /// Publisher that emits when streak changes (for activity feed milestones)
+    let streakChanged = PassthroughSubject<Int, Never>()
+
     private let saveKey = "DietCokeEntries"
+    private var lastKnownStreak: Int = 0
 
     /// Sync service for CloudKit (set by app on launch)
     var syncService: DrinkSyncService?
@@ -116,12 +123,22 @@ class DrinkStore: ObservableObject {
     // MARK: - CRUD Operations
 
     func addEntry(_ entry: DrinkEntry) {
+        // Track streak before adding
+        let streakBefore = streakDays
+
         entries.append(entry)
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
 
         // Update rate limiting state
         lastEntryTime = Date()
+
+        // Check if streak changed
+        let streakAfter = streakDays
+        if streakAfter != streakBefore {
+            lastKnownStreak = streakAfter
+            streakChanged.send(streakAfter)
+        }
 
         // Sync rate limiting to shared storage (for widgets/watch)
         SharedDataManager.recordEntryAdded()
@@ -145,6 +162,10 @@ class DrinkStore: ObservableObject {
 
         let entry = DrinkEntry(type: type, brand: brand, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating, photoFilename: photoFilename)
         addEntry(entry)
+
+        // Notify for activity feed posting
+        print("[DrinkStore] Sending drinkAdded notification for: \(entry.type.displayName)")
+        drinkAdded.send((entry: entry, photo: photo))
     }
 
     // MARK: - Badge Integration
