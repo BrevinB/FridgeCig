@@ -6,29 +6,40 @@ struct WeeklyRecapSheet: View {
     @EnvironmentObject var purchaseService: PurchaseService
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedTheme: RecapCardTheme = .classic
-    @State private var showingShareSheet = false
-    @State private var shareImage: UIImage?
+    @State private var showingSharePreview = false
+    @State private var showingPaywall = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 if let recap = recapService.currentRecap {
-                    VStack(spacing: 24) {
-                        // Card Preview
-                        WeeklyRecapCardView(recap: recap, theme: selectedTheme)
-                            .frame(maxWidth: 320)
-                            .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
-                            .padding(.top)
+                    VStack(spacing: 20) {
+                        // Card Preview using new ShareCardView
+                        ShareCardPreviewContainer(
+                            content: recap,
+                            customization: .recapDefault
+                        )
+                        .frame(height: 280)
+                        .padding(.top)
 
-                        // Theme Selection
-                        RecapThemePicker(selectedTheme: $selectedTheme)
+                        // Share section
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Share Your Week")
+                                .font(.headline)
+                                .foregroundColor(.dietCokeCharcoal)
 
-                        // Share Button
+                            Text("Create beautiful share cards with themes, stickers, and multiple formats.")
+                                .font(.subheadline)
+                                .foregroundColor(.dietCokeDarkSilver)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+
+                        // Share Button - opens new SharePreviewSheet
                         Button {
-                            generateAndShare(recap: recap)
+                            showingSharePreview = true
                         } label: {
-                            Label("Share Your Week", systemImage: "square.and.arrow.up")
+                            Label("Customize & Share", systemImage: "square.and.arrow.up")
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
@@ -47,6 +58,18 @@ struct WeeklyRecapSheet: View {
                             Text("View Full Recap")
                                 .font(.headline)
                                 .foregroundColor(.dietCokeRed)
+                        }
+
+                        // Premium features callout
+                        if !purchaseService.isPremium {
+                            HStack(spacing: 8) {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.orange)
+                                Text("Premium unlocks 8 extra themes, stickers, and more formats")
+                                    .font(.caption)
+                                    .foregroundColor(.dietCokeDarkSilver)
+                            }
+                            .padding(.horizontal)
                         }
 
                         // History Section
@@ -86,17 +109,22 @@ struct WeeklyRecapSheet: View {
                 }
             }
         }
-        .sheet(isPresented: $showingShareSheet) {
-            if let image = shareImage {
-                ShareSheet(items: [image])
+        .sheet(isPresented: $showingSharePreview) {
+            if let recap = recapService.currentRecap {
+                SharePreviewSheet(
+                    content: recap,
+                    isPresented: $showingSharePreview,
+                    isPremium: purchaseService.isPremium,
+                    initialTheme: .classic,
+                    onPremiumTap: {
+                        showingSharePreview = false
+                        showingPaywall = true
+                    }
+                )
             }
         }
-    }
-
-    private func generateAndShare(recap: WeeklyRecap) {
-        if let image = recapService.generateShareImage(for: recap, theme: selectedTheme) {
-            shareImage = image
-            showingShareSheet = true
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView()
         }
     }
 }

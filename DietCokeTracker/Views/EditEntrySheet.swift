@@ -10,6 +10,8 @@ struct EditEntrySheet: View {
     @State private var selectedRating: DrinkRating?
     @State private var showingFullScreenPhoto = false
     @State private var showCalendar = false
+    @State private var showingShareSheet = false
+    @EnvironmentObject private var purchaseService: PurchaseService
 
     init(entry: DrinkEntry) {
         self.entry = entry
@@ -122,6 +124,43 @@ struct EditEntrySheet: View {
                         .padding()
                         .dietCokeCard()
                     }
+
+                    // Share section
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundColor(.dietCokeRed)
+                            Text("Share")
+                                .font(.headline)
+                                .foregroundColor(.dietCokeCharcoal)
+                        }
+
+                        Button {
+                            showingShareSheet = true
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(entry.hasPhoto ? "Share with Photo" : "Share Entry")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.dietCokeCharcoal)
+                                    Text("Create a beautiful share card for social media")
+                                        .font(.caption)
+                                        .foregroundColor(.dietCokeDarkSilver)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.dietCokeDarkSilver)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding()
+                    .dietCokeCard()
 
                     // Date & Time picker
                     VStack(alignment: .leading, spacing: 12) {
@@ -261,6 +300,14 @@ struct EditEntrySheet: View {
                     FullScreenPhotoView(image: photo)
                 }
             }
+            .sheet(isPresented: $showingShareSheet) {
+                SharePreviewSheet(
+                    content: entry,
+                    isPresented: $showingShareSheet,
+                    isPremium: purchaseService.isPremium,
+                    initialTheme: .classic
+                )
+            }
         }
     }
 }
@@ -300,4 +347,5 @@ struct FullScreenPhotoView: View {
 #Preview {
     EditEntrySheet(entry: DrinkEntry(type: .regularCan))
         .environmentObject(DrinkStore())
+        .environmentObject(PurchaseService.shared)
 }

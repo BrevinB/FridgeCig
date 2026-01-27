@@ -2,60 +2,47 @@ import SwiftUI
 
 struct MilestoneCardPreviewSheet: View {
     let card: MilestoneCard
-    @StateObject private var milestoneService = MilestoneCardService()
     @EnvironmentObject var purchaseService: PurchaseService
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedTheme: CardTheme = .classic
-    @State private var showingShareSheet = false
-    @State private var shareImage: UIImage?
+    @State private var showingSharePreview = false
     @State private var showingPaywall = false
+
+    // Map old CardTheme to new ShareTheme for initial selection
+    private var initialShareTheme: ShareTheme {
+        .classic
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Card Preview
-                    MilestoneCardView(card: card, theme: selectedTheme)
-                        .frame(maxWidth: 320)
-                        .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
-                        .padding(.top)
+                VStack(spacing: 20) {
+                    // Card Preview using new ShareCardView
+                    ShareCardPreviewContainer(
+                        content: card,
+                        customization: .milestoneDefault
+                    )
+                    .frame(height: 280)
+                    .padding(.top)
 
-                    // Theme Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Choose a Theme")
+                    // Quick theme preview
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Share Your Achievement")
                             .font(.headline)
                             .foregroundColor(.dietCokeCharcoal)
 
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 12) {
-                            ForEach(CardTheme.allCases) { theme in
-                                ThemeButton(
-                                    theme: theme,
-                                    isSelected: selectedTheme == theme,
-                                    isLocked: theme.isPremium && !purchaseService.isPremium
-                                ) {
-                                    if theme.isPremium && !purchaseService.isPremium {
-                                        showingPaywall = true
-                                    } else {
-                                        selectedTheme = theme
-                                    }
-                                }
-                            }
-                        }
+                        Text("Create beautiful share cards with themes, stickers, and multiple formats for Instagram, Twitter, and more.")
+                            .font(.subheadline)
+                            .foregroundColor(.dietCokeDarkSilver)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
 
-                    // Share Button
+                    // Share Button - opens new SharePreviewSheet
                     Button {
-                        generateAndShare()
+                        showingSharePreview = true
                     } label: {
-                        Label("Share to Stories", systemImage: "square.and.arrow.up")
+                        Label("Customize & Share", systemImage: "square.and.arrow.up")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -67,12 +54,17 @@ struct MilestoneCardPreviewSheet: View {
                     }
                     .padding(.horizontal)
 
-                    // Info Text
-                    Text("Share your achievement on Instagram Stories, iMessage, and more!")
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
-                        .multilineTextAlignment(.center)
+                    // Premium features callout
+                    if !purchaseService.isPremium {
+                        HStack(spacing: 8) {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.orange)
+                            Text("Premium unlocks 8 extra themes, stickers, and more formats")
+                                .font(.caption)
+                                .foregroundColor(.dietCokeDarkSilver)
+                        }
                         .padding(.horizontal)
+                    }
                 }
                 .padding(.bottom, 40)
             }
@@ -87,20 +79,20 @@ struct MilestoneCardPreviewSheet: View {
                 }
             }
         }
-        .sheet(isPresented: $showingShareSheet) {
-            if let image = shareImage {
-                ShareSheet(items: [image])
-            }
+        .sheet(isPresented: $showingSharePreview) {
+            SharePreviewSheet(
+                content: card,
+                isPresented: $showingSharePreview,
+                isPremium: purchaseService.isPremium,
+                initialTheme: initialShareTheme,
+                onPremiumTap: {
+                    showingSharePreview = false
+                    showingPaywall = true
+                }
+            )
         }
         .sheet(isPresented: $showingPaywall) {
             PaywallView()
-        }
-    }
-
-    private func generateAndShare() {
-        if let image = milestoneService.generateShareImage(for: card, theme: selectedTheme) {
-            shareImage = image
-            showingShareSheet = true
         }
     }
 }

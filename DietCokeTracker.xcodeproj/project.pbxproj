@@ -223,6 +223,8 @@
 		23CA15B62F19EC8E000C7B43 /* Social */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Social; sourceTree = "<group>"; };
 		23CA15C12F19ECC4000C7B43 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		23CA15E72F1AF9C7000C7B43 /* Subscription */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Subscription; sourceTree = "<group>"; };
+		CC000001000000000000001A /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
+		CC000002000000000000001B /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -309,6 +311,7 @@
 		A4000002 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				CC000001000000000000001A /* Sharing */,
 				237342E02F21D1B7007CD14A /* ActivityItem.swift */,
 				237342E12F21D1B7007CD14A /* MilestoneCard.swift */,
 				237342E42F21D1B7007CD14A /* WeeklyRecap.swift */,
@@ -330,6 +333,7 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CC000002000000000000001B /* Sharing */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
 				237342D02F21D184007CD14A /* MilestoneCard */,
 				237342D72F21D184007CD14A /* WeeklyRecap */,
@@ -472,6 +476,8 @@
 				23CA15B62F19EC8E000C7B43 /* Social */,
 				23CA15C12F19ECC4000C7B43 /* Services */,
 				23CA15E72F1AF9C7000C7B43 /* Subscription */,
+				CC000001000000000000001A /* Sharing */,
+				CC000002000000000000001B /* Sharing */,
 			);
 			name = DietCokeTracker;
 			productName = DietCokeTracker;
@@ -976,7 +982,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1010,7 +1016,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
