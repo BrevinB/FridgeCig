@@ -154,15 +154,22 @@ struct EntryShareLayout: View {
 
             // Rating and special edition
             if entry.rating != nil || entry.specialEdition != nil {
-                HStack(spacing: 20) {
+                HStack(spacing: 16) {
                     if let rating = entry.rating {
-                        HStack(spacing: 8) {
-                            ForEach(0..<5) { index in
-                                Image(systemName: index < rating.rawValue ? "star.fill" : "star")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(index < rating.rawValue ? .yellow : .white.opacity(0.3))
-                            }
+                        HStack(spacing: 10) {
+                            Image(systemName: rating.icon)
+                                .font(.system(size: 24))
+                                .foregroundColor(rating.color)
+                            Text(rating.displayName)
+                                .font(.system(size: 26, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
                         }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(rating.color.opacity(0.3))
+                        )
                     }
 
                     if let special = entry.specialEdition {
@@ -172,7 +179,13 @@ struct EntryShareLayout: View {
                             Text(special.rawValue)
                                 .foregroundColor(.white)
                         }
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(Color.yellow.opacity(0.2))
+                        )
                     }
 
                     Spacer()
@@ -271,13 +284,20 @@ struct EntryShareLayout: View {
 
             // Rating
             if let rating = entry.rating {
-                HStack(spacing: 16) {
-                    ForEach(0..<5) { index in
-                        Image(systemName: index < rating.rawValue ? "star.fill" : "star")
-                            .font(.system(size: 48))
-                            .foregroundColor(index < rating.rawValue ? .yellow : theme.secondaryTextColor.opacity(0.3))
-                    }
+                HStack(spacing: 14) {
+                    Image(systemName: rating.icon)
+                        .font(.system(size: 44))
+                        .foregroundColor(rating.color)
+                    Text(rating.displayName)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundColor(theme.primaryTextColor)
                 }
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .background(
+                    Capsule()
+                        .fill(rating.color.opacity(0.15))
+                )
                 Spacer().frame(height: 40)
             }
 
@@ -287,9 +307,15 @@ struct EntryShareLayout: View {
                     Image(systemName: "sparkles")
                         .foregroundColor(.yellow)
                     Text(special.rawValue)
-                        .foregroundColor(theme.secondaryTextColor)
+                        .foregroundColor(theme.primaryTextColor)
                 }
                 .font(.system(size: 36, weight: .semibold))
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(
+                    Capsule()
+                        .fill(Color.yellow.opacity(0.15))
+                )
                 Spacer().frame(height: 40)
             }
 

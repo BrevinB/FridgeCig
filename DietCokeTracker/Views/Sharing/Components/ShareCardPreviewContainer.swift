@@ -53,6 +53,9 @@ struct InteractiveShareCardPreview: View {
     let content: any ShareableContent
     @Binding var customization: ShareCustomization
 
+    /// Optional background photo (for WeeklyRecap with selected photo)
+    var backgroundPhoto: UIImage?
+
     // The actual card size
     private var cardWidth: CGFloat { customization.format.width }
     private var cardHeight: CGFloat { customization.format.height }
@@ -99,10 +102,11 @@ struct InteractiveShareCardPreview: View {
             customAccentColor: customization.customAccentColor,
             customText: customization.customText,
             showUsername: customization.showUsername,
-            showBranding: customization.showBranding
+            showBranding: customization.showBranding,
+            useEntryPhotoBackground: customization.useEntryPhotoBackground
         )
 
-        ShareCardView(content: content, customization: baseCustomization)
+        ShareCardView(content: content, customization: baseCustomization, backgroundPhoto: backgroundPhoto)
             .frame(width: cardWidth, height: cardHeight)
             .clipShape(Rectangle())
             .scaleEffect(scale)

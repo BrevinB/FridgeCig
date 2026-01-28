@@ -47,9 +47,10 @@ class ShareImageRenderer {
     /// Render shareable content with customization
     func renderShareableContent(
         _ content: any ShareableContent,
-        customization: ShareCustomization
+        customization: ShareCustomization,
+        backgroundPhoto: UIImage? = nil
     ) -> UIImage? {
-        let view = ShareCardView(content: content, customization: customization)
+        let view = ShareCardView(content: content, customization: customization, backgroundPhoto: backgroundPhoto)
         return render(view, format: customization.format)
     }
 

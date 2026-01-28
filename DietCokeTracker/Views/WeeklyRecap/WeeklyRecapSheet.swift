@@ -8,6 +8,26 @@ struct WeeklyRecapSheet: View {
 
     @State private var showingSharePreview = false
     @State private var showingPaywall = false
+    @State private var weekPhotos: [UIImage] = []
+
+    /// Get photos from entries within the recap's date range
+    private func loadWeekPhotos(for recap: WeeklyRecap) -> [UIImage] {
+        // Filter entries within the recap's week
+        let weekEntries = store.entries.filter { entry in
+            entry.timestamp >= recap.weekStartDate && entry.timestamp <= recap.weekEndDate
+        }
+
+        // Load photos from entries that have them
+        var photos: [UIImage] = []
+        for entry in weekEntries {
+            if let filename = entry.photoFilename,
+               let photo = PhotoStorage.loadPhoto(filename: filename) {
+                photos.append(photo)
+            }
+        }
+
+        return photos
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,6 +57,8 @@ struct WeeklyRecapSheet: View {
 
                         // Share Button - opens new SharePreviewSheet
                         Button {
+                            // Load photos from this week's entries
+                            weekPhotos = loadWeekPhotos(for: recap)
                             showingSharePreview = true
                         } label: {
                             Label("Customize & Share", systemImage: "square.and.arrow.up")
@@ -116,6 +138,7 @@ struct WeeklyRecapSheet: View {
                     isPresented: $showingSharePreview,
                     isPremium: purchaseService.isPremium,
                     initialTheme: .classic,
+                    availablePhotos: weekPhotos,
                     onPremiumTap: {
                         showingSharePreview = false
                         showingPaywall = true

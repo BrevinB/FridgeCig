@@ -29,6 +29,9 @@ struct ShareCustomization: Codable, Equatable {
     /// Whether to show app branding
     var showBranding: Bool
 
+    /// Whether to use the entry's photo as background (for DrinkEntry with photos)
+    var useEntryPhotoBackground: Bool
+
     init(
         theme: ShareTheme = .classic,
         format: ShareFormat = .instagramStory,
@@ -37,7 +40,8 @@ struct ShareCustomization: Codable, Equatable {
         customAccentColor: String? = nil,
         customText: String? = nil,
         showUsername: Bool = true,
-        showBranding: Bool = true
+        showBranding: Bool = true,
+        useEntryPhotoBackground: Bool = true
     ) {
         self.theme = theme
         self.format = format
@@ -47,6 +51,7 @@ struct ShareCustomization: Codable, Equatable {
         self.customText = customText
         self.showUsername = showUsername
         self.showBranding = showBranding
+        self.useEntryPhotoBackground = useEntryPhotoBackground
     }
 
     // MARK: - Computed Properties
