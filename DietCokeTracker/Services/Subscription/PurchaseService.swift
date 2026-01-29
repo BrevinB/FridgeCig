@@ -58,6 +58,9 @@ class PurchaseService: NSObject, ObservableObject {
         let isActive = customerInfo.entitlements["pro"]?.isActive == true
         isPremium = isActive
         SubscriptionStatusManager.setIsPremium(isActive)
+
+        // Sync to Apple Watch
+        WatchConnectivityManager.shared.sendSubscriptionStatus(isActive)
     }
 }
 

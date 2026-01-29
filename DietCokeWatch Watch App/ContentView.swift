@@ -2,17 +2,19 @@ import SwiftUI
 import WidgetKit
 
 struct ContentView: View {
+    @StateObject private var connectivity = WatchConnectivityManager.shared
     @State private var todayCount = 0
     @State private var todayOunces = 0.0
     @State private var streak = 0
-    @State private var isPremium = false
 
     var body: some View {
-        if isPremium {
+        if connectivity.isPremium {
             mainContent
         } else {
             WatchUpgradePromptView()
-                .onAppear(perform: checkPremiumStatus)
+                .onAppear {
+                    connectivity.requestSubscriptionStatus()
+                }
         }
     }
 
@@ -37,10 +39,6 @@ struct ContentView: View {
         todayCount = SharedDataManager.getTodayCount()
         todayOunces = SharedDataManager.getTodayOunces()
         streak = SharedDataManager.getStreak()
-    }
-
-    private func checkPremiumStatus() {
-        isPremium = SubscriptionStatusManager.isPremium()
     }
 }
 

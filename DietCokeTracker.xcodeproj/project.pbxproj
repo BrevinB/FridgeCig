@@ -10,6 +10,8 @@
 		237342E72F21D1B7007CD14A /* WeeklyRecap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237342E42F21D1B7007CD14A /* WeeklyRecap.swift */; };
 		237342E82F21D1B7007CD14A /* MilestoneCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237342E12F21D1B7007CD14A /* MilestoneCard.swift */; };
 		237342E92F21D1B7007CD14A /* ActivityItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237342E02F21D1B7007CD14A /* ActivityItem.swift */; };
+		237349AF2F2AE6D9007CD14A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237349AE2F2AE6D9007CD14A /* AppDelegate.swift */; };
+		237349B12F2AE6E5007CD14A /* NotificationPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237349B02F2AE6E5007CD14A /* NotificationPreferences.swift */; };
 		23CA13DC2F186169000C7B43 /* Badge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DA2F186169000C7B43 /* Badge.swift */; };
 		23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DB2F186169000C7B43 /* BadgeStore.swift */; };
 		23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA13DE2F18617D000C7B43 /* BadgesView.swift */; };
@@ -127,6 +129,8 @@
 		237342E02F21D1B7007CD14A /* ActivityItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityItem.swift; sourceTree = "<group>"; };
 		237342E12F21D1B7007CD14A /* MilestoneCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneCard.swift; sourceTree = "<group>"; };
 		237342E42F21D1B7007CD14A /* WeeklyRecap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyRecap.swift; sourceTree = "<group>"; };
+		237349AE2F2AE6D9007CD14A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		237349B02F2AE6E5007CD14A /* NotificationPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreferences.swift; sourceTree = "<group>"; };
 		23CA13DA2F186169000C7B43 /* Badge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Badge.swift; sourceTree = "<group>"; };
 		23CA13DB2F186169000C7B43 /* BadgeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeStore.swift; sourceTree = "<group>"; };
 		23CA13DE2F18617D000C7B43 /* BadgesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgesView.swift; sourceTree = "<group>"; };
@@ -216,6 +220,7 @@
 		237342D02F21D184007CD14A /* MilestoneCard */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MilestoneCard; sourceTree = "<group>"; };
 		237342D72F21D184007CD14A /* WeeklyRecap */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = WeeklyRecap; sourceTree = "<group>"; };
 		237342EC2F21D1D3007CD14A /* ActivityFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ActivityFeed; sourceTree = "<group>"; };
+		237349B32F2AE6F3007CD14A /* Settings */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Settings; sourceTree = "<group>"; };
 		23CA13FC2F189F69000C7B43 /* DietCokeWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14092F189F6B000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DietCokeWidget; sourceTree = "<group>"; };
 		23CA14132F18A480000C7B43 /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14162F18A486000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14312F18A915000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14542F18AD03000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
 		23CA14212F18A889000C7B43 /* DietCokeWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "DietCokeWatch Watch App"; sourceTree = "<group>"; };
@@ -292,6 +297,7 @@
 		A4000001 /* DietCokeTracker */ = {
 			isa = PBXGroup;
 			children = (
+				237349AE2F2AE6D9007CD14A /* AppDelegate.swift */,
 				23CA15C12F19ECC4000C7B43 /* Services */,
 				23CA15AB2F19A8A4000C7B43 /* Info.plist */,
 				23CA14132F18A480000C7B43 /* Shared */,
@@ -311,6 +317,7 @@
 		A4000002 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				237349B02F2AE6E5007CD14A /* NotificationPreferences.swift */,
 				CC000001000000000000001A /* Sharing */,
 				237342E02F21D1B7007CD14A /* ActivityItem.swift */,
 				237342E12F21D1B7007CD14A /* MilestoneCard.swift */,
@@ -333,6 +340,7 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				237349B32F2AE6F3007CD14A /* Settings */,
 				CC000002000000000000001B /* Sharing */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
 				237342D02F21D184007CD14A /* MilestoneCard */,
@@ -472,6 +480,7 @@
 				237342D02F21D184007CD14A /* MilestoneCard */,
 				237342D72F21D184007CD14A /* WeeklyRecap */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
+				237349B32F2AE6F3007CD14A /* Settings */,
 				23CA14132F18A480000C7B43 /* Shared */,
 				23CA15B62F19EC8E000C7B43 /* Social */,
 				23CA15C12F19ECC4000C7B43 /* Services */,
@@ -615,6 +624,7 @@
 				23CA145A2F1954DF000C7B43 /* DrinkRating.swift in Sources */,
 				23CA159F2F19A33D000C7B43 /* SettingsView.swift in Sources */,
 				A1000006 /* DrinkEntry.swift in Sources */,
+				237349AF2F2AE6D9007CD14A /* AppDelegate.swift in Sources */,
 				23CA15BD2F19ECAD000C7B43 /* UserProfile.swift in Sources */,
 				23CA13E02F18617D000C7B43 /* BadgesView.swift in Sources */,
 				23CA13E12F18617D000C7B43 /* BadgeView.swift in Sources */,
@@ -631,6 +641,7 @@
 				23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */,
 				23CA15AA2F19A825000C7B43 /* CameraView.swift in Sources */,
 				A1000011 /* StatsView.swift in Sources */,
+				237349B12F2AE6E5007CD14A /* NotificationPreferences.swift in Sources */,
 				23CA15D52F19F322000C7B43 /* FriendConnection.swift in Sources */,
 				A1000012 /* DrinkRowView.swift in Sources */,
 				A1000013 /* QuickAddButton.swift in Sources */,

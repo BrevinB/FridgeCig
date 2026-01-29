@@ -8,6 +8,7 @@ struct SettingsView: View {
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var activityService: ActivityFeedService
     @EnvironmentObject var identityService: IdentityService
+    @EnvironmentObject var notificationService: NotificationService
     @Environment(\.dismiss) private var dismiss
 
     #if DEBUG
@@ -43,6 +44,28 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Subscription")
+                }
+
+                // Notifications Section
+                Section {
+                    NavigationLink {
+                        NotificationSettingsView()
+                    } label: {
+                        HStack {
+                            Image(systemName: notificationService.isAuthorized ? "bell.fill" : "bell")
+                                .foregroundColor(.dietCokeRed)
+                                .font(.title3)
+                            Text("Notifications")
+                            Spacer()
+                            if !notificationService.isAuthorized {
+                                Text("Off")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Notifications")
                 }
 
                 Section {
@@ -420,10 +443,13 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    let cloudKitManager = CloudKitManager()
+    return SettingsView()
         .environmentObject(UserPreferences())
         .environmentObject(PurchaseService.shared)
-        .environmentObject(CloudKitManager())
-        .environmentObject(FriendConnectionService(cloudKitManager: CloudKitManager()))
-        .environmentObject(ActivityFeedService(cloudKitManager: CloudKitManager()))
+        .environmentObject(cloudKitManager)
+        .environmentObject(FriendConnectionService(cloudKitManager: cloudKitManager))
+        .environmentObject(ActivityFeedService(cloudKitManager: cloudKitManager))
+        .environmentObject(NotificationService(cloudKitManager: cloudKitManager))
+        .environmentObject(IdentityService(cloudKitManager: cloudKitManager))
 }

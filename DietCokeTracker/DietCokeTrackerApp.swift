@@ -4,6 +4,8 @@ import RevenueCat
 
 @main
 struct DietCokeTrackerApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @StateObject private var store = DrinkStore()
     @StateObject private var badgeStore = BadgeStore()
     @StateObject private var preferences = UserPreferences()
@@ -18,6 +20,9 @@ struct DietCokeTrackerApp: App {
     @StateObject private var drinkSyncService: DrinkSyncService
     @StateObject private var activityService: ActivityFeedService
 
+    // Notification service
+    @StateObject private var notificationService: NotificationService
+
     // Subscription service
     @StateObject private var purchaseService = PurchaseService.shared
 
@@ -28,6 +33,7 @@ struct DietCokeTrackerApp: App {
         _friendService = StateObject(wrappedValue: FriendConnectionService(cloudKitManager: ckManager))
         _drinkSyncService = StateObject(wrappedValue: DrinkSyncService(cloudKitManager: ckManager))
         _activityService = StateObject(wrappedValue: ActivityFeedService(cloudKitManager: ckManager))
+        _notificationService = StateObject(wrappedValue: NotificationService(cloudKitManager: ckManager))
 
         // Configure RevenueCat - Replace with your API key from RevenueCat dashboard
         PurchaseService.shared.configure(apiKey: "appl_cbqDsdjUplQQKgcSBAFeMuyCHlo")
@@ -47,10 +53,14 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(milestoneService)
                 .environmentObject(recapService)
                 .environmentObject(activityService)
+                .environmentObject(notificationService)
                 .task {
                     // Set up sync services
                     store.syncService = drinkSyncService
                     badgeStore.cloudKitManager = cloudKitManager
+
+                    // Connect notification service to app delegate
+                    appDelegate.notificationService = notificationService
 
                     // Initialize identity and sync data
                     await identityService.initialize()
@@ -60,6 +70,9 @@ struct DietCokeTrackerApp: App {
                     // Load subscription offerings and check status
                     await purchaseService.loadOfferings()
                     await purchaseService.checkSubscriptionStatus()
+
+                    // Update notification authorization status
+                    await notificationService.updateAuthorizationStatus()
                 }
                 .onChange(of: identityService.state) { _, newState in
                     // Sync stats when identity becomes ready (e.g., after profile creation)
@@ -73,6 +86,12 @@ struct DietCokeTrackerApp: App {
                                     currentUserID: userID,
                                     friendIDs: Array(friendService.friendIDs)
                                 )
+
+                                // Configure notification service with current user
+                                await notificationService.configure(
+                                    userID: userID,
+                                    friendIDs: Array(friendService.friendIDs)
+                                )
                             }
                         }
                     }
@@ -84,6 +103,11 @@ struct DietCokeTrackerApp: App {
                             currentUserID: userID,
                             friendIDs: Array(friendService.friendIDs)
                         )
+
+                        // Update notification service when friends list changes
+                        Task {
+                            await notificationService.updateFriends(Array(friendService.friendIDs))
+                        }
                     }
                 }
                 .onReceive(store.entriesDidChange.debounce(for: .seconds(2), scheduler: RunLoop.main)) { _ in
@@ -102,6 +126,10 @@ struct DietCokeTrackerApp: App {
                 }
                 .onReceive(store.drinkAdded) { entry, photo in
                     print("[App] Received drinkAdded notification for: \(entry.type.displayName)")
+
+                    // Cancel streak reminder since user logged a drink today
+                    notificationService.cancelStreakReminderIfNeeded(hasLoggedToday: true)
+
                     // Post to activity feed if user has sharing enabled
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else {

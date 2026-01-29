@@ -315,4 +315,63 @@ class CloudKitManager: ObservableObject {
         let chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         return String((0..<8).map { _ in chars.randomElement()! })
     }
+
+    // MARK: - CloudKit Subscriptions
+
+    /// Create or update a CloudKit query subscription
+    func createSubscription(
+        recordType: String,
+        predicate: NSPredicate,
+        subscriptionID: String,
+        notificationInfo: CKSubscription.NotificationInfo,
+        options: CKQuerySubscription.Options
+    ) async {
+        let subscription = CKQuerySubscription(
+            recordType: recordType,
+            predicate: predicate,
+            subscriptionID: subscriptionID,
+            options: options
+        )
+        subscription.notificationInfo = notificationInfo
+
+        do {
+            try await publicDatabase.save(subscription)
+            print("[CloudKit] Created subscription: \(subscriptionID)")
+        } catch let error as CKError where error.code == .serverRejectedRequest {
+            // Subscription might already exist, try to update it
+            do {
+                // First delete existing, then recreate
+                try await publicDatabase.deleteSubscription(withID: subscriptionID)
+                try await publicDatabase.save(subscription)
+                print("[CloudKit] Updated subscription: \(subscriptionID)")
+            } catch {
+                print("[CloudKit] Failed to update subscription \(subscriptionID): \(error)")
+            }
+        } catch {
+            print("[CloudKit] Failed to create subscription \(subscriptionID): \(error)")
+        }
+    }
+
+    /// Remove a CloudKit subscription
+    func removeSubscription(subscriptionID: String) async {
+        do {
+            try await publicDatabase.deleteSubscription(withID: subscriptionID)
+            print("[CloudKit] Removed subscription: \(subscriptionID)")
+        } catch let error as CKError where error.code == .unknownItem {
+            // Subscription doesn't exist, that's fine
+            print("[CloudKit] Subscription \(subscriptionID) not found (already removed)")
+        } catch {
+            print("[CloudKit] Failed to remove subscription \(subscriptionID): \(error)")
+        }
+    }
+
+    /// Fetch all active subscriptions
+    func fetchAllSubscriptions() async -> [CKSubscription] {
+        do {
+            return try await publicDatabase.allSubscriptions()
+        } catch {
+            print("[CloudKit] Failed to fetch subscriptions: \(error)")
+            return []
+        }
+    }
 }

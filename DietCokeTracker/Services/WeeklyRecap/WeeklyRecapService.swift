@@ -10,11 +10,9 @@ class WeeklyRecapService: ObservableObject {
 
     private let recapHistoryKey = "WeeklyRecapHistory"
     private let lastRecapDateKey = "LastWeeklyRecapDate"
-    private let notificationID = "weekly_recap_notification"
 
     init() {
         loadRecapHistory()
-        scheduleWeeklyNotification()
     }
 
     // MARK: - Generate Recap
@@ -176,43 +174,13 @@ class WeeklyRecapService: ObservableObject {
         }
     }
 
-    // MARK: - Notifications
+    // MARK: - Notifications (Deprecated - now handled by NotificationService)
 
-    func scheduleWeeklyNotification() {
-        let center = UNUserNotificationCenter.current()
-
-        // Remove existing notification
-        center.removePendingNotificationRequests(withIdentifiers: [notificationID])
-
-        // Create notification content
-        let content = UNMutableNotificationContent()
-        content.title = "Your Week in Diet Coke"
-        content.body = "See how your week stacked up!"
-        content.sound = .default
-
-        // Schedule for Sunday at 10am
-        var dateComponents = DateComponents()
-        dateComponents.weekday = 1 // Sunday
-        dateComponents.hour = 10
-        dateComponents.minute = 0
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(identifier: notificationID, content: content, trigger: trigger)
-
-        center.add(request) { error in
-            if let error = error {
-                print("Failed to schedule weekly recap notification: \(error)")
-            }
-        }
-    }
-
+    /// @deprecated Use NotificationService instead for notification scheduling
     func requestNotificationPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            if granted {
-                scheduleWeeklyNotification()
-            }
             return granted
         } catch {
             print("Notification permission error: \(error)")
