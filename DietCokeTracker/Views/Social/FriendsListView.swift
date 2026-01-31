@@ -95,6 +95,7 @@ private struct PendingRequestRow: View {
     @State private var isLoading = true
     @State private var isAccepting = false
     @State private var isDeclining = false
+    @State private var errorMessage: String?
 
     private var displayName: String {
         requesterProfile?.displayName ?? "Unknown User"
@@ -178,6 +179,31 @@ private struct PendingRequestRow: View {
         .padding(12)
         .background(Color.dietCokeCardBackground)
         .cornerRadius(12)
+        .overlay {
+            if let error = errorMessage {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                        Text(error)
+                            .font(.caption)
+                        Spacer()
+                        Button {
+                            errorMessage = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.caption2)
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .padding(8)
+                    .background(Color.red.opacity(0.9))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .padding(4)
+            }
+        }
         .task {
             await loadRequesterProfile()
         }
@@ -196,16 +222,21 @@ private struct PendingRequestRow: View {
     private func accept() {
         guard let userID = identityService.currentIdentity?.userIDString else {
             print("[PendingRequestRow] Accept failed: no userID")
+            errorMessage = "Unable to accept request"
             return
         }
         print("[PendingRequestRow] Accepting request: \(request.id)")
         isAccepting = true
+        errorMessage = nil
+        HapticManager.friendAction()
         Task {
             do {
                 try await friendService.acceptRequest(request, currentUserID: userID)
                 print("[PendingRequestRow] Accept succeeded")
             } catch {
                 print("[PendingRequestRow] Accept failed: \(error)")
+                errorMessage = "Failed to accept"
+                HapticManager.error()
             }
             isAccepting = false
         }
@@ -214,12 +245,16 @@ private struct PendingRequestRow: View {
     private func decline() {
         print("[PendingRequestRow] Declining request: \(request.id)")
         isDeclining = true
+        errorMessage = nil
+        HapticManager.lightImpact()
         Task {
             do {
                 try await friendService.declineRequest(request)
                 print("[PendingRequestRow] Decline succeeded")
             } catch {
                 print("[PendingRequestRow] Decline failed: \(error)")
+                errorMessage = "Failed to decline"
+                HapticManager.error()
             }
             isDeclining = false
         }
@@ -262,6 +297,24 @@ private struct FriendsSection: View {
                     ProgressView()
                     Spacer()
                 }
+                .padding(.vertical, 20)
+            } else if let error = friendService.error {
+                // Error state
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title2)
+                        .foregroundColor(.orange)
+
+                    Text("Couldn't load friends")
+                        .font(.subheadline)
+                        .foregroundColor(.dietCokeDarkSilver)
+
+                    Text(error.localizedDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
             } else if friendService.friends.isEmpty {
                 EmptyFriendsView(showingAddFriend: $showingAddFriend)

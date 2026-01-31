@@ -7,6 +7,15 @@ extension Color {
     /// Classic DC red accent (same in both modes)
     static let dietCokeRed = Color(red: 0.89, green: 0.09, blue: 0.17)
 
+    /// Deeper DC red for gradients
+    static let dietCokeDeepRed = Color(red: 0.72, green: 0.06, blue: 0.12)
+
+    /// Ice blue - refreshing accent color
+    static let dietCokeIceBlue = Color(red: 0.85, green: 0.94, blue: 0.98)
+
+    /// Fizz blue - bubble highlight color
+    static let dietCokeFizzBlue = Color(red: 0.70, green: 0.88, blue: 0.96)
+
     /// DC silver/platinum - adapts to dark mode
     static let dietCokeSilver = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
@@ -31,8 +40,15 @@ extension Color {
     /// Background for cards - adapts to dark mode
     static let dietCokeCardBackground = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.17, green: 0.17, blue: 0.19, alpha: 1)
-            : UIColor(red: 0.95, green: 0.95, blue: 0.96, alpha: 1)
+            ? UIColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1)
+            : UIColor(red: 0.98, green: 0.98, blue: 0.99, alpha: 1)
+    })
+
+    /// Hero card background - premium metallic
+    static let dietCokeHeroBackground = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.10, green: 0.10, blue: 0.12, alpha: 1)
+            : UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1)
     })
 
     /// Gradient for backgrounds
@@ -64,6 +80,46 @@ extension Color {
         startPoint: .leading,
         endPoint: .trailing
     )
+
+    /// Metallic silver gradient - like the can
+    static var dietCokeMetallicGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 0.88, green: 0.88, blue: 0.90),
+                Color(red: 0.78, green: 0.78, blue: 0.82),
+                Color(red: 0.92, green: 0.92, blue: 0.94),
+                Color(red: 0.82, green: 0.82, blue: 0.85)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// Dark metallic gradient for dark mode
+    static var dietCokeDarkMetallicGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 0.18, green: 0.18, blue: 0.20),
+                Color(red: 0.12, green: 0.12, blue: 0.14),
+                Color(red: 0.20, green: 0.20, blue: 0.22),
+                Color(red: 0.14, green: 0.14, blue: 0.16)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// Red to deep red gradient for hero elements
+    static var dietCokeRedGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                dietCokeRed,
+                dietCokeDeepRed
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
 }
 
 // MARK: - View Modifiers

@@ -1,5 +1,6 @@
 import SwiftUI
 import CloudKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var preferences: UserPreferences
@@ -9,7 +10,15 @@ struct SettingsView: View {
     @EnvironmentObject var activityService: ActivityFeedService
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var notificationService: NotificationService
+    @EnvironmentObject var store: DrinkStore
     @Environment(\.dismiss) private var dismiss
+
+    @State private var showingDeleteConfirmation = false
+    @State private var showingDeleteError = false
+    @State private var deleteErrorMessage = ""
+    @State private var isDeletingAccount = false
+    @State private var showingExportSheet = false
+    @State private var exportData: Data?
 
     #if DEBUG
     @State private var debugTestUserCode: String?
@@ -21,72 +30,124 @@ struct SettingsView: View {
     @State private var diagnosticResult: String?
     #endif
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var backgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.08, green: 0.08, blue: 0.10)
+            : Color(red: 0.96, green: 0.96, blue: 0.97)
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                // Subscription Section
-                Section {
-                    NavigationLink {
-                        SubscriptionStatusView()
-                    } label: {
-                        HStack {
-                            Image(systemName: purchaseService.isPremium ? "crown.fill" : "crown")
-                                .foregroundColor(.dietCokeRed)
-                                .font(.title3)
-                            Text(purchaseService.isPremium ? "FridgeCig Pro" : "Upgrade to Pro")
-                            Spacer()
-                            if purchaseService.isPremium {
-                                Text("Active")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Subscription")
-                }
+                    // Subscription Section
+                    Section {
+                        NavigationLink {
+                            SubscriptionStatusView()
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.dietCokeRed.opacity(0.2), Color.dietCokeRed.opacity(0.08)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 40, height: 40)
 
-                // Notifications Section
-                Section {
-                    NavigationLink {
-                        NotificationSettingsView()
-                    } label: {
-                        HStack {
-                            Image(systemName: notificationService.isAuthorized ? "bell.fill" : "bell")
-                                .foregroundColor(.dietCokeRed)
-                                .font(.title3)
-                            Text("Notifications")
-                            Spacer()
-                            if !notificationService.isAuthorized {
-                                Text("Off")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    Image(systemName: purchaseService.isPremium ? "crown.fill" : "crown")
+                                        .foregroundColor(.dietCokeRed)
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+
+                                Text(purchaseService.isPremium ? "FridgeCig Pro" : "Upgrade to Pro")
+                                    .fontWeight(.medium)
+
+                                Spacer()
+
+                                if purchaseService.isPremium {
+                                    Text("Active")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.green)
+                                        .clipShape(Capsule())
+                                }
                             }
                         }
+                    } header: {
+                        Text("Subscription")
                     }
-                } header: {
-                    Text("Notifications")
-                }
+
+                    // Notifications Section
+                    Section {
+                        NavigationLink {
+                            NotificationSettingsView()
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.dietCokeRed.opacity(0.2), Color.dietCokeRed.opacity(0.08)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 40, height: 40)
+
+                                    Image(systemName: notificationService.isAuthorized ? "bell.fill" : "bell")
+                                        .foregroundColor(.dietCokeRed)
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+
+                                Text("Notifications")
+                                    .fontWeight(.medium)
+
+                                Spacer()
+
+                                if !notificationService.isAuthorized {
+                                    Text("Off")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Notifications")
+                    }
 
                 Section {
                     ForEach(BeverageBrand.allCases) { brand in
                         Button {
                             preferences.defaultBrand = brand
                         } label: {
-                            HStack {
+                            HStack(spacing: 14) {
                                 ZStack {
                                     Circle()
-                                        .fill(brand.lightColor)
-                                        .frame(width: 36, height: 36)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [brand.color.opacity(0.2), brand.color.opacity(0.08)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 40, height: 40)
 
                                     Image(systemName: brand.icon)
-                                        .font(.system(size: 16))
+                                        .font(.system(size: 16, weight: .medium))
                                         .foregroundColor(brand.color)
                                 }
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(brand.rawValue)
                                         .font(.body)
+                                        .fontWeight(.medium)
                                         .foregroundColor(.primary)
 
                                     Text(brand.shortName)
@@ -98,7 +159,13 @@ struct SettingsView: View {
 
                                 if preferences.defaultBrand == brand {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(brand.color)
+                                        .foregroundStyle(
+                                            LinearGradient(
+                                                colors: [brand.color, brand.color.opacity(0.8)],
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
                                         .font(.title3)
                                 }
                             }
@@ -108,6 +175,107 @@ struct SettingsView: View {
                     Text("Default Beverage")
                 } footer: {
                     Text("New drinks will default to this selection. You can still change it when logging each drink.")
+                }
+
+                // Data & Privacy Section
+                Section {
+                    // Export Data
+                    Button {
+                        exportUserData()
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "square.and.arrow.up")
+                                    .foregroundColor(.blue)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Export My Data")
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+
+                    // Restore Purchases
+                    Button {
+                        Task {
+                            try? await purchaseService.restorePurchases()
+                        }
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.green.opacity(0.2), Color.green.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Restore Purchases")
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+
+                    // Delete Account
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.red.opacity(0.2), Color.red.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                if isDeletingAccount {
+                                    ProgressView()
+                                        .tint(.red)
+                                } else {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red)
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Delete Account & Data")
+                                    .fontWeight(.medium)
+
+                                Text("Permanently delete all your data")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .disabled(isDeletingAccount)
+                } header: {
+                    Text("Data & Privacy")
+                } footer: {
+                    Text("Export your data in JSON format. Deleting your account removes all drinks, badges, social connections, and profile data from our servers.")
                 }
 
                 #if DEBUG
@@ -253,6 +421,8 @@ struct SettingsView: View {
                 }
                 #endif
             }
+            .scrollContentBackground(.hidden)
+            .background(backgroundColor.ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -275,6 +445,181 @@ struct SettingsView: View {
                 Text("Added \(friendService.pendingRequests.count) fake friend requests. Go to Social → Friends tab to see and accept them!")
             }
             #endif
+            .confirmationDialog(
+                "Delete Account?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Everything", role: .destructive) {
+                    deleteAccount()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete all your data including drink history, badges, friends, and profile. This action cannot be undone.")
+            }
+            .alert("Error Deleting Account", isPresented: $showingDeleteError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteErrorMessage)
+            }
+            .sheet(isPresented: $showingExportSheet) {
+                if let data = exportData {
+                    ExportDataSheet(data: data)
+                }
+            }
+        }
+    }
+
+    // MARK: - Export Data
+
+    private func exportUserData() {
+        var exportDict: [String: Any] = [:]
+
+        // User preferences
+        exportDict["preferences"] = preferences.exportAllData()
+
+        // Drink entries
+        let entriesData = store.entries.map { entry -> [String: Any] in
+            var dict: [String: Any] = [
+                "id": entry.id.uuidString,
+                "timestamp": ISO8601DateFormatter().string(from: entry.timestamp),
+                "type": entry.type.rawValue,
+                "brand": entry.brand.rawValue,
+                "ounces": entry.ounces
+            ]
+            if let rating = entry.rating {
+                dict["rating"] = rating.rawValue
+            }
+            return dict
+        }
+        exportDict["drinkEntries"] = entriesData
+        exportDict["totalDrinks"] = store.entries.count
+        exportDict["totalOunces"] = store.entries.reduce(0) { $0 + $1.ounces }
+
+        // User identity
+        if let identity = identityService.currentIdentity {
+            exportDict["userIdentity"] = [
+                "friendCode": identity.friendCode,
+                "createdAt": ISO8601DateFormatter().string(from: identity.createdAt)
+            ]
+        }
+
+        // Export date
+        exportDict["exportDate"] = ISO8601DateFormatter().string(from: Date())
+        exportDict["appVersion"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+
+        // Convert to JSON
+        if let jsonData = try? JSONSerialization.data(withJSONObject: exportDict, options: .prettyPrinted) {
+            exportData = jsonData
+            showingExportSheet = true
+        }
+    }
+
+    // MARK: - Delete Account
+
+    private func deleteAccount() {
+        isDeletingAccount = true
+
+        // Capture references before entering async context
+        let preferencesRef = preferences
+        let storeRef = store
+        let friendServiceRef = friendService
+        let activityServiceRef = activityService
+
+        Task {
+            do {
+                guard let userID = identityService.currentIdentity?.userIDString else {
+                    throw NSError(domain: "FridgeCig", code: 1, userInfo: [NSLocalizedDescriptionKey: "No user identity found"])
+                }
+
+                // Delete user profile from CloudKit
+                try await deleteUserProfile(userID: userID)
+
+                // Delete all drink entries from CloudKit
+                try await deleteAllDrinkEntries(userID: userID)
+
+                // Delete all friend connections
+                try await deleteAllFriendConnections(userID: userID)
+
+                // Delete all activity items
+                try await deleteAllActivityItems(userID: userID)
+
+                // Clear local data
+                await MainActor.run {
+                    preferencesRef.clearAllData()
+                    storeRef.clearAllData()
+                    friendServiceRef.clearAllData()
+                    activityServiceRef.clearAllData()
+                    isDeletingAccount = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    deleteErrorMessage = error.localizedDescription
+                    showingDeleteError = true
+                    isDeletingAccount = false
+                }
+            }
+        }
+    }
+
+    private func deleteUserProfile(userID: String) async throws {
+        let records = try await cloudKitManager.fetchFromPublic(
+            recordType: "UserProfile",
+            predicate: NSPredicate(format: "userID == %@", userID),
+            limit: 1
+        )
+
+        for record in records {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+    }
+
+    private func deleteAllDrinkEntries(userID: String) async throws {
+        let records = try await cloudKitManager.fetchFromPublic(
+            recordType: "DrinkEntry",
+            predicate: NSPredicate(format: "userID == %@", userID),
+            limit: 1000
+        )
+
+        for record in records {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+    }
+
+    private func deleteAllFriendConnections(userID: String) async throws {
+        // Delete where user is requester
+        let requesterRecords = try await cloudKitManager.fetchFromPublic(
+            recordType: "FriendConnection",
+            predicate: NSPredicate(format: "requesterID == %@", userID),
+            limit: 500
+        )
+
+        for record in requesterRecords {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+
+        // Delete where user is target
+        let targetRecords = try await cloudKitManager.fetchFromPublic(
+            recordType: "FriendConnection",
+            predicate: NSPredicate(format: "targetID == %@", userID),
+            limit: 500
+        )
+
+        for record in targetRecords {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+    }
+
+    private func deleteAllActivityItems(userID: String) async throws {
+        let records = try await cloudKitManager.fetchFromPublic(
+            recordType: "ActivityItem",
+            predicate: NSPredicate(format: "userID == %@", userID),
+            limit: 1000
+        )
+
+        for record in records {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
         }
     }
 
@@ -442,6 +787,110 @@ struct SettingsView: View {
     #endif
 }
 
+// MARK: - Export Data Sheet
+
+struct ExportDataSheet: View {
+    let data: Data
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingShareSheet = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(.blue)
+                }
+
+                // Info
+                VStack(spacing: 8) {
+                    Text("Your Data Export")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("Your drink history and settings are ready to download in JSON format.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+
+                // File info
+                HStack {
+                    Image(systemName: "doc.fill")
+                        .foregroundColor(.blue)
+                    Text("fridgecig_export.json")
+                        .font(.subheadline)
+                    Spacer()
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.secondary.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+
+                Spacer()
+
+                // Share button
+                if let url = saveToTemporaryFile() {
+                    ShareLink(item: url) {
+                        Label("Save Export", systemImage: "square.and.arrow.down")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .blue.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule())
+                    }
+                    .padding(.horizontal, 32)
+                }
+            }
+            .padding(.vertical, 32)
+            .navigationTitle("Export")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func saveToTemporaryFile() -> URL? {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("fridgecig_export.json")
+
+        do {
+            try data.write(to: fileURL)
+            return fileURL
+        } catch {
+            return nil
+        }
+    }
+}
+
 #Preview {
     let cloudKitManager = CloudKitManager()
     return SettingsView()
@@ -452,4 +901,5 @@ struct SettingsView: View {
         .environmentObject(ActivityFeedService(cloudKitManager: cloudKitManager))
         .environmentObject(NotificationService(cloudKitManager: cloudKitManager))
         .environmentObject(IdentityService(cloudKitManager: cloudKitManager))
+        .environmentObject(DrinkStore())
 }

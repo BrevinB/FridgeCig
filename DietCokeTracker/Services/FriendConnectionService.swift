@@ -431,4 +431,16 @@ class FriendConnectionService: ObservableObject {
         return profile
     }
     #endif
+
+    // MARK: - Data Management
+
+    /// Clear all local friend data (used for account deletion)
+    func clearAllData() {
+        friends = []
+        pendingRequests = []
+        #if DEBUG
+        fakeRequesterProfiles = [:]
+        isUsingFakeData = false
+        #endif
+    }
 }

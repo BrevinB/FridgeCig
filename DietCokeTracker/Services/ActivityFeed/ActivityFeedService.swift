@@ -419,4 +419,14 @@ class ActivityFeedService: ObservableObject {
         isUsingFakeData = false
     }
     #endif
+
+    // MARK: - Data Management
+
+    /// Clear all local activity data (used for account deletion)
+    func clearAllData() {
+        activities = []
+        #if DEBUG
+        isUsingFakeData = false
+        #endif
+    }
 }

@@ -2,10 +2,16 @@ import SwiftUI
 
 struct BadgesView: View {
     @EnvironmentObject var badgeStore: BadgeStore
+    @EnvironmentObject var preferences: UserPreferences
     @State private var selectedCategory: BadgeCategory = .all
     @State private var selectedBadge: Badge?
-    @State private var showingShareSheet = false
-    @State private var badgeToShare: Badge?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var backgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.08, green: 0.08, blue: 0.10)
+            : Color(red: 0.96, green: 0.96, blue: 0.97)
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,6 +31,7 @@ struct BadgesView: View {
                     // Badges Grid
                     BadgesGridView(
                         badges: filteredBadges,
+                        brand: preferences.defaultBrand,
                         onBadgeTap: { badge in
                             selectedBadge = badge
                         }
@@ -33,18 +40,10 @@ struct BadgesView: View {
                 }
                 .padding(.vertical)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(backgroundColor.ignoresSafeArea())
             .navigationTitle("Badges")
             .sheet(item: $selectedBadge) { badge in
-                BadgeDetailSheet(badge: badge) {
-                    badgeToShare = badge
-                    showingShareSheet = true
-                }
-            }
-            .sheet(isPresented: $showingShareSheet) {
-                if let badge = badgeToShare {
-                    ShareBadgeSheet(badge: badge)
-                }
+                BadgeDetailSheet(badge: badge, brand: preferences.defaultBrand)
             }
         }
     }
@@ -63,6 +62,8 @@ struct BadgesView: View {
             return badgeStore.badges(ofType: .volume)
         case .variety:
             return badgeStore.badges(ofType: .variety)
+        case .lifestyle:
+            return badgeStore.badges(ofType: .lifestyle)
         case .special:
             return badgeStore.badges(ofType: .special)
         }
@@ -78,6 +79,7 @@ enum BadgeCategory: String, CaseIterable {
     case streaks = "Streaks"
     case volume = "Volume"
     case variety = "Variety"
+    case lifestyle = "Fun"
     case special = "Special"
 
     var icon: String {
@@ -88,6 +90,7 @@ enum BadgeCategory: String, CaseIterable {
         case .streaks: return "flame.fill"
         case .volume: return "flask.fill"
         case .variety: return "square.stack.3d.up.fill"
+        case .lifestyle: return "face.smiling.fill"
         case .special: return "star.fill"
         }
     }
@@ -100,6 +103,7 @@ enum BadgeCategory: String, CaseIterable {
         case .streaks: return .orange
         case .volume: return .cyan
         case .variety: return .purple
+        case .lifestyle: return .pink
         case .special: return .yellow
         }
     }
@@ -113,64 +117,83 @@ struct ProgressHeaderView: View {
     let percentage: Double
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Your Progress")
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
+        ZStack {
+            // Background gradient
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
 
-                    Text("\(earned) of \(total)")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
+            // Ambient bubbles
+            AmbientBubblesBackground(bubbleCount: 6)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .opacity(0.5)
+
+            VStack(spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Badge Collection")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white.opacity(0.8))
+
+                        Text("\(earned) of \(total)")
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+
+                        Text("badges earned")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+
+                    Spacer()
+
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.2), lineWidth: 8)
+                            .frame(width: 80, height: 80)
+
+                        Circle()
+                            .trim(from: 0, to: percentage / 100)
+                            .stroke(
+                                Color.white,
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                            )
+                            .frame(width: 80, height: 80)
+                            .rotationEffect(.degrees(-90))
+
+                        Text("\(Int(percentage))%")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                    }
+                    .accessibilityHidden(true)
                 }
 
-                Spacer()
+                // Progress Bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.white.opacity(0.2))
+                            .frame(height: 10)
 
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.2), lineWidth: 8)
-                        .frame(width: 70, height: 70)
-
-                    Circle()
-                        .trim(from: 0, to: percentage / 100)
-                        .stroke(
-                            Color.white,
-                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                        )
-                        .frame(width: 70, height: 70)
-                        .rotationEffect(.degrees(-90))
-
-                    Text("\(Int(percentage))%")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.white)
+                            .frame(width: geometry.size.width * (percentage / 100), height: 10)
+                    }
                 }
+                .frame(height: 10)
+                .accessibilityHidden(true)
             }
-
-            // Progress Bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.2))
-                        .frame(height: 8)
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white)
-                        .frame(width: geometry.size.width * (percentage / 100), height: 8)
-                }
-            }
-            .frame(height: 8)
+            .padding(20)
         }
-        .padding()
-        .background(
-            LinearGradient(
-                colors: [Color.dietCokeRed, Color.dietCokeRed.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: Color.dietCokeRed.opacity(0.3), radius: 10, y: 5)
+        .frame(height: 180)
+        .shadow(color: Color.dietCokeRed.opacity(0.4), radius: 12, y: 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Badge collection: \(earned) of \(total) badges earned, \(Int(percentage)) percent complete")
     }
 }
 
@@ -208,6 +231,7 @@ struct CategoryChip: View {
             HStack(spacing: 6) {
                 Image(systemName: category.icon)
                     .font(.caption)
+                    .accessibilityHidden(true)
                 Text(category.rawValue)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -232,6 +256,8 @@ struct CategoryChip: View {
             .shadow(color: isSelected ? category.color.opacity(0.4) : .clear, radius: 4, y: 2)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(category.rawValue) badges")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -239,6 +265,7 @@ struct CategoryChip: View {
 
 struct BadgesGridView: View {
     let badges: [Badge]
+    var brand: BeverageBrand = .dietCoke
     let onBadgeTap: (Badge) -> Void
 
     private let columns = [
@@ -249,11 +276,11 @@ struct BadgesGridView: View {
 
     var body: some View {
         if badges.isEmpty {
-            EmptyBadgesView()
+            EmptyBadgesView(brand: brand)
         } else {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(badges) { badge in
-                    BadgeGridItem(badge: badge) {
+                    BadgeGridItem(badge: badge, brand: brand) {
                         onBadgeTap(badge)
                     }
                 }
@@ -263,20 +290,42 @@ struct BadgesGridView: View {
 }
 
 struct EmptyBadgesView: View {
+    var brand: BeverageBrand = .dietCoke
+
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "trophy")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.dietCokeSilver.opacity(0.2), Color.dietCokeSilver.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
 
-            Text("No badges yet")
-                .font(.headline)
-                .foregroundColor(.secondary)
+                Image(systemName: "trophy")
+                    .font(.system(size: 40, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.dietCokeSilver, Color.dietCokeDarkSilver],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
 
-            Text("Keep drinking DC to earn badges!")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 6) {
+                Text("No badges yet")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Text("Keep drinking \(brand.shortName) to earn badges!")
+                    .font(.subheadline)
+                    .foregroundColor(.dietCokeDarkSilver)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding(40)
     }
@@ -286,6 +335,7 @@ struct EmptyBadgesView: View {
 
 struct ShareBadgeSheet: View {
     let badge: Badge
+    var brand: BeverageBrand = .dietCoke
     @Environment(\.dismiss) private var dismiss
     @State private var shareImage: UIImage?
 
@@ -296,7 +346,7 @@ struct ShareBadgeSheet: View {
                     .font(.headline)
 
                 // Preview of shareable badge
-                ShareableBadgeView(badge: badge)
+                ShareableBadgeView(badge: badge, brand: brand)
                     .background(
                         GeometryReader { _ in
                             Color.clear
@@ -310,7 +360,7 @@ struct ShareBadgeSheet: View {
                     ShareLink(
                         item: Image(uiImage: image),
                         preview: SharePreview(
-                            "DC Badge: \(badge.title)",
+                            "\(brand.shortName) Badge: \(badge.title)",
                             image: Image(uiImage: image)
                         )
                     ) {
@@ -338,7 +388,7 @@ struct ShareBadgeSheet: View {
     }
 
     private func generateShareImage() {
-        let renderer = ImageRenderer(content: ShareableBadgeView(badge: badge))
+        let renderer = ImageRenderer(content: ShareableBadgeView(badge: badge, brand: brand))
         renderer.scale = 3.0
         shareImage = renderer.uiImage
     }
@@ -348,14 +398,19 @@ struct ShareBadgeSheet: View {
 
 struct ShareableBadgeView: View {
     let badge: Badge
+    var brand: BeverageBrand = .dietCoke
+
+    private var dynamicDescription: String {
+        badge.description(for: brand)
+    }
 
     var body: some View {
         VStack(spacing: 16) {
             // Header
             HStack {
-                Image(systemName: "flask.fill")
-                    .foregroundColor(.dietCokeRed)
-                Text("DC Tracker")
+                Image(systemName: brand.icon)
+                    .foregroundColor(brand.color)
+                Text("\(brand.shortName) Tracker")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.dietCokeCharcoal)
@@ -382,7 +437,7 @@ struct ShareableBadgeView: View {
                     .fontWeight(.bold)
                     .foregroundColor(.dietCokeCharcoal)
 
-                Text(badge.description)
+                Text(dynamicDescription)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

@@ -82,12 +82,31 @@ struct SubscriptionStatusView: View {
                             try? await purchaseService.restorePurchases()
                         }
                     }
+
+                    Button("Refresh Status") {
+                        Task {
+                            await purchaseService.checkSubscriptionStatus()
+                        }
+                    }
                 } footer: {
-                    Text("If you've previously subscribed, tap to restore your purchase.")
+                    Text("If you've previously subscribed, tap Restore Purchases. Tap Refresh Status to check again.")
                 }
+
+                #if DEBUG
+                Section {
+                    Text(purchaseService.debugInfo.isEmpty ? "No debug info yet" : purchaseService.debugInfo)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text("Debug Info")
+                }
+                #endif
             }
         }
         .navigationTitle("Subscription")
+        .refreshable {
+            await purchaseService.checkSubscriptionStatus()
+        }
         .sheet(isPresented: $showingPaywall) {
             PaywallView()
         }

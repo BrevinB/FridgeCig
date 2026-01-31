@@ -4,6 +4,11 @@ struct BadgeView: View {
     let badge: Badge
     var size: BadgeSize = .medium
     var showDetails: Bool = true
+    var brand: BeverageBrand = .dietCoke
+
+    private var dynamicDescription: String {
+        badge.description(for: brand)
+    }
 
     var body: some View {
         VStack(spacing: size.spacing) {
@@ -48,7 +53,7 @@ struct BadgeView: View {
                         .lineLimit(2)
 
                     if size == .large {
-                        Text(badge.description)
+                        Text(dynamicDescription)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -58,6 +63,9 @@ struct BadgeView: View {
                 .frame(width: size.circleSize + 20)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(badge.title), \(badge.rarity.displayName) badge\(badge.isUnlocked ? ", earned" : ", locked")")
+        .accessibilityHint(badge.isUnlocked ? dynamicDescription : "Not yet unlocked: \(dynamicDescription)")
     }
 }
 
@@ -119,6 +127,7 @@ enum BadgeSize {
 
 struct BadgeGridItem: View {
     let badge: Badge
+    var brand: BeverageBrand = .dietCoke
     var onTap: (() -> Void)?
 
     private var backgroundGradient: LinearGradient {
@@ -150,7 +159,7 @@ struct BadgeGridItem: View {
 
     var body: some View {
         Button(action: { onTap?() }) {
-            BadgeView(badge: badge, size: .medium)
+            BadgeView(badge: badge, size: .medium, brand: brand)
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -163,6 +172,8 @@ struct BadgeGridItem: View {
                 .shadow(color: shadowColor, radius: 8, y: 4)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(badge.title), \(badge.rarity.displayName) badge\(badge.isUnlocked ? "" : ", locked")")
+        .accessibilityHint(badge.isUnlocked ? "Double tap to view details and share" : "Not yet unlocked")
     }
 }
 
@@ -170,8 +181,14 @@ struct BadgeGridItem: View {
 
 struct BadgeDetailSheet: View {
     let badge: Badge
+    var brand: BeverageBrand = .dietCoke
     @Environment(\.dismiss) private var dismiss
-    var onShare: (() -> Void)?
+    var onShare: (() -> Void)? = nil
+    @State private var shareImage: UIImage?
+
+    private var dynamicDescription: String {
+        badge.description(for: brand)
+    }
 
     var body: some View {
         NavigationStack {
@@ -179,7 +196,7 @@ struct BadgeDetailSheet: View {
                 VStack(spacing: 0) {
                     // Colored header card
                     VStack(spacing: 16) {
-                        BadgeView(badge: badge, size: .large)
+                        BadgeView(badge: badge, size: .large, brand: brand)
                             .padding(.top, 8)
 
                         HStack(spacing: 8) {
@@ -221,7 +238,7 @@ struct BadgeDetailSheet: View {
 
                     // Content
                     VStack(spacing: 16) {
-                        Text(badge.description)
+                        Text(dynamicDescription)
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -239,23 +256,34 @@ struct BadgeDetailSheet: View {
                         }
 
                         if badge.isUnlocked {
-                            Button(action: { onShare?() }) {
-                                Label("Share Badge", systemImage: "square.and.arrow.up")
-                                    .fontWeight(.semibold)
+                            if let image = shareImage {
+                                ShareLink(
+                                    item: Image(uiImage: image),
+                                    preview: SharePreview(
+                                        "\(brand.shortName) Badge: \(badge.title)",
+                                        image: Image(uiImage: image)
+                                    )
+                                ) {
+                                    Label("Share Badge", systemImage: "square.and.arrow.up")
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 32)
+                                        .padding(.vertical, 14)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [badge.rarity.color, badge.rarity.color.opacity(0.8)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .clipShape(Capsule())
+                                        .shadow(color: badge.rarity.color.opacity(0.4), radius: 8, y: 4)
+                                }
+                                .padding(.top, 16)
+                            } else {
+                                ProgressView()
+                                    .padding(.top, 16)
                             }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 32)
-                            .padding(.vertical, 14)
-                            .background(
-                                LinearGradient(
-                                    colors: [badge.rarity.color, badge.rarity.color.opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .clipShape(Capsule())
-                            .shadow(color: badge.rarity.color.opacity(0.4), radius: 8, y: 4)
-                            .padding(.top, 16)
                         }
                     }
                     .padding(.bottom, 32)
@@ -271,7 +299,16 @@ struct BadgeDetailSheet: View {
                     }
                 }
             }
+            .onAppear {
+                generateShareImage()
+            }
         }
+    }
+
+    private func generateShareImage() {
+        let renderer = ImageRenderer(content: ShareableBadgeView(badge: badge, brand: brand))
+        renderer.scale = 3.0
+        shareImage = renderer.uiImage
     }
 }
 
@@ -279,12 +316,17 @@ struct BadgeDetailSheet: View {
 
 struct BadgeUnlockToast: View {
     let badge: Badge
+    var brand: BeverageBrand = .dietCoke
     var onDismiss: () -> Void
     var onShare: () -> Void
 
     @State private var iconScale: CGFloat = 0.5
     @State private var glowOpacity: Double = 0.0
     @State private var isPulsing: Bool = false
+
+    private var dynamicDescription: String {
+        badge.description(for: brand)
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -355,7 +397,7 @@ struct BadgeUnlockToast: View {
                     .fontWeight(.bold)
                     .foregroundColor(.white)
 
-                Text(badge.description)
+                Text(dynamicDescription)
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)

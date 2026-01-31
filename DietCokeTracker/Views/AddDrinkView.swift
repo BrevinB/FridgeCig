@@ -55,77 +55,105 @@ struct AddDrinkView: View {
         return true
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var backgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.08, green: 0.08, blue: 0.10)
+            : Color(red: 0.96, green: 0.96, blue: 0.97)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Selected drink preview
-                    SelectedDrinkPreview(
-                        type: selectedType,
-                        brand: effectiveBrand,
-                        specialEdition: selectedSpecialEdition,
-                        customOunces: useCustomOunces ? Double(customOuncesText) : nil,
-                        rating: selectedRating
-                    )
+                    VStack(spacing: 24) {
+                        // Selected drink preview
+                        SelectedDrinkPreview(
+                            type: selectedType,
+                            brand: effectiveBrand,
+                            specialEdition: selectedSpecialEdition,
+                            customOunces: useCustomOunces ? Double(customOuncesText) : nil,
+                            rating: selectedRating
+                        )
 
-                    // Brand selector
-                    BrandSelectorView(
-                        selectedBrand: $selectedBrand,
-                        defaultBrand: preferences.defaultBrand
-                    )
+                        // Brand selector
+                        BrandSelectorView(
+                            selectedBrand: $selectedBrand,
+                            defaultBrand: preferences.defaultBrand
+                        )
 
-                    // Category filter
-                    AddDrinkCategoryFilterView(selectedCategory: $selectedCategory)
+                        // Category filter
+                        AddDrinkCategoryFilterView(selectedCategory: $selectedCategory)
 
-                    // Drink types grid
-                    DrinkTypesGrid(
-                        selectedType: $selectedType,
-                        selectedCategory: selectedCategory
-                    )
+                        // Drink types grid
+                        DrinkTypesGrid(
+                            selectedType: $selectedType,
+                            selectedCategory: selectedCategory
+                        )
 
-                    // Custom ounces input
-                    CustomOuncesSection(
-                        useCustomOunces: $useCustomOunces,
-                        customOuncesText: $customOuncesText,
-                        defaultOunces: selectedType.ounces
-                    )
+                        // Custom ounces input
+                        CustomOuncesSection(
+                            useCustomOunces: $useCustomOunces,
+                            customOuncesText: $customOuncesText,
+                            defaultOunces: selectedType.ounces
+                        )
 
-                    // Special Edition toggle
-                    SpecialEditionSection(
-                        showSpecialEditions: $showSpecialEditions,
-                        selectedSpecialEdition: $selectedSpecialEdition
-                    )
+                        // Special Edition toggle
+                        SpecialEditionSection(
+                            showSpecialEditions: $showSpecialEditions,
+                            selectedSpecialEdition: $selectedSpecialEdition
+                        )
 
-                    // Rating selector
-                    RatingSection(selectedRating: $selectedRating)
+                        // Rating selector
+                        RatingSection(selectedRating: $selectedRating)
 
-                    // Photo section
-                    PhotoSection(
-                        capturedPhoto: $capturedPhoto,
-                        showingCamera: $showingCamera
-                    )
+                        // Photo section
+                        PhotoSection(
+                            capturedPhoto: $capturedPhoto,
+                            showingCamera: $showingCamera
+                        )
 
-                    // Optional note
-                    NoteInputView(note: $note)
+                        // Optional note
+                        NoteInputView(note: $note)
 
-                    // Add button
-                    Button {
-                        addDrink()
-                    } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Add \(effectiveBrand.shortName)")
+                        // Add button
+                        Button {
+                            addDrink()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add \(effectiveBrand.shortName)")
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                canAddDrink
+                                    ? LinearGradient(
+                                        colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                    : LinearGradient(
+                                        colors: [Color.dietCokeSilver, Color.dietCokeSilver],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                            )
+                            .foregroundColor(.white)
+                            .cornerRadius(14)
+                            .shadow(
+                                color: canAddDrink ? Color.dietCokeRed.opacity(0.3) : Color.clear,
+                                radius: 8,
+                                y: 4
+                            )
                         }
-                        .frame(maxWidth: .infinity)
+                        .disabled(!canAddDrink)
+                        .padding(.top, 8)
                     }
-                    .buttonStyle(.dietCokePrimary)
-                    .disabled(!canAddDrink)
-                    .opacity(canAddDrink ? 1 : 0.6)
-                    .padding(.top, 8)
+                    .padding()
                 }
-                .padding()
-            }
-            .background(Color(.systemGroupedBackground))
+            .background(backgroundColor.ignoresSafeArea())
             .navigationTitle("Add DC")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -180,6 +208,7 @@ struct SelectedDrinkPreview: View {
     var specialEdition: SpecialEdition? = nil
     var customOunces: Double? = nil
     var rating: DrinkRating? = nil
+    @Environment(\.colorScheme) private var colorScheme
 
     private var displayOunces: Double {
         customOunces ?? type.ounces
@@ -193,21 +222,45 @@ struct SelectedDrinkPreview: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             ZStack {
+                // Outer glow ring
                 Circle()
-                    .fill(accentColor.opacity(0.1))
+                    .stroke(
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.3), accentColor.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 2
+                    )
+                    .frame(width: 90, height: 90)
+
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.15), accentColor.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 80, height: 80)
 
                 Image(systemName: specialEdition?.icon ?? type.icon)
-                    .font(.system(size: 36))
-                    .foregroundColor(accentColor)
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [accentColor, accentColor.opacity(0.8)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
             }
 
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
                 Text(type.displayName)
                     .font(.title3)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
                     .foregroundColor(.dietCokeCharcoal)
 
                 // Brand badge
@@ -216,22 +269,26 @@ struct SelectedDrinkPreview: View {
                         .font(.caption2)
                     Text(brand.shortName)
                         .font(.caption)
-                        .fontWeight(.semibold)
+                        .fontWeight(.bold)
                 }
                 .foregroundColor(brand.color)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(brand.lightColor)
-                .clipShape(Capsule())
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(brand.lightColor)
+                )
 
                 HStack(spacing: 4) {
                     Text("\(String(format: "%.1f", displayOunces)) oz")
                         .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundColor(.dietCokeDarkSilver)
 
                     if customOunces != nil {
                         Text("(custom)")
                             .font(.caption)
+                            .fontWeight(.medium)
                             .foregroundColor(.dietCokeRed)
                     }
                 }
@@ -242,7 +299,7 @@ struct SelectedDrinkPreview: View {
                             .font(.caption2)
                         Text(edition.rawValue)
                             .font(.caption)
-                            .fontWeight(.medium)
+                            .fontWeight(.semibold)
                     }
                     .foregroundColor(edition.toBadge().rarity.color)
                     .padding(.horizontal, 10)
@@ -257,7 +314,7 @@ struct SelectedDrinkPreview: View {
                             .font(.caption2)
                         Text(rating.displayName)
                             .font(.caption)
-                            .fontWeight(.medium)
+                            .fontWeight(.semibold)
                     }
                     .foregroundColor(rating.color)
                     .padding(.horizontal, 10)
@@ -267,9 +324,21 @@ struct SelectedDrinkPreview: View {
                 }
             }
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
         .frame(maxWidth: .infinity)
-        .dietCokeCard()
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(accentColor.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(
+            color: accentColor.opacity(colorScheme == .dark ? 0.15 : 0.1),
+            radius: 12,
+            y: 4
+        )
     }
 }
 
@@ -368,6 +437,9 @@ struct BrandButton: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(brand.rawValue)\(isDefault ? ", default" : "")")
+        .accessibilityHint(isSelected ? "Currently selected" : "Double tap to select")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -420,6 +492,7 @@ struct AddDrinkCategoryChip: View {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.caption)
+                    .accessibilityHidden(true)
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -430,6 +503,8 @@ struct AddDrinkCategoryChip: View {
             .foregroundColor(isSelected ? .white : .dietCokeCharcoal)
             .cornerRadius(20)
         }
+        .accessibilityLabel("\(title) category")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -438,15 +513,13 @@ struct AddDrinkCategoryChip: View {
 struct SpecialEditionSection: View {
     @Binding var showSpecialEditions: Bool
     @Binding var selectedSpecialEdition: SpecialEdition?
+    @State private var showCokeCreations = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showSpecialEditions.toggle()
-                    if !showSpecialEditions {
-                        selectedSpecialEdition = nil
-                    }
                 }
             } label: {
                 HStack {
@@ -458,6 +531,13 @@ struct SpecialEditionSection: View {
 
                     Spacer()
 
+                    if let selected = selectedSpecialEdition {
+                        Text(selected.rawValue)
+                            .font(.caption)
+                            .foregroundColor(selected.rarity.color)
+                            .lineLimit(1)
+                    }
+
                     Image(systemName: showSpecialEditions ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.dietCokeDarkSilver)
@@ -465,27 +545,124 @@ struct SpecialEditionSection: View {
             }
 
             if showSpecialEditions {
-                VStack(spacing: 8) {
+                VStack(spacing: 16) {
                     Text("Limited releases unlock special badges!")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 10) {
-                        ForEach(SpecialEdition.allCases) { edition in
-                            SpecialEditionCell(
-                                edition: edition,
-                                isSelected: selectedSpecialEdition == edition
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    if selectedSpecialEdition == edition {
-                                        selectedSpecialEdition = nil
-                                    } else {
-                                        selectedSpecialEdition = edition
-                                    }
+                    // Limited Editions
+                    SpecialEditionCategorySection(
+                        category: .limited,
+                        selectedSpecialEdition: $selectedSpecialEdition,
+                        isExpanded: .constant(true)
+                    )
+
+                    // Diet Coke Flavors
+                    SpecialEditionCategorySection(
+                        category: .dietCokeFlavors,
+                        selectedSpecialEdition: $selectedSpecialEdition,
+                        isExpanded: .constant(true)
+                    )
+
+                    // Coca-Cola Creations (collapsed by default)
+                    SpecialEditionCategorySection(
+                        category: .cokeCreations,
+                        selectedSpecialEdition: $selectedSpecialEdition,
+                        isExpanded: $showCokeCreations,
+                        isCollapsible: true
+                    )
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(16)
+        .background(Color.dietCokeCardBackground)
+        .cornerRadius(12)
+    }
+}
+
+struct SpecialEditionCategorySection: View {
+    let category: SpecialEditionCategory
+    @Binding var selectedSpecialEdition: SpecialEdition?
+    @Binding var isExpanded: Bool
+    var isCollapsible: Bool = false
+
+    private var editions: [SpecialEdition] {
+        SpecialEdition.editions(for: category)
+    }
+
+    private var categoryIcon: String {
+        switch category {
+        case .limited: return "sparkles"
+        case .dietCokeFlavors: return "drop.fill"
+        case .cokeCreations: return "wand.and.stars"
+        }
+    }
+
+    private var hasSelection: Bool {
+        editions.contains { $0 == selectedSpecialEdition }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if isCollapsible {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: categoryIcon)
+                            .font(.caption)
+                            .foregroundColor(.dietCokeRed)
+                        Text(category.rawValue)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.dietCokeCharcoal)
+
+                        Spacer()
+
+                        if hasSelection, let selected = selectedSpecialEdition {
+                            Text(selected.rawValue)
+                                .font(.caption2)
+                                .foregroundColor(selected.rarity.color)
+                                .lineLimit(1)
+                        }
+
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                    .padding(.vertical, 4)
+                }
+            } else {
+                HStack {
+                    Image(systemName: categoryIcon)
+                        .font(.caption)
+                        .foregroundColor(.dietCokeRed)
+                    Text(category.rawValue)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.dietCokeCharcoal)
+                }
+            }
+
+            if isExpanded || !isCollapsible {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 10) {
+                    ForEach(editions) { edition in
+                        SpecialEditionCell(
+                            edition: edition,
+                            isSelected: selectedSpecialEdition == edition
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if selectedSpecialEdition == edition {
+                                    selectedSpecialEdition = nil
+                                } else {
+                                    selectedSpecialEdition = edition
                                 }
                             }
                         }
@@ -494,9 +671,6 @@ struct SpecialEditionSection: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(16)
-        .background(Color.dietCokeCardBackground)
-        .cornerRadius(12)
     }
 }
 
@@ -515,6 +689,7 @@ struct SpecialEditionCell: View {
                 Image(systemName: edition.icon)
                     .font(.caption)
                     .foregroundColor(isSelected ? .white : badge.rarity.color)
+                    .accessibilityHidden(true)
 
                 Text(edition.rawValue)
                     .font(.caption2)
@@ -533,6 +708,8 @@ struct SpecialEditionCell: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(edition.rawValue) special edition")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -584,6 +761,7 @@ struct DrinkTypeCell: View {
                 Image(systemName: type.icon)
                     .font(.title2)
                     .foregroundColor(isSelected ? .white : .dietCokeRed)
+                    .accessibilityHidden(true)
 
                 Text(type.shortName)
                     .font(.caption)
@@ -604,6 +782,8 @@ struct DrinkTypeCell: View {
                     .stroke(isSelected ? Color.clear : Color.dietCokeSilver.opacity(0.3), lineWidth: 1)
             )
         }
+        .accessibilityLabel("\(type.displayName), \(String(format: "%.0f", type.ounces)) ounces")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -738,10 +918,13 @@ struct QuickOzButton: View {
     let defaultOunces: Double
     @Binding var customOuncesText: String
 
+    private var resultingOunces: Double {
+        defaultOunces * multiplier
+    }
+
     var body: some View {
         Button {
-            let amount = defaultOunces * multiplier
-            customOuncesText = String(format: "%.1f", amount)
+            customOuncesText = String(format: "%.1f", resultingOunces)
         } label: {
             Text(label)
                 .font(.caption)
@@ -753,6 +936,7 @@ struct QuickOzButton: View {
                 .foregroundColor(.dietCokeCharcoal)
                 .cornerRadius(8)
         }
+        .accessibilityLabel("\(label) of default, \(String(format: "%.1f", resultingOunces)) ounces")
     }
 }
 
@@ -830,6 +1014,7 @@ struct RatingButton: View {
             VStack(spacing: 4) {
                 Image(systemName: rating.icon)
                     .font(.title3)
+                    .accessibilityHidden(true)
                 Text(rating.displayName)
                     .font(.system(size: 9))
                     .fontWeight(.medium)
@@ -842,6 +1027,9 @@ struct RatingButton: View {
             .cornerRadius(10)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Rate as \(rating.displayName)")
+        .accessibilityHint(rating.description)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -901,6 +1089,7 @@ struct PhotoSection: View {
                         } label: {
                             HStack {
                                 Image(systemName: "camera.fill")
+                                    .accessibilityHidden(true)
                                 Text("Retake")
                             }
                             .font(.caption)
@@ -910,6 +1099,7 @@ struct PhotoSection: View {
                             .background(.ultraThinMaterial)
                             .cornerRadius(8)
                         }
+                        .accessibilityLabel("Retake photo")
                         .padding(8),
                         alignment: .bottomTrailing
                     )
@@ -923,6 +1113,7 @@ struct PhotoSection: View {
                     VStack(spacing: 8) {
                         Image(systemName: "camera.fill")
                             .font(.title2)
+                            .accessibilityHidden(true)
                         Text(CameraView.isAvailable ? "Take Photo" : "Camera Unavailable")
                             .font(.subheadline)
                             .fontWeight(.medium)
@@ -938,6 +1129,7 @@ struct PhotoSection: View {
                     )
                 }
                 .disabled(!CameraView.isAvailable)
+                .accessibilityLabel(CameraView.isAvailable ? "Take photo of your drink" : "Camera unavailable")
             }
         }
         .padding(16)

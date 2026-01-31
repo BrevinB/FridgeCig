@@ -34,7 +34,7 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
         case .fountainSmall, .fountainMedium, .fountainLarge:
             return "cup.and.saucer.fill"
         case .cafeFreestyle:
-            return "flask.circle.fill"
+            return "drop.circle.fill"
         }
     }
 

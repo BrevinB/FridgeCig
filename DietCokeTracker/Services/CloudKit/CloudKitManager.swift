@@ -217,7 +217,7 @@ class CloudKitManager: ObservableObject {
         } catch let error as CKError where error.code == .unknownItem {
             // Schema doesn't exist yet - return empty until someone creates a profile
             return []
-        }
+        } 
     }
 
     // MARK: - Friend Connection Operations

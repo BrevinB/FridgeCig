@@ -3,13 +3,22 @@ import SwiftUI
 struct ShareCodeView: View {
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
+
+    // Optional initial code from deep link
+    var initialCode: String?
+
     @State private var enteredCode = ""
     @State private var foundUser: UserProfile?
     @State private var searchState: SearchState = .idle
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var showingSuccess = false
+    @State private var didAutoSearch = false
     @FocusState private var isCodeFocused: Bool
+
+    init(initialCode: String? = nil) {
+        self.initialCode = initialCode
+    }
 
     enum SearchState {
         case idle
@@ -60,6 +69,16 @@ struct ShareCodeView: View {
             }
         } message: {
             Text("They'll see your request in their Friends list.")
+        }
+        .task {
+            // Auto-fill and auto-search if we have an initial code from deep link
+            if let code = initialCode, !didAutoSearch {
+                enteredCode = code.uppercased()
+                didAutoSearch = true
+                // Auto-lookup after a brief delay for UI to update
+                try? await Task.sleep(for: .milliseconds(300))
+                lookupCode()
+            }
         }
     }
 
@@ -147,7 +166,10 @@ private struct YourCodeCard: View {
                     .cornerRadius(8)
                 }
 
-                ShareLink(item: "Add me on FridgeCig! My friend code: \(friendCode)") {
+                ShareLink(
+                    item: DeepLinkHandler.friendCodeURL(code: friendCode),
+                    message: Text("Add me on FridgeCig!")
+                ) {
                     HStack {
                         Image(systemName: "square.and.arrow.up")
                         Text("Share")

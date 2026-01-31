@@ -41,22 +41,59 @@ class DrinkSyncService: ObservableObject {
         // 1. Fetch all entries from CloudKit (may fail on first sync, that's OK)
         let cloudEntries = await fetchAllFromCloudSafe()
 
-        // 2. Sync deletions to cloud (ignore errors)
-        try? await syncDeletionsToCloud()
+        // 2. Sync deletions to cloud
+        do {
+            try await syncDeletionsToCloud()
+        } catch {
+            print("[DrinkSyncService] Deletion sync failed: \(error)")
+            // Continue with sync, track error but don't fail completely
+        }
 
         // 3. Merge local and cloud entries
         let merged = mergeEntries(local: localEntries, cloud: cloudEntries)
 
-        // 4. Upload new/modified local entries
+        // 4. Upload new/modified local entries, tracking failures
+        var uploadErrors: [Error] = []
         for entry in merged.toUpload {
-            try? await uploadEntry(entry)
+            do {
+                try await uploadEntry(entry)
+            } catch {
+                print("[DrinkSyncService] Failed to upload entry \(entry.id): \(error)")
+                uploadErrors.append(error)
+            }
         }
 
-        // 5. Update last sync date
+        // 5. Set sync error if any uploads failed
+        if !uploadErrors.isEmpty {
+            syncError = SyncError.partialFailure(
+                successCount: merged.toUpload.count - uploadErrors.count,
+                failureCount: uploadErrors.count
+            )
+        }
+
+        // 6. Update last sync date
         lastSyncDate = Date()
         UserDefaults.standard.set(lastSyncDate, forKey: lastSyncKey)
 
         return merged.result
+    }
+
+    /// Custom sync error type
+    enum SyncError: LocalizedError {
+        case partialFailure(successCount: Int, failureCount: Int)
+        case networkUnavailable
+        case cloudKitError(Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .partialFailure(let success, let failure):
+                return "Synced \(success) items, \(failure) failed"
+            case .networkUnavailable:
+                return "Network unavailable"
+            case .cloudKitError(let error):
+                return error.localizedDescription
+            }
+        }
     }
 
     private func fetchAllFromCloudSafe() async -> [DrinkEntry] {

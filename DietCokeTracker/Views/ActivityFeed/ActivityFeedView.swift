@@ -6,11 +6,19 @@ struct ActivityFeedView: View {
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
     @State private var showingPreferences = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var backgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.08, green: 0.08, blue: 0.10)
+            : Color(red: 0.96, green: 0.96, blue: 0.97)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             if activityService.isLoading {
                 ProgressView()
+                    .tint(.dietCokeRed)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if activityService.activities.isEmpty {
                 EmptyActivityView()
@@ -25,7 +33,7 @@ struct ActivityFeedView: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(backgroundColor)
         .navigationTitle("Activity")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -56,22 +64,43 @@ struct ActivityFeedView: View {
 // MARK: - Empty State
 
 struct EmptyActivityView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "person.2.wave.2")
-                .font(.system(size: 50))
-                .foregroundColor(.dietCokeSilver)
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.dietCokeSilver.opacity(0.2), Color.dietCokeSilver.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
 
-            Text("No Activity Yet")
-                .font(.title3)
-                .fontWeight(.semibold)
-                .foregroundColor(.dietCokeCharcoal)
+                Image(systemName: "person.2.wave.2")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.dietCokeSilver, Color.dietCokeDarkSilver],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
 
-            Text("When your friends earn badges or hit milestones, they'll show up here!")
-                .font(.subheadline)
-                .foregroundColor(.dietCokeDarkSilver)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            VStack(spacing: 8) {
+                Text("No Activity Yet")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Text("When your friends earn badges or\nhit milestones, they'll show up here!")
+                    .font(.subheadline)
+                    .foregroundColor(.dietCokeDarkSilver)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -82,6 +111,7 @@ struct EmptyActivityView: View {
 struct ActivityItemRow: View {
     let activity: ActivityItem
     @EnvironmentObject var activityService: ActivityFeedService
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -90,11 +120,17 @@ struct ActivityItemRow: View {
                 // Activity type icon
                 ZStack {
                     Circle()
-                        .fill(activity.type.color.opacity(0.2))
-                        .frame(width: 40, height: 40)
+                        .fill(
+                            LinearGradient(
+                                colors: [activity.type.color.opacity(0.2), activity.type.color.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 44, height: 44)
 
                     Image(systemName: activity.type.icon)
-                        .font(.body)
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundColor(activity.type.color)
                 }
 
@@ -139,8 +175,17 @@ struct ActivityItemRow: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.dietCokeSilver.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.04),
+            radius: 4,
+            y: 2
         )
     }
 }
@@ -360,6 +405,7 @@ struct CheersButton: View {
             withAnimation(.spring(response: 0.3)) {
                 isAnimating = true
             }
+            HapticManager.cheerSent()
 
             Task {
                 await activityService.toggleCheers(for: activity)

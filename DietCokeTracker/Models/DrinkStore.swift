@@ -416,10 +416,13 @@ class DrinkStore: ObservableObject {
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
     }
+    #endif
 
+    // MARK: - Data Management
+
+    /// Clear all local drink data (used for account deletion)
     func clearAllData() {
         entries.removeAll()
         saveEntries()
     }
-    #endif
 }

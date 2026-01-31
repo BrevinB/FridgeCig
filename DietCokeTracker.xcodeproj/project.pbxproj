@@ -217,6 +217,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		23733BBC2F2B2052007CD14A /* Components */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Components; sourceTree = "<group>"; };
 		237342D02F21D184007CD14A /* MilestoneCard */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MilestoneCard; sourceTree = "<group>"; };
 		237342D72F21D184007CD14A /* WeeklyRecap */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = WeeklyRecap; sourceTree = "<group>"; };
 		237342EC2F21D1D3007CD14A /* ActivityFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ActivityFeed; sourceTree = "<group>"; };
@@ -230,6 +231,7 @@
 		23CA15E72F1AF9C7000C7B43 /* Subscription */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Subscription; sourceTree = "<group>"; };
 		CC000001000000000000001A /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
 		CC000002000000000000001B /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
+		CC000003000000000000001C /* Onboarding */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Onboarding; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -340,6 +342,8 @@
 		A4000003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CC000003000000000000001C /* Onboarding */,
+				23733BBC2F2B2052007CD14A /* Components */,
 				237349B32F2AE6F3007CD14A /* Settings */,
 				CC000002000000000000001B /* Sharing */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
@@ -477,6 +481,7 @@
 				23CA14292F18A88B000C7B43 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				23733BBC2F2B2052007CD14A /* Components */,
 				237342D02F21D184007CD14A /* MilestoneCard */,
 				237342D72F21D184007CD14A /* WeeklyRecap */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
@@ -487,6 +492,7 @@
 				23CA15E72F1AF9C7000C7B43 /* Subscription */,
 				CC000001000000000000001A /* Sharing */,
 				CC000002000000000000001B /* Sharing */,
+				CC000003000000000000001C /* Onboarding */,
 			);
 			name = DietCokeTracker;
 			productName = DietCokeTracker;
@@ -993,7 +999,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1027,7 +1033,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

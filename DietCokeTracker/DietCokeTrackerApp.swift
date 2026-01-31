@@ -26,6 +26,16 @@ struct DietCokeTrackerApp: App {
     // Subscription service
     @StateObject private var purchaseService = PurchaseService.shared
 
+    // Review prompt service
+    @StateObject private var reviewService = ReviewPromptService()
+
+    // Offline support
+    @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var offlineQueue = OfflineQueue.shared
+
+    // Deep link handler
+    @StateObject private var deepLinkHandler = DeepLinkHandler.shared
+
     init() {
         let ckManager = CloudKitManager()
         _cloudKitManager = StateObject(wrappedValue: ckManager)
@@ -54,6 +64,13 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(recapService)
                 .environmentObject(activityService)
                 .environmentObject(notificationService)
+                .environmentObject(reviewService)
+                .environmentObject(networkMonitor)
+                .environmentObject(offlineQueue)
+                .environmentObject(deepLinkHandler)
+                .onOpenURL { url in
+                    _ = deepLinkHandler.handleURL(url)
+                }
                 .task {
                     // Set up sync services
                     store.syncService = drinkSyncService
@@ -174,6 +191,38 @@ struct DietCokeTrackerApp: App {
                         )
                     }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .networkBecameAvailable)) { _ in
+                    // Sync when network becomes available
+                    Task {
+                        print("[App] Network became available, syncing...")
+                        await store.performSync()
+                        await badgeStore.performSync()
+
+                        // Process any queued offline operations
+                        await offlineQueue.processQueue(networkMonitor: networkMonitor) { operation in
+                            return await processOfflineOperation(operation)
+                        }
+                    }
+                }
+        }
+    }
+
+    /// Process a queued offline operation
+    private func processOfflineOperation(_ operation: OfflineQueue.PendingOperation) async -> Bool {
+        // For now, we just attempt to sync - individual operation handling can be added later
+        switch operation.type {
+        case .syncDrink:
+            await store.performSync()
+            return true
+        case .postActivity, .sendCheer:
+            // Activity operations would be handled here
+            return true
+        case .sendFriendRequest, .acceptFriendRequest:
+            // Friend operations would be handled here
+            return true
+        case .syncBadge:
+            await badgeStore.performSync()
+            return true
         }
     }
 }

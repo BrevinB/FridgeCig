@@ -42,42 +42,86 @@ struct ProfileView: View {
 
 struct ProfileCardView: View {
     let identity: UserIdentity
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Avatar
-            ZStack {
-                Circle()
-                    .fill(Color.dietCokeRed.opacity(0.1))
-                    .frame(width: 80, height: 80)
+        ZStack {
+            // Background with metallic gradient
+            RoundedRectangle(cornerRadius: 20)
+                .fill(colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
 
-                Text(identity.displayName.prefix(1).uppercased())
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.dietCokeRed)
-            }
+            // Ambient bubbles
+            AmbientBubblesBackground(bubbleCount: 6)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
 
-            // Name
-            Text(identity.displayName)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.dietCokeCharcoal)
+            VStack(spacing: 16) {
+                // Avatar with gradient ring
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: 88, height: 88)
+                        .shadow(color: Color.dietCokeRed.opacity(0.3), radius: 8, y: 2)
 
-            // Username if set
-            if let username = identity.username {
-                Text("@\(username)")
-                    .font(.subheadline)
-                    .foregroundColor(.dietCokeDarkSilver)
-            }
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 3
+                        )
+                        .frame(width: 88, height: 88)
 
-            // Member since
-            Text("Member since \(identity.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                .font(.caption)
+                    Text(identity.displayName.prefix(1).uppercased())
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+
+                // Name
+                Text(identity.displayName)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                // Username if set
+                if let username = identity.username {
+                    Text("@\(username)")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.dietCokeDarkSilver)
+                }
+
+                // Member since badge
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                    Text("Member since \(identity.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
                 .foregroundColor(.dietCokeDarkSilver)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.7))
+                )
+            }
+            .padding(24)
         }
-        .frame(maxWidth: .infinity)
-        .padding(24)
-        .background(Color.dietCokeCardBackground)
-        .cornerRadius(16)
+        .frame(height: 240)
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08),
+            radius: 10,
+            y: 4
+        )
     }
 }
 
@@ -85,12 +129,26 @@ struct ProfileCardView: View {
 
 struct FriendCodeSection: View {
     let friendCode: String
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var copied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Image(systemName: "qrcode")
-                    .foregroundColor(.dietCokeRed)
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.dietCokeRed.opacity(0.2), Color.dietCokeRed.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.dietCokeRed)
+                }
                 Text("Your Friend Code")
                     .font(.headline)
                     .foregroundColor(.dietCokeCharcoal)
@@ -98,23 +156,55 @@ struct FriendCodeSection: View {
 
             HStack {
                 Text(friendCode)
-                    .font(.system(size: 28, weight: .bold, design: .monospaced))
-                    .foregroundColor(.dietCokeRed)
+                    .font(.system(size: 32, weight: .bold, design: .monospaced))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
 
                 Spacer()
 
                 Button {
                     UIPasteboard.general.string = friendCode
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        copied = false
+                    }
                 } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.title3)
-                        .foregroundColor(.dietCokeRed)
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.dietCokeRed.opacity(0.15), Color.dietCokeRed.opacity(0.08)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.dietCokeRed)
+                    }
                 }
 
                 ShareLink(item: "Add me on FridgeCig! My friend code: \(friendCode)") {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.title3)
-                        .foregroundColor(.dietCokeRed)
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.dietCokeRed.opacity(0.15), Color.dietCokeRed.opacity(0.08)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.dietCokeRed)
+                    }
                 }
             }
 
@@ -122,9 +212,20 @@ struct FriendCodeSection: View {
                 .font(.caption)
                 .foregroundColor(.dietCokeDarkSilver)
         }
-        .padding(16)
-        .background(Color.dietCokeCardBackground)
-        .cornerRadius(12)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.dietCokeSilver.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05),
+            radius: 8,
+            y: 3
+        )
     }
 }
 

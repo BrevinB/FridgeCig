@@ -4,16 +4,23 @@ struct StatsView: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var recapService: WeeklyRecapService
     @State private var showingWeeklyRecap = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var backgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.08, green: 0.08, blue: 0.10)
+            : Color(red: 0.96, green: 0.96, blue: 0.97)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Hero Card
+                    StatsHeroCard()
+
                     // Weekly Recap Button
                     WeeklyRecapButton(showingRecap: $showingWeeklyRecap)
-
-                    // Overview cards
-                    OverviewStatsSection()
 
                     // Weekly chart
                     WeeklyChartSection()
@@ -26,7 +33,7 @@ struct StatsView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(backgroundColor.ignoresSafeArea())
             .navigationTitle("Statistics")
             .sheet(isPresented: $showingWeeklyRecap) {
                 WeeklyRecapSheet()
@@ -39,22 +46,33 @@ struct StatsView: View {
 
 struct WeeklyRecapButton: View {
     @Binding var showingRecap: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button {
             showingRecap = true
         } label: {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.title2)
-                            .foregroundColor(.dietCokeRed)
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.dietCokeRed.opacity(0.2), Color.dietCokeRed.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 48, height: 48)
 
-                        Text("Weekly Recap")
-                            .font(.headline)
-                            .foregroundColor(.dietCokeCharcoal)
-                    }
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.dietCokeRed)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Weekly Recap")
+                        .font(.headline)
+                        .foregroundColor(.dietCokeCharcoal)
 
                     Text("See how your week stacked up")
                         .font(.caption)
@@ -63,18 +81,133 @@ struct WeeklyRecapButton: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.body)
-                    .foregroundColor(.dietCokeDarkSilver)
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
             }
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.dietCokeRed.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(
+                color: Color.dietCokeRed.opacity(colorScheme == .dark ? 0.15 : 0.1),
+                radius: 8,
+                y: 4
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Stats Hero Card
+
+struct StatsHeroCard: View {
+    @EnvironmentObject var store: DrinkStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            // Background with metallic gradient
+            RoundedRectangle(cornerRadius: 24)
+                .fill(colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
+
+            // Subtle fizz bubbles
+            AmbientBubblesBackground(bubbleCount: 6)
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+
+            // Content
+            VStack(spacing: 16) {
+                Text("All Time Stats")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.dietCokeDarkSilver)
+
+                // Big number
+                Text("\(store.allTimeCount)")
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                Text("Diet Cokes Logged")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                // Stats row
+                HStack(spacing: 24) {
+                    VStack(spacing: 4) {
+                        Text("\(String(format: "%.0f", store.allTimeOunces))")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.dietCokeCharcoal)
+                        Text("Total oz")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(String(format: "%.0f", store.allTimeOunces)) total ounces")
+
+                    Rectangle()
+                        .fill(Color.dietCokeSilver.opacity(0.3))
+                        .frame(width: 1, height: 40)
+                        .accessibilityHidden(true)
+
+                    VStack(spacing: 4) {
+                        Text("\(store.streakDays)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.dietCokeCharcoal)
+                        Text("Day Streak")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(store.streakDays) day streak")
+
+                    Rectangle()
+                        .fill(Color.dietCokeSilver.opacity(0.3))
+                        .frame(width: 1, height: 40)
+                        .accessibilityHidden(true)
+
+                    VStack(spacing: 4) {
+                        Text(String(format: "%.1f", store.averagePerDay))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.dietCokeCharcoal)
+                        Text("Daily Avg")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(String(format: "%.1f", store.averagePerDay)) daily average")
+                }
+                .padding(.top, 8)
+            }
+            .padding(.vertical, 24)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("All time stats: \(store.allTimeCount) Diet Cokes logged, \(String(format: "%.0f", store.allTimeOunces)) total ounces, \(store.streakDays) day streak, \(String(format: "%.1f", store.averagePerDay)) daily average")
+        .frame(height: 280)
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1),
+            radius: 12,
+            y: 6
+        )
     }
 }
 
@@ -127,38 +260,66 @@ struct StatCard: View {
     let subtitle: String
     let icon: String
     let iconColor: Color
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [iconColor.opacity(0.2), iconColor.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 36, height: 36)
+
                 Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(iconColor)
-                Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.title)
-                    .fontWeight(.bold)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(.dietCokeCharcoal)
 
                 Text(title)
                     .font(.caption)
+                    .fontWeight(.medium)
                     .foregroundColor(.dietCokeDarkSilver)
 
                 Text(subtitle)
                     .font(.caption2)
-                    .foregroundColor(.dietCokeDarkSilver)
+                    .foregroundColor(.dietCokeSilver)
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .dietCokeCard()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.dietCokeSilver.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05),
+            radius: 8,
+            y: 3
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value), \(subtitle)")
     }
 }
 
 struct WeeklyChartSection: View {
     @EnvironmentObject var store: DrinkStore
+    @Environment(\.colorScheme) private var colorScheme
 
     var chartData: [(date: Date, ounces: Double)] {
         store.ouncesLast7Days()
@@ -170,28 +331,64 @@ struct WeeklyChartSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Last 7 Days")
-                .font(.headline)
-                .foregroundColor(.dietCokeCharcoal)
+            HStack {
+                Text("Last 7 Days")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Spacer()
+
+                Text("\(String(format: "%.0f", chartData.map { $0.ounces }.reduce(0, +))) oz total")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.dietCokeRed)
+            }
 
             HStack(alignment: .bottom, spacing: 8) {
                 ForEach(Array(chartData.enumerated()), id: \.offset) { index, data in
                     VStack(spacing: 8) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(data.ounces > 0 ? Color.dietCokeRed : Color.dietCokeSilver.opacity(0.3))
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(
+                                data.ounces > 0
+                                    ? LinearGradient(
+                                        colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    : LinearGradient(
+                                        colors: [Color.dietCokeSilver.opacity(0.3), Color.dietCokeSilver.opacity(0.2)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                            )
                             .frame(height: max(CGFloat(data.ounces / maxOunces) * 100, 4))
 
                         Text(dayLabel(for: data.date))
                             .font(.caption2)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .fontWeight(.medium)
+                            .foregroundColor(Calendar.current.isDateInToday(data.date) ? .dietCokeRed : .dietCokeDarkSilver)
                     }
                     .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(dayLabel(for: data.date)): \(String(format: "%.0f", data.ounces)) ounces\(Calendar.current.isDateInToday(data.date) ? ", today" : "")")
                 }
             }
             .frame(height: 130)
         }
         .padding(20)
-        .dietCokeCard()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.dietCokeSilver.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05),
+            radius: 8,
+            y: 3
+        )
     }
 
     private func dayLabel(for date: Date) -> String {
@@ -203,6 +400,7 @@ struct WeeklyChartSection: View {
 
 struct FavoriteTypesSection: View {
     @EnvironmentObject var store: DrinkStore
+    @Environment(\.colorScheme) private var colorScheme
 
     var topTypes: [(type: DrinkType, count: Int)] {
         let counts = store.countByType()
@@ -217,16 +415,37 @@ struct FavoriteTypesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Favorite Types")
-                .font(.headline)
-                .foregroundColor(.dietCokeCharcoal)
+            HStack {
+                Text("Favorite Types")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Spacer()
+
+                if let top = topTypes.first {
+                    HStack(spacing: 4) {
+                        Image(systemName: "crown.fill")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        Text(top.type.shortName)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                }
+            }
 
             if topTypes.isEmpty {
-                Text("No data yet")
-                    .font(.subheadline)
-                    .foregroundColor(.dietCokeDarkSilver)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 20)
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.bar.doc.horizontal")
+                        .font(.title)
+                        .foregroundColor(.dietCokeSilver)
+                    Text("No data yet")
+                        .font(.subheadline)
+                        .foregroundColor(.dietCokeDarkSilver)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 20)
             } else {
                 VStack(spacing: 12) {
                     ForEach(topTypes, id: \.type) { item in
@@ -240,7 +459,19 @@ struct FavoriteTypesSection: View {
             }
         }
         .padding(20)
-        .dietCokeCard()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.dietCokeSilver.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05),
+            radius: 8,
+            y: 3
+        )
     }
 }
 
@@ -255,6 +486,7 @@ struct FavoriteTypeRow: View {
                 Image(systemName: type.icon)
                     .foregroundColor(.dietCokeRed)
                     .frame(width: 24)
+                    .accessibilityHidden(true)
 
                 Text(type.displayName)
                     .font(.subheadline)
@@ -280,12 +512,16 @@ struct FavoriteTypeRow: View {
                 }
             }
             .frame(height: 6)
+            .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(type.displayName): \(count) drinks, \(Int(percentage * 100)) percent")
     }
 }
 
 struct FunStatsSection: View {
     @EnvironmentObject var store: DrinkStore
+    @Environment(\.colorScheme) private var colorScheme
 
     var caffeineToday: Double {
         // DC has ~46mg caffeine per 12oz
@@ -298,11 +534,19 @@ struct FunStatsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Fun Facts")
-                .font(.headline)
-                .foregroundColor(.dietCokeCharcoal)
+            HStack {
+                Text("Fun Facts")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
 
-            VStack(spacing: 12) {
+                Spacer()
+
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(.dietCokeRed)
+            }
+
+            VStack(spacing: 14) {
                 FunStatRow(
                     icon: "bolt.fill",
                     iconColor: .yellow,
@@ -310,12 +554,20 @@ struct FunStatsSection: View {
                     value: "\(String(format: "%.0f", caffeineToday)) mg"
                 )
 
+                Divider()
+                    .background(Color.dietCokeSilver.opacity(0.3))
+                    .accessibilityHidden(true)
+
                 FunStatRow(
                     icon: "flame.fill",
                     iconColor: .orange,
                     title: "Current Streak",
                     value: "\(store.streakDays) days"
                 )
+
+                Divider()
+                    .background(Color.dietCokeSilver.opacity(0.3))
+                    .accessibilityHidden(true)
 
                 FunStatRow(
                     icon: "chart.line.uptrend.xyaxis",
@@ -325,6 +577,10 @@ struct FunStatsSection: View {
                 )
 
                 if let favorite = store.mostPopularType {
+                    Divider()
+                        .background(Color.dietCokeSilver.opacity(0.3))
+                        .accessibilityHidden(true)
+
                     FunStatRow(
                         icon: "heart.fill",
                         iconColor: .dietCokeRed,
@@ -335,7 +591,19 @@ struct FunStatsSection: View {
             }
         }
         .padding(20)
-        .dietCokeCard()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.dietCokeSilver.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05),
+            radius: 8,
+            y: 3
+        )
     }
 }
 
@@ -346,10 +614,17 @@ struct FunStatRow: View {
     let value: String
 
     var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(iconColor)
-                .frame(width: 24)
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.15))
+                    .frame(width: 32, height: 32)
+
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(iconColor)
+            }
+            .accessibilityHidden(true)
 
             Text(title)
                 .font(.subheadline)
@@ -359,9 +634,11 @@ struct FunStatRow: View {
 
             Text(value)
                 .font(.subheadline)
-                .fontWeight(.medium)
+                .fontWeight(.semibold)
                 .foregroundColor(.dietCokeCharcoal)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
     }
 }
 
