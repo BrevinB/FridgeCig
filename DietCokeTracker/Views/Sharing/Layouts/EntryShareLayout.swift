@@ -123,8 +123,7 @@ struct EntryShareLayout: View {
                         .fill(Color.white.opacity(0.25))
                         .frame(width: 80, height: 80)
 
-                    Image(systemName: entry.type.icon)
-                        .font(.system(size: 36, weight: .semibold))
+                    DrinkIconView(drinkType: entry.type, specialEdition: entry.specialEdition, size: DrinkIconSize.xl)
                         .foregroundColor(.white)
                 }
 
@@ -256,8 +255,7 @@ struct EntryShareLayout: View {
                     .fill(accentColor.opacity(0.15))
                     .frame(width: 220, height: 220)
 
-                Image(systemName: entry.type.icon)
-                    .font(.system(size: 100, weight: .semibold))
+                DrinkIconView(drinkType: entry.type, specialEdition: entry.specialEdition, size: DrinkIconSize.jumbo)
                     .foregroundColor(accentColor)
             }
 
@@ -360,10 +358,13 @@ struct EntryShareLayout: View {
 // MARK: - ShareCustomization Extension
 
 extension ShareCustomization {
-    /// Username for attribution (stored separately from content)
+    /// Username for attribution, loaded from the stored identity
     var username: String? {
-        // This could be loaded from user defaults or passed in
-        UserDefaults.standard.string(forKey: "username")
+        guard let data = UserDefaults.standard.data(forKey: "LocalUserIdentity"),
+              let identity = try? JSONDecoder().decode(UserIdentity.self, from: data) else {
+            return nil
+        }
+        return identity.username ?? identity.displayName
     }
 }
 

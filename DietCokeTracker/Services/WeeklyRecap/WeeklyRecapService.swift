@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UserNotifications
+import os
 
 @MainActor
 class WeeklyRecapService: ObservableObject {
@@ -157,6 +158,92 @@ class WeeklyRecapService: ObservableObject {
         )
     }
 
+    // MARK: - On-Demand Recap for Any Week
+
+    /// Returns week-start dates for every week with at least one entry, sorted most-recent-first, excluding the current week.
+    func availableWeeks(from entries: [DrinkEntry]) -> [Date] {
+        let calendar = Calendar.current
+        guard let currentWeekStart = calendar.dateInterval(of: .weekOfYear, for: Date())?.start else { return [] }
+
+        var weekStarts = Set<Date>()
+        for entry in entries {
+            if let weekStart = calendar.dateInterval(of: .weekOfYear, for: entry.timestamp)?.start,
+               weekStart < currentWeekStart {
+                weekStarts.insert(weekStart)
+            }
+        }
+
+        return weekStarts.sorted(by: >)
+    }
+
+    /// Generates a full recap for the week containing the given date. Does NOT set `self.currentRecap`.
+    func generateRecapForWeek(containing date: Date, entries: [DrinkEntry]) -> WeeklyRecap {
+        let calendar = Calendar.current
+
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else {
+            return createEmptyRecap(for: date)
+        }
+
+        let weekStart = weekInterval.start
+        let weekEnd = calendar.date(byAdding: .day, value: -1, to: weekInterval.end) ?? date
+
+        let weekEntries = entries.filter { entry in
+            entry.timestamp >= weekStart && entry.timestamp < weekInterval.end
+        }
+
+        let totalDrinks = weekEntries.count
+        let totalOunces = weekEntries.reduce(0.0) { $0 + $1.ounces }
+
+        let typeGroups = Dictionary(grouping: weekEntries) { $0.type }
+        let mostPopular = typeGroups.max(by: { $0.value.count < $1.value.count })
+        let mostPopularType = mostPopular?.key
+        let mostPopularCount = mostPopular?.value.count ?? 0
+
+        let uniqueTypes = Set(weekEntries.map { $0.type }).count
+        let averagePerDay = Double(totalDrinks) / 7.0
+
+        let streakStatus = approximateStreakForWeek(weekEntries: weekEntries, weekStart: weekStart)
+        let comparison = calculateComparison(currentWeekDrinks: totalDrinks, currentWeekOunces: totalOunces, entries: entries, weekStart: weekStart)
+
+        return WeeklyRecap(
+            weekStartDate: weekStart,
+            weekEndDate: weekEnd,
+            totalDrinks: totalDrinks,
+            totalOunces: totalOunces,
+            mostPopularType: mostPopularType,
+            mostPopularTypeCount: mostPopularCount,
+            uniqueTypesCount: uniqueTypes,
+            averagePerDay: averagePerDay,
+            streakStatus: streakStatus,
+            comparison: comparison
+        )
+    }
+
+    /// Counts consecutive days with entries from the end of the week backwards.
+    /// Approximate since we don't have historical streak snapshots.
+    private func approximateStreakForWeek(weekEntries: [DrinkEntry], weekStart: Date) -> StreakStatus {
+        let calendar = Calendar.current
+        let daysWithEntries = Set(weekEntries.map { calendar.startOfDay(for: $0.timestamp) })
+
+        // Count consecutive days backwards from end of week
+        var streak = 0
+        for dayOffset in stride(from: 6, through: 0, by: -1) {
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: weekStart) else { break }
+            if daysWithEntries.contains(calendar.startOfDay(for: day)) {
+                streak += 1
+            } else {
+                break
+            }
+        }
+
+        let wasStreakMaintained = daysWithEntries.count >= 5
+        return StreakStatus(
+            currentStreak: streak,
+            wasStreakMaintained: wasStreakMaintained,
+            streakChange: wasStreakMaintained ? streak : 0
+        )
+    }
+
     // MARK: - Image Generation
 
     func generateShareImage(for recap: WeeklyRecap, theme: RecapCardTheme) -> UIImage? {
@@ -183,7 +270,7 @@ class WeeklyRecapService: ObservableObject {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             return granted
         } catch {
-            print("Notification permission error: \(error)")
+            AppLogger.notifications.error("Notification permission error: \(error.localizedDescription)")
             return false
         }
     }
@@ -198,7 +285,7 @@ class WeeklyRecapService: ObservableObject {
             let data = try JSONEncoder().encode(trimmedHistory)
             UserDefaults.standard.set(data, forKey: recapHistoryKey)
         } catch {
-            print("Failed to save recap history: \(error)")
+            AppLogger.general.error("Failed to save recap history: \(error.localizedDescription)")
         }
     }
 
@@ -208,7 +295,7 @@ class WeeklyRecapService: ObservableObject {
         do {
             recapHistory = try JSONDecoder().decode([WeeklyRecap].self, from: data)
         } catch {
-            print("Failed to load recap history: \(error)")
+            AppLogger.general.error("Failed to load recap history: \(error.localizedDescription)")
         }
     }
 

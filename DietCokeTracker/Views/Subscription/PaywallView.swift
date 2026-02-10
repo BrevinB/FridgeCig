@@ -13,15 +13,22 @@ struct PaywallView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 12) {
-                        Image(systemName: "crown.fill")
+                        Image(systemName: "flame.fill")
                             .font(.system(size: 60))
-                            .foregroundColor(.dietCokeRed)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.orange, .dietCokeRed],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
 
-                        Text("FridgeCig Pro")
+                        Text("Never Break Your Streak")
                             .font(.largeTitle.bold())
                             .foregroundColor(.dietCokeCharcoal)
+                            .multilineTextAlignment(.center)
 
-                        Text("Unlock premium features")
+                        Text("Widgets, streak protection, and more")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -32,12 +39,27 @@ struct PaywallView: View {
                         FeatureRow(
                             icon: "rectangle.3.offgrid.fill",
                             title: "Home Screen Widgets",
-                            description: "Track your Diet Cokes at a glance"
+                            description: "Track at a glance from your home screen"
                         )
                         FeatureRow(
                             icon: "applewatch",
                             title: "Apple Watch App",
-                            description: "Log drinks from your wrist"
+                            description: "Log drinks from your wrist instantly"
+                        )
+                        FeatureRow(
+                            icon: "snowflake",
+                            title: "Streak Freezes",
+                            description: "Protect your streak with 3 freezes per month"
+                        )
+                        FeatureRow(
+                            icon: "paintpalette.fill",
+                            title: "Premium Themes",
+                            description: "Customize your app with exclusive themes"
+                        )
+                        FeatureRow(
+                            icon: "heart.text.square.fill",
+                            title: "Sync to Apple Health",
+                            description: "Auto-log caffeine intake to HealthKit"
                         )
                     }
                     .padding(.horizontal)
@@ -49,7 +71,8 @@ struct PaywallView: View {
                             ForEach(packages, id: \.identifier) { package in
                                 PackageButton(
                                     package: package,
-                                    isSelected: selectedPackage?.identifier == package.identifier
+                                    isSelected: selectedPackage?.identifier == package.identifier,
+                                    allPackages: packages
                                 ) {
                                     selectedPackage = package
                                 }
@@ -80,9 +103,13 @@ struct PaywallView: View {
                     // Restore
                     Button("Restore Purchases") {
                         Task {
-                            try? await purchaseService.restorePurchases()
-                            if purchaseService.isPremium {
-                                dismiss()
+                            do {
+                                try await purchaseService.restorePurchases()
+                                if purchaseService.isPremium {
+                                    dismiss()
+                                }
+                            } catch {
+                                errorMessage = "Restore failed: \(error.localizedDescription)"
                             }
                         }
                     }
@@ -132,10 +159,23 @@ struct PaywallView: View {
 
     private var purchaseButtonText: String {
         guard let package = selectedPackage else { return "Continue" }
+
+        // Check for free trial
+        if let intro = package.storeProduct.introductoryDiscount,
+           intro.paymentMode == .freeTrial {
+            return "Start Free Trial"
+        }
+
+        // Check for intro offer
+        if let intro = package.storeProduct.introductoryDiscount,
+           intro.paymentMode == .payUpFront || intro.paymentMode == .payAsYouGo {
+            return "Start with \(intro.localizedPriceString)"
+        }
+
         if package.packageType == .lifetime {
-            return "Purchase"
+            return "Purchase for \(package.storeProduct.localizedPriceString)"
         } else {
-            return "Subscribe"
+            return "Subscribe for \(package.storeProduct.localizedPriceString)"
         }
     }
 
@@ -193,6 +233,7 @@ private struct FeatureRow: View {
 private struct PackageButton: View {
     let package: Package
     let isSelected: Bool
+    let allPackages: [Package]
     let action: () -> Void
 
     private var isYearly: Bool {
@@ -203,76 +244,198 @@ private struct PackageButton: View {
         package.packageType == .lifetime
     }
 
+    // Check for intro offer (trial or discount)
+    private var introOffer: StoreProductDiscount? {
+        package.storeProduct.introductoryDiscount
+    }
+
+    private var hasFreeTrial: Bool {
+        introOffer?.paymentMode == .freeTrial
+    }
+
+    private var trialDuration: String? {
+        guard let offer = introOffer, offer.paymentMode == .freeTrial else { return nil }
+        let unit = offer.subscriptionPeriod.unit
+        let value = offer.subscriptionPeriod.value
+        switch unit {
+        case .day: return value == 1 ? "1 Day" : "\(value) Days"
+        case .week: return value == 1 ? "1 Week" : "\(value) Weeks"
+        case .month: return value == 1 ? "1 Month" : "\(value) Months"
+        case .year: return value == 1 ? "1 Year" : "\(value) Years"
+        @unknown default: return nil
+        }
+    }
+
+    private var introDiscountPercentage: Int? {
+        guard let offer = introOffer,
+              offer.paymentMode == .payUpFront || offer.paymentMode == .payAsYouGo,
+              let regularPrice = package.storeProduct.pricePerMonth?.doubleValue,
+              regularPrice > 0 else { return nil }
+
+        let discountPrice = offer.price as Decimal
+        let regular = regularPrice
+        let discount = NSDecimalNumber(decimal: discountPrice).doubleValue
+        let percentage = Int(((regular - discount) / regular) * 100)
+        return percentage > 0 ? percentage : nil
+    }
+
+    /// Calculate savings vs monthly plan (for annual packages)
+    private var annualSavingsPercentage: Int? {
+        guard isYearly else { return nil }
+
+        // Find monthly package to compare
+        guard let monthlyPackage = allPackages.first(where: { $0.packageType == .monthly }) else { return nil }
+
+        let monthlyPrice = monthlyPackage.storeProduct.price as Decimal
+        let annualPrice = package.storeProduct.price as Decimal
+
+        // Calculate what 12 months would cost
+        let yearlyAtMonthlyRate = monthlyPrice * 12
+        guard yearlyAtMonthlyRate > 0 else { return nil }
+
+        let savings = yearlyAtMonthlyRate - annualPrice
+        let percentage = Int((NSDecimalNumber(decimal: savings / yearlyAtMonthlyRate).doubleValue) * 100)
+
+        return percentage > 0 ? percentage : nil
+    }
+
     private var badgeInfo: (text: String, color: Color)? {
+        // Priority: Free Trial > Intro Discount > Annual Savings > Lifetime
+        if hasFreeTrial, let duration = trialDuration {
+            return ("\(duration) Free Trial", .blue)
+        }
+        if let discount = introDiscountPercentage {
+            return ("\(discount)% Off", .green)
+        }
+        if let savings = annualSavingsPercentage {
+            return ("Save \(savings)%", .green)
+        }
         if isLifetime {
             return ("Best Value", .purple)
-        } else if isYearly {
-            return ("Save 44%", .green)
         }
         return nil
     }
 
-    private var priceSubtitle: String? {
+    private var priceSubtitle: String {
+        // Show trial info
+        if hasFreeTrial {
+            return "then \(package.storeProduct.localizedPriceString)/\(periodName)"
+        }
+
+        // Show intro offer price info
+        if let offer = introOffer, offer.paymentMode == .payUpFront || offer.paymentMode == .payAsYouGo {
+            let introPrice = offer.localizedPriceString
+            let introPeriod = formatPeriod(offer.subscriptionPeriod)
+            return "\(introPrice) for \(introPeriod), then \(package.storeProduct.localizedPriceString)/\(periodName)"
+        }
+
+        // Standard subtitles
         if isLifetime {
             return "One-time purchase"
-        } else if isYearly {
-            return "per year"
-        } else if package.packageType == .monthly {
-            return "per month"
         }
-        return nil
+        return "per \(periodName)"
+    }
+
+    private var periodName: String {
+        guard let period = package.storeProduct.subscriptionPeriod else { return "period" }
+        switch period.unit {
+        case .day: return period.value == 1 ? "day" : "\(period.value) days"
+        case .week: return period.value == 1 ? "week" : "\(period.value) weeks"
+        case .month: return period.value == 1 ? "month" : "\(period.value) months"
+        case .year: return period.value == 1 ? "year" : "\(period.value) years"
+        @unknown default: return "period"
+        }
+    }
+
+    private func formatPeriod(_ period: SubscriptionPeriod) -> String {
+        switch period.unit {
+        case .day: return period.value == 1 ? "1 day" : "\(period.value) days"
+        case .week: return period.value == 1 ? "1 week" : "\(period.value) weeks"
+        case .month: return period.value == 1 ? "1 month" : "\(period.value) months"
+        case .year: return period.value == 1 ? "1 year" : "\(period.value) years"
+        @unknown default: return "\(period.value) periods"
+        }
     }
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(package.storeProduct.localizedTitle)
-                            .font(.headline)
-                            .foregroundColor(.dietCokeCharcoal)
-
-                        if let badge = badgeInfo {
-                            Text(badge.text)
-                                .font(.caption.bold())
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(badge.color)
-                                .cornerRadius(4)
-                        }
+            VStack(spacing: 0) {
+                // Free trial banner
+                if hasFreeTrial, let duration = trialDuration {
+                    HStack {
+                        Image(systemName: "gift.fill")
+                            .font(.caption)
+                        Text("\(duration) Free Trial")
+                            .font(.caption.bold())
                     }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                }
 
-                    if let subtitle = priceSubtitle {
-                        Text(subtitle)
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(package.storeProduct.localizedTitle)
+                                .font(.headline)
+                                .foregroundColor(.dietCokeCharcoal)
+
+                            if !hasFreeTrial, let badge = badgeInfo {
+                                Text(badge.text)
+                                    .font(.caption.bold())
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(badge.color)
+                                    .cornerRadius(4)
+                            }
+                        }
+
+                        Text(priceSubtitle)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        if hasFreeTrial {
+                            Text("FREE")
+                                .font(.title3.bold())
+                                .foregroundColor(.blue)
+                        } else {
+                            Text(package.storeProduct.localizedPriceString)
+                                .font(.title3.bold())
+                                .foregroundColor(.dietCokeRed)
+                        }
+
+                        if isLifetime {
+                            Text("forever")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(package.storeProduct.localizedPriceString)
-                        .font(.title3.bold())
-                        .foregroundColor(.dietCokeRed)
-
-                    if isLifetime {
-                        Text("forever")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                .padding()
             }
-            .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isLifetime ? Color.dietCokeRed.opacity(0.05) : Color.dietCokeCardBackground)
+                    .fill(hasFreeTrial ? Color.blue.opacity(0.05) : (isLifetime ? Color.dietCokeRed.opacity(0.05) : Color.dietCokeCardBackground))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.dietCokeRed : Color.dietCokeSilver, lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? (hasFreeTrial ? Color.blue : Color.dietCokeRed) : Color.dietCokeSilver, lineWidth: isSelected ? 2 : 1)
             )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }

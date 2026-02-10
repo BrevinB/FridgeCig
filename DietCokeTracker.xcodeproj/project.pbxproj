@@ -63,6 +63,9 @@
 		A1000011 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000011 /* StatsView.swift */; };
 		A1000012 /* DrinkRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000012 /* DrinkRowView.swift */; };
 		A1000013 /* QuickAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* QuickAddButton.swift */; };
+		DD0000020000000000001A /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000010000000000001A /* AppLogger.swift */; };
+		DD0000040000000000001B /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000030000000000001B /* Constants.swift */; };
+		DD0000060000000000001C /* SyncErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000050000000000001C /* SyncErrorBanner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -170,6 +173,9 @@
 		A2000011 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		A2000012 /* DrinkRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkRowView.swift; sourceTree = "<group>"; };
 		A2000013 /* QuickAddButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddButton.swift; sourceTree = "<group>"; };
+		DD0000010000000000001A /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLogger.swift; path = Services/AppLogger.swift; sourceTree = "<group>"; };
+		DD0000030000000000001B /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		DD0000050000000000001C /* SyncErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncErrorBanner.swift; path = Views/Components/SyncErrorBanner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -222,6 +228,7 @@
 		237342D72F21D184007CD14A /* WeeklyRecap */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = WeeklyRecap; sourceTree = "<group>"; };
 		237342EC2F21D1D3007CD14A /* ActivityFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ActivityFeed; sourceTree = "<group>"; };
 		237349B32F2AE6F3007CD14A /* Settings */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Settings; sourceTree = "<group>"; };
+		239005942F38EADB00F5334C /* Debug */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Debug; sourceTree = "<group>"; };
 		23CA13FC2F189F69000C7B43 /* DietCokeWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14092F189F6B000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DietCokeWidget; sourceTree = "<group>"; };
 		23CA14132F18A480000C7B43 /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14162F18A486000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14312F18A915000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 23CA14542F18AD03000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
 		23CA14212F18A889000C7B43 /* DietCokeWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "DietCokeWatch Watch App"; sourceTree = "<group>"; };
@@ -229,6 +236,8 @@
 		23CA15B62F19EC8E000C7B43 /* Social */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Social; sourceTree = "<group>"; };
 		23CA15C12F19ECC4000C7B43 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		23CA15E72F1AF9C7000C7B43 /* Subscription */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Subscription; sourceTree = "<group>"; };
+		23D248992F2F943F00CF4128 /* Theme */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Theme; sourceTree = "<group>"; };
+		23D2489D2F2F944700CF4128 /* Intents */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Intents; sourceTree = "<group>"; };
 		CC000001000000000000001A /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
 		CC000002000000000000001B /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
 		CC000003000000000000001C /* Onboarding */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Onboarding; sourceTree = "<group>"; };
@@ -299,6 +308,12 @@
 		A4000001 /* DietCokeTracker */ = {
 			isa = PBXGroup;
 			children = (
+				239005942F38EADB00F5334C /* Debug */,
+				23D2489D2F2F944700CF4128 /* Intents */,
+				23D248992F2F943F00CF4128 /* Theme */,
+				DD0000010000000000001A /* AppLogger.swift */,
+				DD0000030000000000001B /* Constants.swift */,
+				DD0000050000000000001C /* SyncErrorBanner.swift */,
 				237349AE2F2AE6D9007CD14A /* AppDelegate.swift */,
 				23CA15C12F19ECC4000C7B43 /* Services */,
 				23CA15AB2F19A8A4000C7B43 /* Info.plist */,
@@ -486,10 +501,13 @@
 				237342D72F21D184007CD14A /* WeeklyRecap */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
 				237349B32F2AE6F3007CD14A /* Settings */,
+				239005942F38EADB00F5334C /* Debug */,
 				23CA14132F18A480000C7B43 /* Shared */,
 				23CA15B62F19EC8E000C7B43 /* Social */,
 				23CA15C12F19ECC4000C7B43 /* Services */,
 				23CA15E72F1AF9C7000C7B43 /* Subscription */,
+				23D248992F2F943F00CF4128 /* Theme */,
+				23D2489D2F2F944700CF4128 /* Intents */,
 				CC000001000000000000001A /* Sharing */,
 				CC000002000000000000001B /* Sharing */,
 				CC000003000000000000001C /* Onboarding */,
@@ -621,6 +639,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD0000020000000000001A /* AppLogger.swift in Sources */,
+				DD0000040000000000001B /* Constants.swift in Sources */,
+				DD0000060000000000001C /* SyncErrorBanner.swift in Sources */,
 				23CA15D72F19F351000C7B43 /* LeaderboardCategory.swift in Sources */,
 				23CA13F12F1895AD000C7B43 /* EditEntrySheet.swift in Sources */,
 				23CA15A42F19A347000C7B43 /* UserPreferences.swift in Sources */,
@@ -999,7 +1020,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1008,6 +1029,8 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your drinks to add to your log";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Find friends who use FridgeCig";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FridgeCig uses Health data to display your caffeine intake alongside your drink tracking.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FridgeCig logs your caffeine intake from drinks to Apple Health, helping you track your daily caffeine consumption.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1033,7 +1056,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1042,6 +1065,8 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your drinks to add to your log";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Find friends who use FridgeCig";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FridgeCig uses Health data to display your caffeine intake alongside your drink tracking.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FridgeCig logs your caffeine intake from drinks to Apple Health, helping you track your daily caffeine consumption.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -242,10 +242,12 @@ struct StreakWidget: Widget {
             if #available(iOS 17.0, *) {
                 StreakWidgetEntryView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://stats") : URL(string: "fridgecig://paywall"))
             } else {
                 StreakWidgetEntryView(entry: entry)
                     .padding()
                     .background()
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://stats") : URL(string: "fridgecig://paywall"))
             }
         }
         .configurationDisplayName("Streak Tracker")

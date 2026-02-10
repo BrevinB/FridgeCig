@@ -3,8 +3,10 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var notificationService: NotificationService
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var currentPage = 0
     @State private var selectedBrand: BeverageBrand = .dietCoke
+    @State private var showingPaywall = false
     @Environment(\.colorScheme) private var colorScheme
 
     private let totalPages = 4
@@ -12,9 +14,7 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             // Background
-            (colorScheme == .dark
-                ? Color(red: 0.08, green: 0.08, blue: 0.10)
-                : Color(red: 0.96, green: 0.96, blue: 0.97))
+            themeManager.backgroundColor(for: colorScheme)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -41,7 +41,7 @@ struct OnboardingView: View {
                     HStack(spacing: 8) {
                         ForEach(0..<totalPages, id: \.self) { index in
                             Circle()
-                                .fill(index == currentPage ? Color.dietCokeRed : Color.dietCokeSilver.opacity(0.5))
+                                .fill(index == currentPage ? themeManager.primaryColor : Color.gray.opacity(0.3))
                                 .frame(width: index == currentPage ? 10 : 8, height: index == currentPage ? 10 : 8)
                                 .animation(.easeInOut(duration: 0.2), value: currentPage)
                         }
@@ -89,11 +89,16 @@ struct OnboardingView: View {
                 .padding(.bottom, 40)
             }
         }
+        .sheet(isPresented: $showingPaywall, onDismiss: {
+            preferences.markOnboardingComplete()
+        }) {
+            PaywallView()
+        }
     }
 
     private func completeOnboarding() {
         preferences.defaultBrand = selectedBrand
-        preferences.markOnboardingComplete()
+        showingPaywall = true
     }
 }
 
@@ -121,22 +126,13 @@ private struct WelcomePage: View {
                     .frame(width: 240, height: 240)
                     .scaleEffect(isAnimating ? 1.1 : 0.9)
 
-                // Main circle
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                // App icon
+                Image("AppIconImage")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: 140, height: 140)
+                    .clipShape(RoundedRectangle(cornerRadius: 32))
                     .shadow(color: Color.dietCokeRed.opacity(0.5), radius: 20, y: 10)
-
-                // Icon
-                Image(systemName: "drop.fill")
-                    .font(.system(size: 60, weight: .medium))
-                    .foregroundColor(.white)
             }
             .onAppear {
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
@@ -397,8 +393,7 @@ private struct BrandOptionRow: View {
                         )
                         .frame(width: 44, height: 44)
 
-                    Image(systemName: brand.icon)
-                        .font(.system(size: 18, weight: .medium))
+                    BrandIconView(brand: brand, size: DrinkIconSize.sm)
                         .foregroundColor(brand.color)
                 }
 

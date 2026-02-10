@@ -17,6 +17,10 @@ struct QuickAddButton: View {
         brand.color
     }
 
+    private var iconGradient: LinearGradient {
+        brand.iconGradient
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Main tappable area
@@ -35,7 +39,7 @@ struct QuickAddButton: View {
                                 LinearGradient(
                                     colors: [
                                         accentColor.opacity(isExpanded ? 0.3 : 0.2),
-                                        accentColor.opacity(isExpanded ? 0.15 : 0.08)
+                                        brand.secondaryColor.opacity(isExpanded ? 0.2 : 0.1)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -43,9 +47,8 @@ struct QuickAddButton: View {
                             )
                             .frame(width: 44, height: 44)
 
-                        Image(systemName: type.icon)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(accentColor)
+                        DrinkIconView(drinkType: type, size: DrinkIconSize.md)
+                            .foregroundStyle(iconGradient)
                     }
 
                     // Text content
@@ -92,7 +95,7 @@ struct QuickAddButton: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
-                    isExpanded ? Color.dietCokeRed.opacity(0.3) : Color.dietCokeSilver.opacity(0.2),
+                    isExpanded ? accentColor.opacity(0.3) : Color.dietCokeSilver.opacity(0.2),
                     lineWidth: isExpanded ? 1.5 : 1
                 )
         )
@@ -117,7 +120,7 @@ struct QuickAddButton: View {
             ExpandedActionButton(
                 icon: "plus",
                 label: "Quick",
-                color: .dietCokeRed,
+                color: accentColor,
                 accessibilityLabel: "Quick add \(type.shortName)"
             ) {
                 performAction {
@@ -182,7 +185,7 @@ struct QuickAddButton: View {
 
                 Spacer()
 
-                Text("Rate this DC")
+                Text("Rate this \(brand.shortName)")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(.dietCokeCharcoal)
 
@@ -315,6 +318,7 @@ struct QuickRatingButton: View {
 
 struct QuickAddButtonCompact: View {
     let type: DrinkType
+    var brand: BeverageBrand = .dietCoke
     let action: () -> Void
 
     var body: some View {
@@ -322,12 +326,11 @@ struct QuickAddButtonCompact: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(Color.dietCokeRed.opacity(0.1))
+                        .fill(brand.cardGradient)
                         .frame(width: 50, height: 50)
 
-                    Image(systemName: type.icon)
-                        .font(.title3)
-                        .foregroundColor(.dietCokeRed)
+                    DrinkIconView(drinkType: type, size: DrinkIconSize.md)
+                        .foregroundStyle(brand.iconGradient)
                 }
 
                 Text(type.shortName)

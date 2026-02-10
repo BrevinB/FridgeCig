@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import CloudKit
 import Combine
+import os
 
 @MainActor
 class BadgeStore: ObservableObject {
@@ -386,6 +387,7 @@ class BadgeStore: ObservableObject {
         // MARK: - Creature of Habit - same hour 3 days in a row
 
         let sortedDays = entriesByDay.keys.sorted()
+        guard sortedDays.count >= 3 else { return }
         for i in 0..<(sortedDays.count - 2) {
             let day1 = sortedDays[i]
             let day2 = sortedDays[i + 1]
@@ -427,7 +429,7 @@ class BadgeStore: ObservableObject {
             let data = try JSONEncoder().encode(unlockedBadges)
             UserDefaults.standard.set(data, forKey: saveKey)
         } catch {
-            print("Failed to save badges: \(error)")
+            AppLogger.store.error("Failed to save badges: \(error.localizedDescription)")
         }
 
         // Sync to CloudKit
@@ -444,7 +446,7 @@ class BadgeStore: ObservableObject {
         do {
             unlockedBadges = try JSONDecoder().decode([String: Date].self, from: data)
         } catch {
-            print("Failed to load badges: \(error)")
+            AppLogger.store.error("Failed to load badges: \(error.localizedDescription)")
         }
     }
 
@@ -481,7 +483,7 @@ class BadgeStore: ObservableObject {
             // Upload merged data
             try await syncToCloud()
         } catch {
-            print("Badge sync failed: \(error)")
+            AppLogger.sync.error("Badge sync failed: \(error.localizedDescription)")
         }
     }
 
@@ -545,6 +547,12 @@ class BadgeStore: ObservableObject {
 
     func resetAllBadges() {
         unlockedBadges.removeAll()
+        saveBadges()
+    }
+
+    func unlock(_ badgeId: String, on date: Date) {
+        guard !isUnlocked(badgeId) else { return }
+        unlockedBadges[badgeId] = date
         saveBadges()
     }
     #endif

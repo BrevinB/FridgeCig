@@ -345,7 +345,20 @@ private struct LeaderboardCategoryChip: View {
 
 struct LeaderboardRowView: View {
     let entry: LeaderboardEntry
+    var isPremiumUser: Bool = false
     @Environment(\.colorScheme) private var colorScheme
+
+    /// Gold gradient for Pro badge
+    private var goldGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 1.0, green: 0.84, blue: 0.0),
+                Color(red: 0.9, green: 0.7, blue: 0.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -372,8 +385,15 @@ struct LeaderboardRowView: View {
                 }
             }
 
-            // Avatar
+            // Avatar with Pro ring
             ZStack {
+                // Pro gold ring
+                if entry.isPremium {
+                    Circle()
+                        .stroke(goldGradient, lineWidth: 2)
+                        .frame(width: 48, height: 48)
+                }
+
                 Circle()
                     .fill(
                         LinearGradient(
@@ -396,6 +416,21 @@ struct LeaderboardRowView: View {
                         .font(.subheadline)
                         .fontWeight(entry.isCurrentUser ? .bold : .medium)
                         .foregroundColor(.dietCokeCharcoal)
+
+                    // Pro badge
+                    if entry.isPremium {
+                        HStack(spacing: 2) {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 8))
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(goldGradient)
+                        .clipShape(Capsule())
+                    }
 
                     if entry.isCurrentUser {
                         Text("You")

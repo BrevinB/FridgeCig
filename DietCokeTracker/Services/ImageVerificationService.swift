@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Vision
+import os
 
 /// Service to verify photos contain a beverage using Vision framework
 @MainActor
@@ -77,7 +78,7 @@ class ImageVerificationService: ObservableObject {
                 }
 
                 if let error = error {
-                    print("Vision classification error: \(error)")
+                    AppLogger.general.error("Vision classification error: \(error.localizedDescription)")
                     continuation.resume(returning: VerificationResult(
                         isValid: true,
                         confidence: 0.5,
@@ -107,7 +108,7 @@ class ImageVerificationService: ObservableObject {
                 do {
                     try handler.perform([request])
                 } catch {
-                    print("Failed to perform Vision request: \(error)")
+                    AppLogger.general.error("Failed to perform Vision request: \(error.localizedDescription)")
                     continuation.resume(returning: VerificationResult(
                         isValid: true,
                         confidence: 0.5,
@@ -128,8 +129,8 @@ class ImageVerificationService: ObservableObject {
 
         let detectedLabels = topClassifications.map { $0.identifier }
 
-        // Debug: print what Vision detected
-        print("🔍 Vision detected: \(detectedLabels.prefix(10).joined(separator: ", "))")
+        // Debug: log what Vision detected
+        AppLogger.general.debug("Vision detected: \(detectedLabels.prefix(10).joined(separator: ", "))")
 
         // Check for beverage-related terms
         var beverageScore: Double = 0
@@ -157,8 +158,8 @@ class ImageVerificationService: ObservableObject {
             }
         }
 
-        print("🥤 Beverage score: \(beverageScore) - matches: \(matchedBeverageTerms)")
-        print("🚫 Non-beverage score: \(nonBeverageScore) - matches: \(matchedNonBeverageTerms)")
+        AppLogger.general.debug("Beverage score: \(beverageScore) - matches: \(matchedBeverageTerms)")
+        AppLogger.general.debug("Non-beverage score: \(nonBeverageScore) - matches: \(matchedNonBeverageTerms)")
 
         // Decision logic - be stricter about non-beverages
         let result: VerificationResult

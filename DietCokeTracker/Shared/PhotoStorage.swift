@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import os
 
 struct PhotoStorage {
     private static let photosDirectoryName = "DrinkPhotos"
@@ -24,6 +25,11 @@ struct PhotoStorage {
         if !fileManager.fileExists(atPath: photosDirectory.path) {
             try? fileManager.createDirectory(at: photosDirectory, withIntermediateDirectories: true)
         }
+        // Exclude photos from iCloud backup
+        var url = photosDirectory
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try? url.setResourceValues(resourceValues)
     }
 
     static func generateFilename() -> String {
@@ -43,7 +49,7 @@ struct PhotoStorage {
             try data.write(to: fileURL)
             return true
         } catch {
-            print("PhotoStorage: Failed to save photo: \(error)")
+            AppLogger.photos.error("Failed to save photo: \(error.localizedDescription)")
             return false
         }
     }
@@ -64,7 +70,7 @@ struct PhotoStorage {
         do {
             try FileManager.default.removeItem(at: fileURL)
         } catch {
-            print("PhotoStorage: Failed to delete photo: \(error)")
+            AppLogger.photos.error("Failed to delete photo: \(error.localizedDescription)")
         }
     }
 

@@ -42,8 +42,7 @@ struct EditEntrySheet: View {
                                 .fill(accentColor.opacity(0.1))
                                 .frame(width: 56, height: 56)
 
-                            Image(systemName: entry.specialEdition?.icon ?? entry.type.icon)
-                                .font(.system(size: 24))
+                            DrinkIconView(drinkType: entry.type, specialEdition: entry.specialEdition, size: DrinkIconSize.lg)
                                 .foregroundColor(accentColor)
                         }
 

@@ -2,6 +2,7 @@ import Foundation
 import CloudKit
 import UserNotifications
 import UIKit
+import os
 
 @MainActor
 class NotificationService: ObservableObject {
@@ -19,6 +20,8 @@ class NotificationService: ObservableObject {
     private let cloudKitManager: CloudKitManager
     private var currentUserID: String?
     private var friendIDs: [String] = []
+    private var failedSubscriptionRetryInfo: [(recordType: String, predicate: NSPredicate, subscriptionID: String, notificationInfo: CKSubscription.NotificationInfo, options: CKQuerySubscription.Options)] = []
+    private var networkObserver: Any?
 
     // MARK: - Notification Identifiers
 
@@ -55,7 +58,7 @@ class NotificationService: ObservableObject {
             }
             return granted
         } catch {
-            print("[NotificationService] Authorization error: \(error)")
+            AppLogger.notifications.error("Authorization error: \(error.localizedDescription)")
             return false
         }
     }
@@ -142,9 +145,9 @@ class NotificationService: ObservableObject {
 
         do {
             try await center.add(request)
-            print("[NotificationService] Scheduled streak reminder for \(hour):\(String(format: "%02d", minute))")
+            AppLogger.notifications.info("Scheduled streak reminder for \(hour):\(String(format: "%02d", minute))")
         } catch {
-            print("[NotificationService] Failed to schedule streak reminder: \(error)")
+            AppLogger.notifications.error("Failed to schedule streak reminder: \(error.localizedDescription)")
         }
     }
 
@@ -187,9 +190,9 @@ class NotificationService: ObservableObject {
 
         do {
             try await center.add(request)
-            print("[NotificationService] Scheduled daily summary for \(hour):\(String(format: "%02d", minute))")
+            AppLogger.notifications.info("Scheduled daily summary for \(hour):\(String(format: "%02d", minute))")
         } catch {
-            print("[NotificationService] Failed to schedule daily summary: \(error)")
+            AppLogger.notifications.error("Failed to schedule daily summary: \(error.localizedDescription)")
         }
     }
 
@@ -224,9 +227,9 @@ class NotificationService: ObservableObject {
 
         do {
             try await center.add(request)
-            print("[NotificationService] Scheduled weekly summary for Sunday \(hour):\(String(format: "%02d", minute))")
+            AppLogger.notifications.info("Scheduled weekly summary for Sunday \(hour):\(String(format: "%02d", minute))")
         } catch {
-            print("[NotificationService] Failed to schedule weekly summary: \(error)")
+            AppLogger.notifications.error("Failed to schedule weekly summary: \(error.localizedDescription)")
         }
     }
 
@@ -234,14 +237,74 @@ class NotificationService: ObservableObject {
 
     private func updateCloudKitSubscriptions() async {
         guard let userID = currentUserID else {
-            print("[NotificationService] No user ID, skipping CloudKit subscriptions")
+            AppLogger.notifications.info("No user ID, skipping CloudKit subscriptions")
             return
         }
+
+        guard cloudKitManager.isAvailable else {
+            AppLogger.notifications.info("CloudKit unavailable, deferring subscription setup")
+            listenForNetworkRecovery()
+            return
+        }
+
+        // Clear previous failures before retrying
+        failedSubscriptionRetryInfo = []
 
         await updateFriendRequestSubscription(userID: userID)
         await updateFriendAcceptedSubscription(userID: userID)
         await updateCheersSubscription(userID: userID)
         await updateFriendMilestonesSubscription()
+
+        if !failedSubscriptionRetryInfo.isEmpty {
+            AppLogger.notifications.info("\(self.failedSubscriptionRetryInfo.count) subscriptions failed, will retry when network is available")
+            listenForNetworkRecovery()
+        }
+    }
+
+    private func listenForNetworkRecovery() {
+        guard networkObserver == nil else { return }
+        networkObserver = NotificationCenter.default.addObserver(
+            forName: .networkBecameAvailable,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.retryFailedSubscriptions()
+            }
+        }
+    }
+
+    func retryFailedSubscriptions() async {
+        guard !failedSubscriptionRetryInfo.isEmpty else { return }
+        guard cloudKitManager.isAvailable else { return }
+
+        AppLogger.notifications.info("Retrying \(self.failedSubscriptionRetryInfo.count) failed subscriptions")
+        let retries = failedSubscriptionRetryInfo
+        failedSubscriptionRetryInfo = []
+
+        for info in retries {
+            let success = await cloudKitManager.createSubscription(
+                recordType: info.recordType,
+                predicate: info.predicate,
+                subscriptionID: info.subscriptionID,
+                notificationInfo: info.notificationInfo,
+                options: info.options
+            )
+            if !success {
+                failedSubscriptionRetryInfo.append(info)
+            }
+        }
+
+        if failedSubscriptionRetryInfo.isEmpty {
+            // All succeeded, remove the observer
+            if let observer = networkObserver {
+                NotificationCenter.default.removeObserver(observer)
+                networkObserver = nil
+            }
+            AppLogger.notifications.info("All subscription retries succeeded")
+        } else {
+            AppLogger.notifications.info("\(self.failedSubscriptionRetryInfo.count) subscriptions still failing")
+        }
     }
 
     private func updateFriendRequestSubscription(userID: String) async {
@@ -254,13 +317,16 @@ class NotificationService: ObservableObject {
             notificationInfo.soundName = "default"
             notificationInfo.shouldBadge = true
 
-            await cloudKitManager.createSubscription(
+            let success = await cloudKitManager.createSubscription(
                 recordType: "FriendConnection",
                 predicate: predicate,
                 subscriptionID: subscriptionID,
                 notificationInfo: notificationInfo,
                 options: [.firesOnRecordCreation]
             )
+            if !success {
+                failedSubscriptionRetryInfo.append((recordType: "FriendConnection", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordCreation]))
+            }
         } else {
             await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
         }
@@ -276,13 +342,16 @@ class NotificationService: ObservableObject {
             notificationInfo.soundName = "default"
             notificationInfo.shouldBadge = true
 
-            await cloudKitManager.createSubscription(
+            let success = await cloudKitManager.createSubscription(
                 recordType: "FriendConnection",
                 predicate: predicate,
                 subscriptionID: subscriptionID,
                 notificationInfo: notificationInfo,
                 options: [.firesOnRecordUpdate]
             )
+            if !success {
+                failedSubscriptionRetryInfo.append((recordType: "FriendConnection", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordUpdate]))
+            }
         } else {
             await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
         }
@@ -298,13 +367,16 @@ class NotificationService: ObservableObject {
             notificationInfo.soundName = "default"
             notificationInfo.shouldBadge = true
 
-            await cloudKitManager.createSubscription(
+            let success = await cloudKitManager.createSubscription(
                 recordType: "ActivityItem",
                 predicate: predicate,
                 subscriptionID: subscriptionID,
                 notificationInfo: notificationInfo,
                 options: [.firesOnRecordUpdate]
             )
+            if !success {
+                failedSubscriptionRetryInfo.append((recordType: "ActivityItem", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordUpdate]))
+            }
         } else {
             await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
         }
@@ -326,13 +398,16 @@ class NotificationService: ObservableObject {
             notificationInfo.soundName = "default"
             notificationInfo.shouldBadge = true
 
-            await cloudKitManager.createSubscription(
+            let success = await cloudKitManager.createSubscription(
                 recordType: "ActivityItem",
                 predicate: predicate,
                 subscriptionID: subscriptionID,
                 notificationInfo: notificationInfo,
                 options: [.firesOnRecordCreation]
             )
+            if !success {
+                failedSubscriptionRetryInfo.append((recordType: "ActivityItem", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordCreation]))
+            }
         } else {
             await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
         }
@@ -349,7 +424,7 @@ class NotificationService: ObservableObject {
         if let queryNotification = notification as? CKQueryNotification,
            let subscriptionID = queryNotification.subscriptionID {
 
-            print("[NotificationService] Received push for subscription: \(subscriptionID)")
+            AppLogger.notifications.debug("Received push for subscription: \(subscriptionID)")
 
             // Determine notification type based on subscription ID
             if subscriptionID.hasPrefix("friend-request-") {
@@ -387,7 +462,7 @@ class NotificationService: ObservableObject {
                 }
             }
         } catch {
-            print("[NotificationService] Error handling friend request: \(error)")
+            AppLogger.notifications.error("Error handling friend request: \(error.localizedDescription)")
         }
     }
 
@@ -408,7 +483,7 @@ class NotificationService: ObservableObject {
                 }
             }
         } catch {
-            print("[NotificationService] Error handling friend accepted: \(error)")
+            AppLogger.notifications.error("Error handling friend accepted: \(error.localizedDescription)")
         }
     }
 
@@ -444,7 +519,7 @@ class NotificationService: ObservableObject {
                 )
             }
         } catch {
-            print("[NotificationService] Error handling friend milestone: \(error)")
+            AppLogger.notifications.error("Error handling friend milestone: \(error.localizedDescription)")
         }
     }
 
@@ -464,7 +539,7 @@ class NotificationService: ObservableObject {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
-            print("[NotificationService] Failed to show notification: \(error)")
+            AppLogger.notifications.error("Failed to show notification: \(error.localizedDescription)")
         }
     }
 
@@ -506,17 +581,17 @@ class NotificationService: ObservableObject {
     func listPendingNotifications() async {
         let center = UNUserNotificationCenter.current()
         let requests = await center.pendingNotificationRequests()
-        print("[NotificationService] Pending notifications (\(requests.count)):")
+        AppLogger.notifications.debug("Pending notifications (\(requests.count)):")
         for request in requests {
-            print("  - \(request.identifier): \(request.content.title)")
+            AppLogger.notifications.debug("  - \(request.identifier): \(request.content.title)")
         }
     }
 
     func listCloudKitSubscriptions() async {
         let subscriptions = await cloudKitManager.fetchAllSubscriptions()
-        print("[NotificationService] CloudKit subscriptions (\(subscriptions.count)):")
+        AppLogger.notifications.debug("CloudKit subscriptions (\(subscriptions.count)):")
         for subscription in subscriptions {
-            print("  - \(subscription.subscriptionID)")
+            AppLogger.notifications.debug("  - \(subscription.subscriptionID)")
         }
     }
     #endif

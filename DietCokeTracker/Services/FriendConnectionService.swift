@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import os
 
 @MainActor
 class FriendConnectionService: ObservableObject {
@@ -37,6 +38,8 @@ class FriendConnectionService: ObservableObject {
 
     private let cloudKitManager: CloudKitManager
     private var connectionRecordIDs: [UUID: CKRecord.ID] = [:]
+    /// Maps friend userID to the CKRecord.ID of the connection (for removal)
+    private var friendConnectionRecordIDs: [String: CKRecord.ID] = [:]
 
     var friendIDs: Set<String> {
         Set(friends.map { $0.userIDString })
@@ -52,18 +55,24 @@ class FriendConnectionService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
-        print("[FriendService] Loading friends for userID: \(userID)")
+        AppLogger.friends.debug("Loading friends for userID: \(userID)")
 
         do {
             // Fetch accepted connections
             let connectionRecords = try await cloudKitManager.fetchFriendConnections(forUserID: userID)
-            print("[FriendService] Fetched \(connectionRecords.count) accepted connections")
+            AppLogger.friends.debug("Fetched \(connectionRecords.count) accepted connections")
             var connections: [FriendConnection] = []
+
+            // Clear previous mappings
+            friendConnectionRecordIDs.removeAll()
 
             for record in connectionRecords {
                 if let connection = FriendConnection(from: record) {
                     connections.append(connection)
                     connectionRecordIDs[connection.id] = record.recordID
+                    // Store mapping from friend's userID to record ID for easy removal
+                    let friendUserID = connection.otherUserID(currentUserID: userID)
+                    friendConnectionRecordIDs[friendUserID] = record.recordID
                 }
             }
 
@@ -83,28 +92,28 @@ class FriendConnectionService: ObservableObject {
 
             // Fetch pending requests (requests TO this user)
             let pendingRecords = try await cloudKitManager.fetchPendingRequests(forUserID: userID)
-            print("[FriendService] Fetched \(pendingRecords.count) pending requests (to this user)")
+            AppLogger.friends.debug("Fetched \(pendingRecords.count) pending requests (to this user)")
             pendingRequests = pendingRecords.compactMap { record in
                 if let connection = FriendConnection(from: record) {
                     connectionRecordIDs[connection.id] = record.recordID
-                    print("[FriendService] Pending request from: \(connection.requesterID) to: \(connection.targetID)")
+                    AppLogger.friends.debug("Pending request from: \(connection.requesterID) to: \(connection.targetID)")
                     return connection
                 } else {
                     // Log why parsing failed
-                    print("[FriendService] FAILED to parse FriendConnection record!")
-                    print("[FriendService]   connectionID: \(record["connectionID"] as? String ?? "MISSING")")
-                    print("[FriendService]   requesterID: \(record["requesterID"] as? String ?? "MISSING")")
-                    print("[FriendService]   targetID: \(record["targetID"] as? String ?? "MISSING")")
-                    print("[FriendService]   status: \(record["status"] as? String ?? "MISSING")")
-                    print("[FriendService]   createdAt: \(record["createdAt"] as? Date ?? Date.distantPast)")
-                    print("[FriendService]   All keys: \(record.allKeys())")
+                    AppLogger.friends.error("Failed to parse FriendConnection record!")
+                    AppLogger.friends.error("  connectionID: \(record["connectionID"] as? String ?? "MISSING")")
+                    AppLogger.friends.error("  requesterID: \(record["requesterID"] as? String ?? "MISSING")")
+                    AppLogger.friends.error("  targetID: \(record["targetID"] as? String ?? "MISSING")")
+                    AppLogger.friends.error("  status: \(record["status"] as? String ?? "MISSING")")
+                    AppLogger.friends.error("  createdAt: \(record["createdAt"] as? Date ?? Date.distantPast)")
+                    AppLogger.friends.error("  All keys: \(record.allKeys())")
                 }
                 return nil
             }
 
             // Fetch sent requests (requests FROM this user)
             let sentRecords = try await cloudKitManager.fetchSentRequests(forUserID: userID)
-            print("[FriendService] Fetched \(sentRecords.count) sent requests (from this user)")
+            AppLogger.friends.debug("Fetched \(sentRecords.count) sent requests (from this user)")
             sentRequests = sentRecords.compactMap { record in
                 if let connection = FriendConnection(from: record) {
                     connectionRecordIDs[connection.id] = record.recordID
@@ -113,10 +122,10 @@ class FriendConnectionService: ObservableObject {
                 return nil
             }
 
-            print("[FriendService] Load complete - Friends: \(friends.count), Pending: \(pendingRequests.count), Sent: \(sentRequests.count)")
+            AppLogger.friends.info("Load complete - Friends: \(self.friends.count), Pending: \(self.pendingRequests.count), Sent: \(self.sentRequests.count)")
 
         } catch {
-            print("[FriendService] ERROR loading friends: \(error)")
+            AppLogger.friends.error("Loading friends failed: \(error.localizedDescription)")
             self.error = .fetchFailed(error)
         }
     }
@@ -124,40 +133,40 @@ class FriendConnectionService: ObservableObject {
     // MARK: - Friend Code Lookup
 
     func lookupUserByFriendCode(_ code: String) async throws -> UserProfile? {
-        print("[FriendService] Looking up user by friend code: \(code)")
+        AppLogger.friends.debug("Looking up user by friend code: \(code)")
         guard let record = try await cloudKitManager.fetchUserProfile(byFriendCode: code) else {
-            print("[FriendService] No user found for friend code: \(code)")
+            AppLogger.friends.debug("No user found for friend code: \(code)")
             return nil
         }
         if let profile = UserProfile(from: record) {
-            print("[FriendService] Found user: \(profile.displayName), userID: \(profile.userIDString), friendCode: \(profile.friendCode)")
+            AppLogger.friends.info("Found user: \(profile.displayName), userID: \(profile.userIDString), friendCode: \(profile.friendCode)")
             return profile
         }
-        print("[FriendService] Failed to parse profile from record")
+        AppLogger.friends.error("Failed to parse profile from record")
         return nil
     }
 
     // MARK: - User ID Lookup
 
     func lookupUserByID(_ userID: String) async throws -> UserProfile? {
-        print("[FriendService] Looking up user by ID: \(userID)")
+        AppLogger.friends.debug("Looking up user by ID: \(userID)")
         #if DEBUG
         // Check for fake profiles first during testing
         if let fakeProfile = lookupFakeRequester(userID: userID) {
-            print("[FriendService] Found fake profile for: \(userID)")
+            AppLogger.friends.debug("Found fake profile for: \(userID)")
             return fakeProfile
         }
         #endif
 
         guard let record = try await cloudKitManager.fetchUserProfile(byUserID: userID) else {
-            print("[FriendService] No profile found for userID: \(userID)")
+            AppLogger.friends.debug("No profile found for userID: \(userID)")
             return nil
         }
         if let profile = UserProfile(from: record) {
-            print("[FriendService] Found profile: \(profile.displayName) for userID: \(userID)")
+            AppLogger.friends.info("Found profile: \(profile.displayName) for userID: \(userID)")
             return profile
         }
-        print("[FriendService] Failed to parse profile record for userID: \(userID)")
+        AppLogger.friends.error("Failed to parse profile record for userID: \(userID)")
         return nil
     }
 
@@ -171,33 +180,33 @@ class FriendConnectionService: ObservableObject {
     // MARK: - Send Friend Request
 
     func sendFriendRequest(from currentUserID: String, to targetProfile: UserProfile) async throws {
-        print("[FriendService] === SENDING FRIEND REQUEST ===")
-        print("[FriendService] From (requesterID): \(currentUserID)")
-        print("[FriendService] To (targetID): \(targetProfile.userIDString)")
-        print("[FriendService] Target displayName: \(targetProfile.displayName)")
-        print("[FriendService] Target friendCode: \(targetProfile.friendCode)")
+        AppLogger.friends.debug("=== SENDING FRIEND REQUEST ===")
+        AppLogger.friends.debug("From (requesterID): \(currentUserID)")
+        AppLogger.friends.debug("To (targetID): \(targetProfile.userIDString)")
+        AppLogger.friends.debug("Target displayName: \(targetProfile.displayName)")
+        AppLogger.friends.debug("Target friendCode: \(targetProfile.friendCode)")
 
         // Check if trying to add self
         guard targetProfile.userIDString != currentUserID else {
-            print("[FriendService] ERROR: Cannot add self")
+            AppLogger.friends.error("Cannot add self")
             throw FriendError.cannotAddSelf
         }
 
         // Check if already friends
         if friends.contains(where: { $0.userIDString == targetProfile.userIDString }) {
-            print("[FriendService] ERROR: Already friends")
+            AppLogger.friends.error("Already friends")
             throw FriendError.alreadyFriends
         }
 
         // Check if already sent a request
         if sentRequests.contains(where: { $0.targetID == targetProfile.userIDString }) {
-            print("[FriendService] ERROR: Already sent a request")
+            AppLogger.friends.error("Already sent a request")
             throw FriendError.alreadyRequested
         }
 
         // Check if they already sent us a request (auto-accept)
         if let pendingRequest = pendingRequests.first(where: { $0.requesterID == targetProfile.userIDString }) {
-            print("[FriendService] They already sent us a request - auto-accepting")
+            AppLogger.friends.info("They already sent us a request - auto-accepting")
             try await acceptRequest(pendingRequest, currentUserID: currentUserID)
             return
         }
@@ -208,30 +217,30 @@ class FriendConnectionService: ObservableObject {
             targetID: targetProfile.userIDString
         )
 
-        print("[FriendService] Saving FriendConnection to CloudKit...")
+        AppLogger.friends.debug("Saving FriendConnection to CloudKit...")
         let record = connection.toCKRecord()
         try await cloudKitManager.saveToPublic(record)
-        print("[FriendService] FriendConnection saved successfully! RecordID: \(record.recordID)")
+        AppLogger.friends.info("FriendConnection saved successfully! RecordID: \(record.recordID)")
         connectionRecordIDs[connection.id] = record.recordID
         sentRequests.append(connection)
-        print("[FriendService] === FRIEND REQUEST SENT SUCCESSFULLY ===")
+        AppLogger.friends.info("=== FRIEND REQUEST SENT SUCCESSFULLY ===")
     }
 
     // MARK: - Accept Request
 
     func acceptRequest(_ connection: FriendConnection, currentUserID: String) async throws {
-        print("[FriendService] acceptRequest for connection.id: \(connection.id)")
-        print("[FriendService] connectionRecordIDs keys: \(connectionRecordIDs.keys)")
+        AppLogger.friends.debug("acceptRequest for connection.id: \(connection.id)")
+        AppLogger.friends.debug("connectionRecordIDs keys: \(self.connectionRecordIDs.keys)")
 
         var updated = connection
         updated.status = .accepted
         updated.acceptedAt = Date()
 
         guard let recordID = connectionRecordIDs[connection.id] else {
-            print("[FriendService] ERROR: No recordID found for connection.id: \(connection.id)")
+            AppLogger.friends.error("No recordID found for connection.id: \(connection.id)")
             throw FriendError.saveFailed(NSError(domain: "FriendService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Record ID not found"]))
         }
-        print("[FriendService] Found recordID: \(recordID)")
+        AppLogger.friends.debug("Found recordID: \(recordID)")
 
         let record = updated.toCKRecord(existingRecordID: recordID)
         try await cloudKitManager.saveToPublic(record)
@@ -250,36 +259,40 @@ class FriendConnectionService: ObservableObject {
     // MARK: - Decline/Remove
 
     func declineRequest(_ connection: FriendConnection) async throws {
-        print("[FriendService] declineRequest for connection.id: \(connection.id)")
-        print("[FriendService] connectionRecordIDs keys: \(connectionRecordIDs.keys)")
+        AppLogger.friends.debug("declineRequest for connection.id: \(connection.id)")
+        AppLogger.friends.debug("connectionRecordIDs keys: \(self.connectionRecordIDs.keys)")
 
         guard let recordID = connectionRecordIDs[connection.id] else {
-            print("[FriendService] ERROR: No recordID found for connection.id: \(connection.id)")
+            AppLogger.friends.error("No recordID found for connection.id: \(connection.id)")
             throw FriendError.saveFailed(NSError(domain: "FriendService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Record ID not found for decline"]))
         }
-        print("[FriendService] Found recordID: \(recordID), deleting...")
+        AppLogger.friends.debug("Found recordID: \(recordID), deleting...")
 
         try await cloudKitManager.deleteFromPublic(recordID: recordID)
         pendingRequests.removeAll { $0.id == connection.id }
         connectionRecordIDs.removeValue(forKey: connection.id)
-        print("[FriendService] Decline completed successfully")
+        AppLogger.friends.info("Decline completed successfully")
     }
 
     func removeFriend(_ profile: UserProfile, currentUserID: String) async throws {
-        // Find the connection
-        guard let connection = findConnection(with: profile.userIDString, currentUserID: currentUserID),
-              let recordID = connectionRecordIDs[connection.id] else {
-            return
+        AppLogger.friends.debug("Removing friend: \(profile.displayName) (userID: \(profile.userIDString))")
+
+        // Find the connection record ID using the friend's userID
+        guard let recordID = friendConnectionRecordIDs[profile.userIDString] else {
+            AppLogger.friends.error("No connection record found for userID: \(profile.userIDString)")
+            AppLogger.friends.error("Available mappings: \(self.friendConnectionRecordIDs.keys.joined(separator: ", "))")
+            throw FriendError.notFound
         }
 
-        try await cloudKitManager.deleteFromPublic(recordID: recordID)
-        friends.removeAll { $0.id == profile.id }
-        connectionRecordIDs.removeValue(forKey: connection.id)
-    }
+        AppLogger.friends.debug("Found connection recordID: \(recordID.recordName), deleting...")
 
-    private func findConnection(with otherUserID: String, currentUserID: String) -> FriendConnection? {
-        // This would need to be tracked - for now we'll reload
-        return nil
+        try await cloudKitManager.deleteFromPublic(recordID: recordID)
+
+        // Update local state
+        friends.removeAll { $0.id == profile.id }
+        friendConnectionRecordIDs.removeValue(forKey: profile.userIDString)
+
+        AppLogger.friends.info("Friend removed successfully")
     }
 
     // MARK: - Leaderboard

@@ -131,7 +131,7 @@ struct TwitterCardLayout: View {
             Spacer()
 
             // Username at bottom
-            if customization.showUsername, let username = content.shareUsername {
+            if customization.showUsername, let username = content.shareUsername ?? customization.username {
                 Text("@\(username)")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(theme.primaryTextColor)

@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import RevenueCat
+import os
 
 @main
 struct DietCokeTrackerApp: App {
@@ -16,7 +17,6 @@ struct DietCokeTrackerApp: App {
     @StateObject private var cloudKitManager = CloudKitManager()
     @StateObject private var identityService: IdentityService
     @StateObject private var friendService: FriendConnectionService
-    @StateObject private var contactsService = ContactsService()
     @StateObject private var drinkSyncService: DrinkSyncService
     @StateObject private var activityService: ActivityFeedService
 
@@ -35,6 +35,9 @@ struct DietCokeTrackerApp: App {
 
     // Deep link handler
     @StateObject private var deepLinkHandler = DeepLinkHandler.shared
+
+    // Theme manager
+    @StateObject private var themeManager = ThemeManager()
 
     init() {
         let ckManager = CloudKitManager()
@@ -58,7 +61,6 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(cloudKitManager)
                 .environmentObject(identityService)
                 .environmentObject(friendService)
-                .environmentObject(contactsService)
                 .environmentObject(purchaseService)
                 .environmentObject(milestoneService)
                 .environmentObject(recapService)
@@ -68,6 +70,7 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(networkMonitor)
                 .environmentObject(offlineQueue)
                 .environmentObject(deepLinkHandler)
+                .environmentObject(themeManager)
                 .onOpenURL { url in
                     _ = deepLinkHandler.handleURL(url)
                 }
@@ -87,6 +90,13 @@ struct DietCokeTrackerApp: App {
                     // Load subscription offerings and check status
                     await purchaseService.loadOfferings()
                     await purchaseService.checkSubscriptionStatus()
+
+                    // Sync subscription status and drink entries to Apple Watch
+                    WatchConnectivityManager.shared.sendSubscriptionStatus(purchaseService.isPremium)
+                    WatchConnectivityManager.shared.syncEntriesToWatch(store.entries)
+
+                    // Configure theme manager with purchase service
+                    themeManager.configure(purchaseService: purchaseService)
 
                     // Update notification authorization status
                     await notificationService.updateAuthorizationStatus()
@@ -142,7 +152,7 @@ struct DietCokeTrackerApp: App {
                     )
                 }
                 .onReceive(store.drinkAdded) { entry, photo in
-                    print("[App] Received drinkAdded notification for: \(entry.type.displayName)")
+                    AppLogger.general.debug("Received drinkAdded notification for: \(entry.type.displayName)")
 
                     // Cancel streak reminder since user logged a drink today
                     notificationService.cancelStreakReminderIfNeeded(hasLoggedToday: true)
@@ -150,18 +160,21 @@ struct DietCokeTrackerApp: App {
                     // Post to activity feed if user has sharing enabled
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else {
-                        print("[App] No identity found, skipping activity post")
+                        AppLogger.general.debug("No identity found, skipping activity post")
                         return
                     }
 
-                    print("[App] Posting drink activity for user: \(displayName)")
+                    AppLogger.activity.debug("Posting drink activity for user: \(displayName)")
+                    let isPremium = purchaseService.isPremium
                     Task {
                         await activityService.postDrinkActivity(
                             type: entry.type,
                             note: entry.note,
                             photo: photo,
                             userID: userID,
-                            displayName: displayName
+                            displayName: displayName,
+                            entryID: entry.id.uuidString,
+                            isPremium: isPremium
                         )
                     }
                 }
@@ -170,11 +183,13 @@ struct DietCokeTrackerApp: App {
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else { return }
 
+                    let isPremium = purchaseService.isPremium
                     Task {
                         await activityService.postBadgeActivity(
                             badge: badge,
                             userID: userID,
-                            displayName: displayName
+                            displayName: displayName,
+                            isPremium: isPremium
                         )
                     }
                 }
@@ -183,18 +198,31 @@ struct DietCokeTrackerApp: App {
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else { return }
 
+                    let isPremium = purchaseService.isPremium
                     Task {
                         await activityService.postStreakActivity(
                             days: newStreak,
                             userID: userID,
-                            displayName: displayName
+                            displayName: displayName,
+                            isPremium: isPremium
+                        )
+                    }
+                }
+                .onReceive(store.drinkDeleted) { entry in
+                    // Delete drink activity from activity feed
+                    guard let userID = identityService.currentProfile?.userIDString else { return }
+
+                    Task {
+                        await activityService.deleteDrinkActivity(
+                            entryID: entry.id.uuidString,
+                            userID: userID
                         )
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .networkBecameAvailable)) { _ in
                     // Sync when network becomes available
                     Task {
-                        print("[App] Network became available, syncing...")
+                        AppLogger.sync.info("Network became available, syncing...")
                         await store.performSync()
                         await badgeStore.performSync()
 
@@ -203,6 +231,10 @@ struct DietCokeTrackerApp: App {
                             return await processOfflineOperation(operation)
                         }
                     }
+                }
+                .onChange(of: purchaseService.isPremium) { _, isPremium in
+                    // Sync subscription status to Apple Watch
+                    WatchConnectivityManager.shared.sendSubscriptionStatus(isPremium)
                 }
         }
     }

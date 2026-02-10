@@ -101,7 +101,7 @@ struct SquareLayout: View {
 
     private var footerSection: some View {
         HStack {
-            if customization.showUsername, let username = content.shareUsername {
+            if customization.showUsername, let username = content.shareUsername ?? customization.username {
                 Text("@\(username)")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(theme.primaryTextColor)

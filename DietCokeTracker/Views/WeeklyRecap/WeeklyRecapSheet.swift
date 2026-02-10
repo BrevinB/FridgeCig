@@ -95,9 +95,7 @@ struct WeeklyRecapSheet: View {
                         }
 
                         // History Section
-                        if !recapService.recapHistory.isEmpty {
-                            RecapHistorySection()
-                        }
+                        RecapHistorySection()
                     }
                     .padding(.bottom, 40)
                 } else {
@@ -295,55 +293,80 @@ struct RecapThemePicker: View {
 
 struct RecapHistorySection: View {
     @EnvironmentObject var recapService: WeeklyRecapService
+    @EnvironmentObject var store: DrinkStore
+
+    private var pastWeeks: [Date] {
+        Array(recapService.availableWeeks(from: store.entries).prefix(12))
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Previous Weeks")
-                .font(.headline)
-                .foregroundColor(.dietCokeCharcoal)
-                .padding(.horizontal)
+        if !pastWeeks.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Previous Weeks")
+                    .font(.headline)
+                    .foregroundColor(.dietCokeCharcoal)
+                    .padding(.horizontal)
 
-            ForEach(recapService.recapHistory.prefix(4)) { recap in
-                NavigationLink {
-                    WeeklyRecapView(recap: recap)
-                } label: {
-                    RecapHistoryRow(recap: recap)
+                ForEach(pastWeeks, id: \.self) { weekStart in
+                    NavigationLink {
+                        PastWeekRecapDestination(weekStart: weekStart)
+                    } label: {
+                        PastWeekRow(weekStart: weekStart, entries: store.entries)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.top)
         }
-        .padding(.top)
     }
 }
 
-struct RecapHistoryRow: View {
-    let recap: WeeklyRecap
+/// Generates the recap on navigation (not on list render)
+struct PastWeekRecapDestination: View {
+    let weekStart: Date
+    @EnvironmentObject var recapService: WeeklyRecapService
+    @EnvironmentObject var store: DrinkStore
+
+    var body: some View {
+        let recap = recapService.generateRecapForWeek(containing: weekStart, entries: store.entries)
+        WeeklyRecapView(recap: recap)
+    }
+}
+
+struct PastWeekRow: View {
+    let weekStart: Date
+    let entries: [DrinkEntry]
+
+    private var weekEnd: Date {
+        Calendar.current.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+    }
+
+    private var drinkCount: Int {
+        let calendar = Calendar.current
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { return 0 }
+        return entries.filter { $0.timestamp >= weekInterval.start && $0.timestamp < weekInterval.end }.count
+    }
+
+    private var weekRangeText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return "\(formatter.string(from: weekStart)) - \(formatter.string(from: weekEnd))"
+    }
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(recap.weekRangeText)
+                Text(weekRangeText)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.dietCokeCharcoal)
 
-                Text("\(recap.totalDrinks) drinks")
+                Text("\(drinkCount) drinks")
                     .font(.caption)
                     .foregroundColor(.dietCokeDarkSilver)
             }
 
             Spacer()
-
-            if let comparison = recap.comparison {
-                HStack(spacing: 4) {
-                    Image(systemName: comparison.trendIcon)
-                        .font(.caption)
-                    Text("\(comparison.drinksDelta > 0 ? "+" : "")\(comparison.drinksDelta)")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-                .foregroundColor(comparison.trendColor)
-            }
 
             Image(systemName: "chevron.right")
                 .font(.caption)

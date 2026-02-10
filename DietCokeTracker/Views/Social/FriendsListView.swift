@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 struct FriendsListView: View {
     @EnvironmentObject var identityService: IdentityService
@@ -30,7 +31,7 @@ struct FriendsListView: View {
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
-                print("[FriendsListView] App became active, refreshing friends...")
+                AppLogger.friends.debug("App became active, refreshing friends")
                 Task {
                     await loadFriends()
                 }
@@ -214,27 +215,27 @@ private struct PendingRequestRow: View {
         do {
             requesterProfile = try await friendService.lookupUserByID(request.requesterID)
         } catch {
-            print("Failed to load requester profile: \(error)")
+            AppLogger.friends.error("Failed to load requester profile: \(error.localizedDescription)")
         }
         isLoading = false
     }
 
     private func accept() {
         guard let userID = identityService.currentIdentity?.userIDString else {
-            print("[PendingRequestRow] Accept failed: no userID")
+            AppLogger.friends.error("Accept failed: no userID")
             errorMessage = "Unable to accept request"
             return
         }
-        print("[PendingRequestRow] Accepting request: \(request.id)")
+        AppLogger.friends.debug("Accepting request: \(request.id)")
         isAccepting = true
         errorMessage = nil
         HapticManager.friendAction()
         Task {
             do {
                 try await friendService.acceptRequest(request, currentUserID: userID)
-                print("[PendingRequestRow] Accept succeeded")
+                AppLogger.friends.debug("Accept succeeded")
             } catch {
-                print("[PendingRequestRow] Accept failed: \(error)")
+                AppLogger.friends.error("Accept failed: \(error.localizedDescription)")
                 errorMessage = "Failed to accept"
                 HapticManager.error()
             }
@@ -243,16 +244,16 @@ private struct PendingRequestRow: View {
     }
 
     private func decline() {
-        print("[PendingRequestRow] Declining request: \(request.id)")
+        AppLogger.friends.debug("Declining request: \(request.id)")
         isDeclining = true
         errorMessage = nil
         HapticManager.lightImpact()
         Task {
             do {
                 try await friendService.declineRequest(request)
-                print("[PendingRequestRow] Decline succeeded")
+                AppLogger.friends.debug("Decline succeeded")
             } catch {
-                print("[PendingRequestRow] Decline failed: \(error)")
+                AppLogger.friends.error("Decline failed: \(error.localizedDescription)")
                 errorMessage = "Failed to decline"
                 HapticManager.error()
             }

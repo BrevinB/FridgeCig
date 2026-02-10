@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import os
 
 // MARK: - Share Card Service
 
@@ -225,7 +226,7 @@ class ShareCardService: ObservableObject {
             let data = try JSONEncoder().encode(savedPresets)
             UserDefaults.standard.set(data, forKey: savedPresetsKey)
         } catch {
-            print("Failed to save presets: \(error)")
+            AppLogger.general.error("Failed to save presets: \(error.localizedDescription)")
         }
     }
 
@@ -236,7 +237,7 @@ class ShareCardService: ObservableObject {
         do {
             savedPresets = try JSONDecoder().decode([SharePreset].self, from: data)
         } catch {
-            print("Failed to load presets: \(error)")
+            AppLogger.general.error("Failed to load presets: \(error.localizedDescription)")
         }
     }
 

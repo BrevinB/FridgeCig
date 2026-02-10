@@ -129,11 +129,7 @@ struct AddDrinkView: View {
                             .padding(.vertical, 16)
                             .background(
                                 canAddDrink
-                                    ? LinearGradient(
-                                        colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
+                                    ? effectiveBrand.buttonGradient
                                     : LinearGradient(
                                         colors: [Color.dietCokeSilver, Color.dietCokeSilver],
                                         startPoint: .topLeading,
@@ -143,7 +139,7 @@ struct AddDrinkView: View {
                             .foregroundColor(.white)
                             .cornerRadius(14)
                             .shadow(
-                                color: canAddDrink ? Color.dietCokeRed.opacity(0.3) : Color.clear,
+                                color: canAddDrink ? effectiveBrand.color.opacity(0.3) : Color.clear,
                                 radius: 8,
                                 y: 4
                             )
@@ -154,14 +150,14 @@ struct AddDrinkView: View {
                     .padding()
                 }
             .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Add DC")
+            .navigationTitle("Add \(effectiveBrand.shortName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.dietCokeRed)
+                    .foregroundColor(effectiveBrand.color)
                 }
             }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
@@ -246,8 +242,7 @@ struct SelectedDrinkPreview: View {
                     )
                     .frame(width: 80, height: 80)
 
-                Image(systemName: specialEdition?.icon ?? type.icon)
-                    .font(.system(size: 36, weight: .medium))
+                DrinkIconView(drinkType: type, specialEdition: specialEdition, size: DrinkIconSize.xl)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [accentColor, accentColor.opacity(0.8)],
@@ -265,8 +260,7 @@ struct SelectedDrinkPreview: View {
 
                 // Brand badge
                 HStack(spacing: 4) {
-                    Image(systemName: brand.icon)
-                        .font(.caption2)
+                    BrandIconView(brand: brand, size: DrinkIconSize.xs)
                     Text(brand.shortName)
                         .font(.caption)
                         .fontWeight(.bold)
@@ -404,19 +398,24 @@ struct BrandButton: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 ZStack {
-                    Circle()
-                        .fill(isSelected ? brand.color : brand.lightColor)
-                        .frame(width: 50, height: 50)
+                    if isSelected {
+                        Circle()
+                            .fill(brand.gradient)
+                            .frame(width: 50, height: 50)
+                    } else {
+                        Circle()
+                            .fill(brand.lightColor)
+                            .frame(width: 50, height: 50)
+                    }
 
-                    Image(systemName: brand.icon)
-                        .font(.system(size: 20))
-                        .foregroundColor(isSelected ? .white : brand.color)
+                    BrandIconView(brand: brand, size: DrinkIconSize.md)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(brand.iconGradient))
                 }
 
                 Text(brand.shortName)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(isSelected ? brand.color : .secondary)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(brand.iconGradient) : AnyShapeStyle(.secondary))
 
                 if isDefault {
                     Text("default")
@@ -466,8 +465,7 @@ struct AddDrinkCategoryFilterView: View {
 
                     ForEach(DrinkCategory.allCases, id: \.self) { category in
                         AddDrinkCategoryChip(
-                            title: category.rawValue,
-                            icon: category.icon,
+                            category: category,
                             isSelected: selectedCategory == category
                         ) {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -482,18 +480,40 @@ struct AddDrinkCategoryFilterView: View {
 }
 
 struct AddDrinkCategoryChip: View {
-    let title: String
-    let icon: String
+    let category: DrinkCategory?
+    let title: String?
+    let sfSymbolIcon: String?
     let isSelected: Bool
     let action: () -> Void
+
+    init(category: DrinkCategory, isSelected: Bool, action: @escaping () -> Void) {
+        self.category = category
+        self.title = nil
+        self.sfSymbolIcon = nil
+        self.isSelected = isSelected
+        self.action = action
+    }
+
+    init(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) {
+        self.category = nil
+        self.title = title
+        self.sfSymbolIcon = icon
+        self.isSelected = isSelected
+        self.action = action
+    }
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .accessibilityHidden(true)
-                Text(title)
+                if let category = category {
+                    DrinkCategoryIconView(category: category, size: DrinkIconSize.xs)
+                        .accessibilityHidden(true)
+                } else if let icon = sfSymbolIcon {
+                    Image(systemName: icon)
+                        .font(.caption)
+                        .accessibilityHidden(true)
+                }
+                Text(category?.rawValue ?? title ?? "")
                     .font(.subheadline)
                     .fontWeight(.medium)
             }
@@ -503,7 +523,7 @@ struct AddDrinkCategoryChip: View {
             .foregroundColor(isSelected ? .white : .dietCokeCharcoal)
             .cornerRadius(20)
         }
-        .accessibilityLabel("\(title) category")
+        .accessibilityLabel("\(category?.rawValue ?? title ?? "") category")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -758,8 +778,7 @@ struct DrinkTypeCell: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Image(systemName: type.icon)
-                    .font(.title2)
+                DrinkIconView(drinkType: type, size: DrinkIconSize.md)
                     .foregroundColor(isSelected ? .white : .dietCokeRed)
                     .accessibilityHidden(true)
 

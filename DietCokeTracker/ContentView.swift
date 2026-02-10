@@ -11,12 +11,14 @@ struct ContentView: View {
     @EnvironmentObject var networkMonitor: NetworkMonitor
     @EnvironmentObject var offlineQueue: OfflineQueue
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddDrink = false
     @State private var selectedTab = 0
     @State private var showingBadgeToast = false
     @State private var showingShareSheet = false
     @State private var showingMilestoneCard = false
     @State private var showingWhatsNew = false
+    @State private var showingPaywallFromDeepLink = false
 
     var body: some View {
         ZStack {
@@ -27,6 +29,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 // Offline banner
                 OfflineBanner()
+                SyncErrorBanner()
 
             TabView(selection: $selectedTab) {
                 HomeView(showingAddDrink: $showingAddDrink)
@@ -59,7 +62,7 @@ struct ContentView: View {
                     }
                     .tag(4)
             }
-            .tint(.dietCokeRed)
+            .tint(themeManager.primaryColor)
             .sheet(isPresented: $showingAddDrink) {
                 AddDrinkView()
             }
@@ -162,6 +165,15 @@ struct ContentView: View {
                 deepLinkHandler.clearPendingNavigation()
             }
         }
+        .onChange(of: deepLinkHandler.shouldShowPaywall) { _, shouldShow in
+            if shouldShow {
+                showingPaywallFromDeepLink = true
+                deepLinkHandler.clearPendingNavigation()
+            }
+        }
+        .sheet(isPresented: $showingPaywallFromDeepLink) {
+            PaywallView()
+        }
     }
 
     private func dismissBadgeToast() {
@@ -174,16 +186,21 @@ struct ContentView: View {
 
 struct HomeView: View {
     @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var preferences: UserPreferences
+    @EnvironmentObject var purchaseService: PurchaseService
+    @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     @Binding var showingAddDrink: Bool
     @State private var showingSettings = false
     @State private var celebrationActive = false
+    @State private var showDrinkUpsell = false
+    @State private var showingPaywall = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 // Background
-                (colorScheme == .dark ? Color(red: 0.08, green: 0.08, blue: 0.10) : Color(red: 0.96, green: 0.96, blue: 0.97))
+                themeManager.backgroundColor(for: colorScheme)
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -196,6 +213,22 @@ struct HomeView: View {
 
                         // Today's Drinks
                         TodayDrinksSection()
+
+                        // 5th drink upsell banner (non-premium)
+                        if showDrinkUpsell && !purchaseService.isPremium {
+                            UpsellBanner.drinkTrigger(
+                                onTap: {
+                                    showingPaywall = true
+                                },
+                                onDismiss: {
+                                    withAnimation {
+                                        showDrinkUpsell = false
+                                    }
+                                    preferences.markDrinkUpsellShown()
+                                }
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
 
                         // Bottom spacing for tab bar
                         Spacer()
@@ -229,7 +262,7 @@ struct HomeView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(Color.dietCokeRed)
+                                .fill(preferences.defaultBrand.gradient)
                                 .frame(width: 32, height: 32)
                             Image(systemName: "plus")
                                 .font(.system(size: 15, weight: .bold))
@@ -241,11 +274,22 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView()
+            }
             .onChange(of: store.todayCount) { oldValue, newValue in
                 // Trigger celebration on new drink
                 if newValue > oldValue {
                     celebrationActive = true
                     HapticManager.drinkAdded()
+                }
+            }
+            .onChange(of: store.allTimeCount) { _, newCount in
+                // Check for 5th drink upsell
+                if !purchaseService.isPremium && preferences.shouldShowDrinkUpsell(drinkCount: newCount) {
+                    withAnimation(.easeInOut.delay(0.5)) {
+                        showDrinkUpsell = true
+                    }
                 }
             }
         }
@@ -255,6 +299,7 @@ struct HomeView: View {
 struct TodaySummaryCard: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var preferences: UserPreferences
+    @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     @State private var animateCount = false
     @State private var showFizz = false
@@ -262,9 +307,13 @@ struct TodaySummaryCard: View {
 
     var body: some View {
         ZStack {
-            // Background with metallic gradient
+            // Background - metallic for classic, themed gradient for premium themes
             RoundedRectangle(cornerRadius: 24)
-                .fill(colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
+                .fill(
+                    themeManager.currentTheme == .classic
+                        ? (colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
+                        : themeManager.primaryGradient
+                )
 
             // Subtle fizz bubbles
             if showFizz {
@@ -280,7 +329,11 @@ struct TodaySummaryCard: View {
                     Text("TODAY")
                         .font(.caption.weight(.bold))
                         .tracking(2)
-                        .foregroundColor(.dietCokeRed)
+                        .foregroundStyle(
+                            themeManager.currentTheme == .classic
+                                ? AnyShapeStyle(preferences.defaultBrand.iconGradient)
+                                : AnyShapeStyle(Color.white.opacity(0.9))
+                        )
 
                     Spacer()
 
@@ -321,22 +374,20 @@ struct TodaySummaryCard: View {
                         .font(.system(size: 96, weight: .black, design: .rounded))
                         .minimumScaleFactor(0.5)
                         .foregroundStyle(
-                            LinearGradient(
-                                colors: [.dietCokeRed, .dietCokeDeepRed],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                            themeManager.currentTheme == .classic
+                                ? AnyShapeStyle(preferences.defaultBrand.buttonGradient)
+                                : AnyShapeStyle(Color.white)
                         )
                         .scaleEffect(animateCount ? 1.0 : 0.8)
                         .opacity(animateCount ? 1.0 : 0.5)
 
-                    Text(store.todayCount == 1 ? "DIET COKE" : "DIET COKES")
+                    Text(store.todayCount == 1 ? preferences.defaultBrand.shortName : "\(preferences.defaultBrand.shortName)s")
                         .font(.subheadline.weight(.semibold))
                         .tracking(1.5)
-                        .foregroundColor(.dietCokeDarkSilver)
+                        .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.8))
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(store.todayCount) Diet \(store.todayCount == 1 ? "Coke" : "Cokes") today")
+                .accessibilityLabel("\(store.todayCount) \(preferences.defaultBrand.rawValue)\(store.todayCount == 1 ? "" : "s") today")
 
                 Spacer()
 
@@ -346,19 +397,19 @@ struct TodaySummaryCard: View {
                     VStack(spacing: 2) {
                         Text(String(format: "%.0f", store.todayOunces))
                             .font(.title2.weight(.bold))
-                            .foregroundColor(.dietCokeCharcoal)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
                             .minimumScaleFactor(0.8)
                         Text("OUNCES")
                             .font(.caption2.weight(.medium))
                             .tracking(1)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(Int(store.todayOunces)) ounces today")
 
                     // Divider
                     Rectangle()
-                        .fill(Color.dietCokeSilver.opacity(0.3))
+                        .fill(themeManager.currentTheme == .classic ? Color.dietCokeSilver.opacity(0.3) : Color.white.opacity(0.3))
                         .frame(width: 1, height: 30)
                         .accessibilityHidden(true)
 
@@ -366,19 +417,19 @@ struct TodaySummaryCard: View {
                     VStack(spacing: 2) {
                         Text(String(format: "%.1f", store.averagePerDay))
                             .font(.title2.weight(.bold))
-                            .foregroundColor(.dietCokeCharcoal)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
                             .minimumScaleFactor(0.8)
                         Text("AVG/DAY")
                             .font(.caption2.weight(.medium))
                             .tracking(1)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(String(format: "%.1f", store.averagePerDay)) average per day")
 
                     // Divider
                     Rectangle()
-                        .fill(Color.dietCokeSilver.opacity(0.3))
+                        .fill(themeManager.currentTheme == .classic ? Color.dietCokeSilver.opacity(0.3) : Color.white.opacity(0.3))
                         .frame(width: 1, height: 30)
                         .accessibilityHidden(true)
 
@@ -386,12 +437,12 @@ struct TodaySummaryCard: View {
                     VStack(spacing: 2) {
                         Text("\(store.thisWeekCount)")
                             .font(.title2.weight(.bold))
-                            .foregroundColor(.dietCokeCharcoal)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
                             .minimumScaleFactor(0.8)
                         Text("THIS WEEK")
                             .font(.caption2.weight(.medium))
                             .tracking(1)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(store.thisWeekCount) this week")
@@ -433,6 +484,7 @@ struct StreakInfoSheet: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var purchaseService: PurchaseService
+    @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingStreakFreezeUsed = false
@@ -570,9 +622,7 @@ struct StreakInfoSheet: View {
                 }
             }
             .background(
-                (colorScheme == .dark
-                    ? Color(red: 0.08, green: 0.08, blue: 0.10)
-                    : Color(red: 0.96, green: 0.96, blue: 0.97))
+                themeManager.backgroundColor(for: colorScheme)
                     .ignoresSafeArea()
             )
             .navigationTitle("Your Streak")
@@ -662,7 +712,7 @@ struct QuickAddSection: View {
                 } label: {
                     Text("More")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.dietCokeRed)
+                        .foregroundStyle(preferences.defaultBrand.iconGradient)
                 }
                 .padding(.leading, 8)
             }
@@ -870,4 +920,12 @@ struct TodayDrinksSection: View {
         .environmentObject(DrinkStore())
         .environmentObject(BadgeStore())
         .environmentObject(MilestoneCardService())
+        .environmentObject(UserPreferences())
+        .environmentObject(PurchaseService.shared)
+        .environmentObject(NotificationService(cloudKitManager: CloudKitManager()))
+        .environmentObject(ReviewPromptService())
+        .environmentObject(NetworkMonitor.shared)
+        .environmentObject(OfflineQueue.shared)
+        .environmentObject(DeepLinkHandler.shared)
+        .environmentObject(ThemeManager())
 }

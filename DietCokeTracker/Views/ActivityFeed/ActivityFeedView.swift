@@ -5,20 +5,19 @@ struct ActivityFeedView: View {
     @EnvironmentObject var activityService: ActivityFeedService
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var showingPreferences = false
     @Environment(\.colorScheme) private var colorScheme
 
     private var backgroundColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.08, green: 0.08, blue: 0.10)
-            : Color(red: 0.96, green: 0.96, blue: 0.97)
+        themeManager.backgroundColor(for: colorScheme)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             if activityService.isLoading {
                 ProgressView()
-                    .tint(.dietCokeRed)
+                    .tint(themeManager.primaryColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if activityService.activities.isEmpty {
                 EmptyActivityView()
@@ -113,12 +112,31 @@ struct ActivityItemRow: View {
     @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.colorScheme) private var colorScheme
 
+    /// Gold gradient for Pro badge
+    private var goldGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 1.0, green: 0.84, blue: 0.0),
+                Color(red: 0.9, green: 0.7, blue: 0.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack(spacing: 10) {
-                // Activity type icon
+                // Activity type icon with Pro ring
                 ZStack {
+                    // Pro gold ring
+                    if activity.isPremium {
+                        Circle()
+                            .stroke(goldGradient, lineWidth: 2)
+                            .frame(width: 48, height: 48)
+                    }
+
                     Circle()
                         .fill(
                             LinearGradient(
@@ -129,17 +147,43 @@ struct ActivityItemRow: View {
                         )
                         .frame(width: 44, height: 44)
 
-                    Image(systemName: activity.type.icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(activity.type.color)
+                    if activity.type.usesCustomIcon {
+                        Image(activity.type.icon)
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                            .foregroundColor(activity.type.color)
+                    } else {
+                        Image(systemName: activity.type.icon)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(activity.type.color)
+                    }
                 }
 
                 // Title and time
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(activity.title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.dietCokeCharcoal)
+                    HStack(spacing: 6) {
+                        Text(activity.title)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeCharcoal)
+
+                        // Pro badge
+                        if activity.isPremium {
+                            HStack(spacing: 2) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 8))
+                                Text("PRO")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(goldGradient)
+                            .clipShape(Capsule())
+                        }
+                    }
 
                     Text(activity.formattedTime)
                         .font(.caption)
@@ -251,8 +295,7 @@ struct ActivityContent: View {
                 if let drinkType = activity.payload.drinkType {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 12) {
-                            Image(systemName: drinkType.icon)
-                                .font(.title2)
+                            DrinkIconView(drinkType: drinkType, size: DrinkIconSize.lg)
                                 .foregroundColor(.dietCokeRed)
 
                             VStack(alignment: .leading, spacing: 2) {

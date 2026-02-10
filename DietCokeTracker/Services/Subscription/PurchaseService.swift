@@ -1,5 +1,6 @@
 import Foundation
 import RevenueCat
+import os
 
 @MainActor
 class PurchaseService: NSObject, ObservableObject {
@@ -32,9 +33,9 @@ class PurchaseService: NSObject, ObservableObject {
     func loadOfferings() async {
         do {
             offerings = try await Purchases.shared.offerings()
-            print("[PurchaseService] Loaded offerings: \(offerings?.current?.identifier ?? "none")")
+            AppLogger.purchases.debug("Loaded offerings: \(self.offerings?.current?.identifier ?? "none")")
         } catch {
-            print("[PurchaseService] Failed to load offerings: \(error)")
+            AppLogger.purchases.error("Failed to load offerings: \(error.localizedDescription)")
             self.error = error
         }
     }
@@ -44,7 +45,7 @@ class PurchaseService: NSObject, ObservableObject {
             let customerInfo = try await Purchases.shared.customerInfo()
             updatePremiumStatus(from: customerInfo)
         } catch {
-            print("[PurchaseService] Failed to check subscription status: \(error)")
+            AppLogger.purchases.error("Failed to check subscription status: \(error.localizedDescription)")
             self.error = error
         }
     }
@@ -65,15 +66,15 @@ class PurchaseService: NSObject, ObservableObject {
     private func updatePremiumStatus(from customerInfo: CustomerInfo) {
         // Log all entitlements for debugging
         let allEntitlements = customerInfo.entitlements.all
-        print("[PurchaseService] All entitlements: \(allEntitlements.keys.joined(separator: ", "))")
+        AppLogger.purchases.debug("All entitlements: \(allEntitlements.keys.joined(separator: ", "))")
 
         for (key, entitlement) in allEntitlements {
-            print("[PurchaseService] Entitlement '\(key)': isActive=\(entitlement.isActive), productId=\(entitlement.productIdentifier)")
+            AppLogger.purchases.debug("Entitlement '\(key)': isActive=\(entitlement.isActive), productId=\(entitlement.productIdentifier)")
         }
 
         // Log active subscriptions
         let activeSubscriptions = customerInfo.activeSubscriptions
-        print("[PurchaseService] Active subscriptions: \(activeSubscriptions.joined(separator: ", "))")
+        AppLogger.purchases.debug("Active subscriptions: \(activeSubscriptions.joined(separator: ", "))")
 
         // Check for premium entitlement (try multiple common identifiers)
         var isActive = false
@@ -81,7 +82,7 @@ class PurchaseService: NSObject, ObservableObject {
         // Try the configured identifier first
         if let entitlement = customerInfo.entitlements[Self.entitlementIdentifier] {
             isActive = entitlement.isActive
-            print("[PurchaseService] Found entitlement '\(Self.entitlementIdentifier)': isActive=\(isActive)")
+            AppLogger.purchases.debug("Found entitlement '\(Self.entitlementIdentifier)': isActive=\(isActive)")
         }
 
         // If not found, check for any active entitlement (fallback)
@@ -89,7 +90,7 @@ class PurchaseService: NSObject, ObservableObject {
             for (key, entitlement) in allEntitlements {
                 if entitlement.isActive {
                     isActive = true
-                    print("[PurchaseService] Found active entitlement '\(key)' (fallback)")
+                    AppLogger.purchases.debug("Found active entitlement '\(key)' (fallback)")
                     break
                 }
             }
@@ -99,7 +100,7 @@ class PurchaseService: NSObject, ObservableObject {
         // This can happen if entitlements aren't configured correctly in RevenueCat
         if !isActive && !activeSubscriptions.isEmpty {
             isActive = true
-            print("[PurchaseService] User has active subscriptions but no entitlements configured - treating as premium")
+            AppLogger.purchases.debug("User has active subscriptions but no entitlements configured - treating as premium")
         }
 
         // Build debug info
@@ -109,7 +110,7 @@ class PurchaseService: NSObject, ObservableObject {
         isPremium: \(isActive)
         """
 
-        print("[PurchaseService] Final isPremium: \(isActive)")
+        AppLogger.purchases.debug("Final isPremium: \(isActive)")
         isPremium = isActive
         SubscriptionStatusManager.setIsPremium(isActive)
 

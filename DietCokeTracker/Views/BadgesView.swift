@@ -3,14 +3,16 @@ import SwiftUI
 struct BadgesView: View {
     @EnvironmentObject var badgeStore: BadgeStore
     @EnvironmentObject var preferences: UserPreferences
+    @EnvironmentObject var purchaseService: PurchaseService
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var selectedCategory: BadgeCategory = .all
     @State private var selectedBadge: Badge?
+    @State private var showingPaywall = false
+    @State private var showBadgeUpsell = false
     @Environment(\.colorScheme) private var colorScheme
 
     private var backgroundColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.08, green: 0.08, blue: 0.10)
-            : Color(red: 0.96, green: 0.96, blue: 0.97)
+        themeManager.backgroundColor(for: colorScheme)
     }
 
     var body: some View {
@@ -37,6 +39,23 @@ struct BadgesView: View {
                         }
                     )
                     .padding(.horizontal)
+
+                    // Badge upsell banner (first badge earned, non-premium)
+                    if showBadgeUpsell && !purchaseService.isPremium {
+                        UpsellBanner.badgeTrigger(
+                            onTap: {
+                                showingPaywall = true
+                            },
+                            onDismiss: {
+                                withAnimation {
+                                    showBadgeUpsell = false
+                                }
+                                preferences.markBadgeUpsellShown()
+                            }
+                        )
+                        .padding(.horizontal)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .padding(.vertical)
             }
@@ -44,6 +63,17 @@ struct BadgesView: View {
             .navigationTitle("Badges")
             .sheet(item: $selectedBadge) { badge in
                 BadgeDetailSheet(badge: badge, brand: preferences.defaultBrand)
+            }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView()
+            }
+            .onAppear {
+                // Check for first badge upsell (when user has exactly 1 badge)
+                if !purchaseService.isPremium && preferences.shouldShowBadgeUpsell(isFirstBadge: badgeStore.earnedCount == 1) {
+                    withAnimation(.easeInOut.delay(0.5)) {
+                        showBadgeUpsell = true
+                    }
+                }
             }
         }
     }
@@ -115,18 +145,13 @@ struct ProgressHeaderView: View {
     let earned: Int
     let total: Int
     let percentage: Double
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         ZStack {
             // Background gradient
             RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(themeManager.primaryGradient)
 
             // Ambient bubbles
             AmbientBubblesBackground(bubbleCount: 6)
@@ -191,7 +216,7 @@ struct ProgressHeaderView: View {
             .padding(20)
         }
         .frame(height: 180)
-        .shadow(color: Color.dietCokeRed.opacity(0.4), radius: 12, y: 6)
+        .shadow(color: themeManager.primaryColor.opacity(0.4), radius: 12, y: 6)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Badge collection: \(earned) of \(total) badges earned, \(Int(percentage)) percent complete")
     }
@@ -408,9 +433,9 @@ struct ShareableBadgeView: View {
         VStack(spacing: 16) {
             // Header
             HStack {
-                Image(systemName: brand.icon)
-                    .foregroundColor(brand.color)
-                Text("\(brand.shortName) Tracker")
+                BrandIconView(brand: brand, size: DrinkIconSize.sm)
+                    .foregroundStyle(brand.iconGradient)
+                Text("FridgeCig")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.dietCokeCharcoal)
@@ -466,6 +491,7 @@ struct ShareableBadgeView: View {
         .background(Color.white)
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
+        .environment(\.colorScheme, .light) // Always render in light mode for sharing
     }
 }
 
@@ -474,4 +500,6 @@ struct ShareableBadgeView: View {
 #Preview("Badges View") {
     BadgesView()
         .environmentObject(BadgeStore())
+        .environmentObject(UserPreferences())
+        .environmentObject(PurchaseService.shared)
 }

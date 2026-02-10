@@ -1,10 +1,14 @@
 import Foundation
+import os
 
 struct SharedDataManager {
     static let appGroupID = "group.co.brevinb.fridgecig"
     static let entriesKey = "DietCokeEntries"
     static let defaultBrandKey = "defaultBeverageBrand"
     static let lastEntryTimeKey = "lastEntryTime"
+
+    /// Serial queue for coordinated access to shared data between app, widgets, and watch extension
+    private static let accessQueue = DispatchQueue(label: "com.fridgecig.shareddata", qos: .userInitiated)
 
     static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
@@ -51,16 +55,18 @@ struct SharedDataManager {
     // MARK: - Read Data for Widgets
 
     static func getEntries() -> [DrinkEntry] {
-        guard let defaults = sharedDefaults,
-              let data = defaults.data(forKey: entriesKey) else {
-            return []
-        }
+        accessQueue.sync {
+            guard let defaults = sharedDefaults,
+                  let data = defaults.data(forKey: entriesKey) else {
+                return []
+            }
 
-        do {
-            return try JSONDecoder().decode([DrinkEntry].self, from: data)
-        } catch {
-            print("SharedDataManager: Failed to decode entries: \(error)")
-            return []
+            do {
+                return try JSONDecoder().decode([DrinkEntry].self, from: data)
+            } catch {
+                Logger(subsystem: Bundle.main.bundleIdentifier ?? "co.brevinb.fridgecig", category: "Store").error("SharedDataManager: Failed to decode entries: \(error.localizedDescription)")
+                return []
+            }
         }
     }
 

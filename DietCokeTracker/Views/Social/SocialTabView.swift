@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 struct SocialTabView: View {
     @EnvironmentObject var identityService: IdentityService
@@ -192,7 +193,7 @@ struct SocialMainView: View {
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
-                    print("[SocialMainView] App became active, refreshing friend data for badge...")
+                    AppLogger.friends.debug("App became active, refreshing friend data for badge")
                     Task {
                         if let userID = identityService.currentIdentity?.userIDString {
                             await friendService.loadFriends(forUserID: userID)

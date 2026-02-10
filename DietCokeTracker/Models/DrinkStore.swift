@@ -3,17 +3,22 @@ import SwiftUI
 import WidgetKit
 import UIKit
 import Combine
+import os
 
 @MainActor
 class DrinkStore: ObservableObject {
     @Published private(set) var entries: [DrinkEntry] = []
     @Published var isSyncing = false
+    @Published var syncError: Error?
 
     /// Publisher that emits when entries change (for stats sync)
     let entriesDidChange = PassthroughSubject<Void, Never>()
 
     /// Publisher that emits when a new drink is added (for activity feed)
     let drinkAdded = PassthroughSubject<(entry: DrinkEntry, photo: UIImage?), Never>()
+
+    /// Publisher that emits when a drink is deleted (for activity feed cleanup)
+    let drinkDeleted = PassthroughSubject<DrinkEntry, Never>()
 
     /// Publisher that emits when streak changes (for activity feed milestones)
     let streakChanged = PassthroughSubject<Int, Never>()
@@ -32,6 +37,76 @@ class DrinkStore: ObservableObject {
     init() {
         loadEntries()
         updateRateLimitState()
+        setupWatchNotifications()
+    }
+
+    // MARK: - Watch Connectivity
+
+    private func setupWatchNotifications() {
+        NotificationCenter.default.addObserver(
+            forName: .watchDidAddEntry,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let entry = notification.userInfo?["entry"] as? DrinkEntry else { return }
+
+            Task { @MainActor in
+                self.mergeEntryFromWatch(entry)
+            }
+        }
+    }
+
+    private func mergeEntryFromWatch(_ entry: DrinkEntry) {
+        // Check if entry already exists (avoid duplicates)
+        guard !entries.contains(where: { $0.id == entry.id }) else {
+            AppLogger.store.debug("Entry from Watch already exists, skipping")
+            return
+        }
+
+        AppLogger.store.info("Merging entry from Watch: \(entry.type.displayName)")
+
+        // Track streak before adding
+        let streakBefore = streakDays
+
+        entries.append(entry)
+        entries.sort { $0.timestamp > $1.timestamp }
+        saveEntries()
+
+        // Update rate limiting state
+        lastEntryTime = Date()
+
+        // Check if streak changed
+        let streakAfter = streakDays
+        if streakAfter != streakBefore {
+            lastKnownStreak = streakAfter
+            streakChanged.send(streakAfter)
+        }
+
+        // Sync rate limiting to shared storage
+        SharedDataManager.recordEntryAdded()
+
+        // Notify for activity feed posting
+        drinkAdded.send((entry: entry, photo: nil))
+
+        // Sync to cloud
+        Task {
+            do {
+                try await syncService?.uploadEntry(entry)
+            } catch {
+                AppLogger.sync.error("Failed to upload watch entry: \(error.localizedDescription)")
+                self.syncError = error
+            }
+        }
+
+        // Log to HealthKit (non-critical)
+        Task {
+            do {
+                try await HealthKitManager.shared.logDrink(entry: entry)
+            } catch {
+                AppLogger.healthKit.error("Failed to log watch entry to HealthKit: \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Rate Limiting
@@ -116,7 +191,8 @@ class DrinkStore: ObservableObject {
             entries = merged
             saveEntries(triggerCloudSync: false)
         } catch {
-            print("Sync failed: \(error)")
+            AppLogger.sync.error("Sync failed: \(error.localizedDescription)")
+            syncError = error
         }
     }
 
@@ -145,7 +221,12 @@ class DrinkStore: ObservableObject {
 
         // Sync to cloud
         Task {
-            try? await syncService?.uploadEntry(entry)
+            do {
+                try await syncService?.uploadEntry(entry)
+            } catch {
+                AppLogger.sync.error("Failed to upload entry: \(error.localizedDescription)")
+                self.syncError = error
+            }
         }
     }
 
@@ -164,8 +245,17 @@ class DrinkStore: ObservableObject {
         addEntry(entry)
 
         // Notify for activity feed posting
-        print("[DrinkStore] Sending drinkAdded notification for: \(entry.type.displayName)")
+        AppLogger.store.debug("Sending drinkAdded notification for: \(entry.type.displayName)")
         drinkAdded.send((entry: entry, photo: photo))
+
+        // Log to HealthKit if enabled (non-critical)
+        Task {
+            do {
+                try await HealthKitManager.shared.logDrink(entry: entry)
+            } catch {
+                AppLogger.healthKit.error("Failed to log drink to HealthKit: \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Badge Integration
@@ -182,9 +272,25 @@ class DrinkStore: ObservableObject {
         entries.removeAll { $0.id == entry.id }
         saveEntries()
 
-        // Sync deletion to cloud
+        // Update rate limiting state (clears cooldown if deleted entry was most recent)
+        updateRateLimitState()
+
+        // Notify for activity feed deletion
+        drinkDeleted.send(entry)
+
+        // Sync deletion to cloud and HealthKit
         Task {
-            try? await syncService?.deleteEntry(entry)
+            do {
+                try await syncService?.deleteEntry(entry)
+            } catch {
+                AppLogger.sync.error("Failed to delete entry from cloud: \(error.localizedDescription)")
+                self.syncError = error
+            }
+            do {
+                try await HealthKitManager.shared.deleteDrink(entry: entry)
+            } catch {
+                AppLogger.healthKit.error("Failed to delete drink from HealthKit: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -201,10 +307,28 @@ class DrinkStore: ObservableObject {
         entries.remove(atOffsets: offsets)
         saveEntries()
 
-        // Sync deletions to cloud
+        // Update rate limiting state (clears cooldown if deleted entries included most recent)
+        updateRateLimitState()
+
+        // Notify for activity feed deletion
+        for entry in entriesToDelete {
+            drinkDeleted.send(entry)
+        }
+
+        // Sync deletions to cloud and HealthKit
         Task {
             for entry in entriesToDelete {
-                try? await syncService?.deleteEntry(entry)
+                do {
+                    try await syncService?.deleteEntry(entry)
+                } catch {
+                    AppLogger.sync.error("Failed to delete entry from cloud: \(error.localizedDescription)")
+                    self.syncError = error
+                }
+                do {
+                    try await HealthKitManager.shared.deleteDrink(entry: entry)
+                } catch {
+                    AppLogger.healthKit.error("Failed to delete drink from HealthKit: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -252,7 +376,12 @@ class DrinkStore: ObservableObject {
 
     private func syncEntry(_ entry: DrinkEntry) {
         Task {
-            try? await syncService?.updateEntry(entry)
+            do {
+                try await syncService?.updateEntry(entry)
+            } catch {
+                AppLogger.sync.error("Failed to sync entry update: \(error.localizedDescription)")
+                self.syncError = error
+            }
         }
     }
 
@@ -364,12 +493,15 @@ class DrinkStore: ObservableObject {
             // Refresh widgets
             WidgetCenter.shared.reloadAllTimelines()
 
+            // Sync to Apple Watch
+            WatchConnectivityManager.shared.syncEntriesToWatch(entries)
+
             // Notify listeners for stats sync
             if triggerCloudSync {
                 entriesDidChange.send()
             }
         } catch {
-            print("Failed to save entries: \(error)")
+            AppLogger.store.error("Failed to save entries: \(error.localizedDescription)")
         }
     }
 
@@ -382,7 +514,7 @@ class DrinkStore: ObservableObject {
             entries = try JSONDecoder().decode([DrinkEntry].self, from: data)
             entries.sort { $0.timestamp > $1.timestamp }
         } catch {
-            print("Failed to load entries: \(error)")
+            AppLogger.store.error("Failed to load entries: \(error.localizedDescription)")
         }
     }
 

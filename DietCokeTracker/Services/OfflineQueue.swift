@@ -96,7 +96,7 @@ class OfflineQueue: ObservableObject {
             } else {
                 // Increment retry count
                 let newRetryCount = operation.retryCount + 1
-                if newRetryCount >= 5 {
+                if newRetryCount >= Constants.Sync.maxRetryCount {
                     // Max retries reached, remove from queue
                     operationsToRemove.append(operation.id)
                 } else {

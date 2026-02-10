@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import os
 
 enum FriendStatus: String, Codable {
     case pending
@@ -40,10 +41,10 @@ extension FriendConnection {
               let targetID = record["targetID"] as? String,
               let statusString = record["status"] as? String,
               let status = FriendStatus(rawValue: statusString) else {
-            print("[FriendConnection] Parse failed - missing required field")
-            print("[FriendConnection]   requesterID: \(record["requesterID"] ?? "nil")")
-            print("[FriendConnection]   targetID: \(record["targetID"] ?? "nil")")
-            print("[FriendConnection]   status: \(record["status"] ?? "nil")")
+            AppLogger.friends.error("FriendConnection parse failed - missing required field")
+            AppLogger.friends.error("  requesterID: \(record["requesterID"] ?? "nil")")
+            AppLogger.friends.error("  targetID: \(record["targetID"] ?? "nil")")
+            AppLogger.friends.error("  status: \(record["status"] ?? "nil")")
             return nil
         }
 
@@ -55,7 +56,7 @@ extension FriendConnection {
         } else {
             // Generate deterministic ID from record name to ensure consistency
             id = UUID(uuidString: record.recordID.recordName) ?? UUID()
-            print("[FriendConnection] connectionID missing, using recordID: \(id)")
+            AppLogger.friends.debug("connectionID missing, using recordID: \(id)")
         }
 
         // Use createdAt field, fall back to CloudKit's creation date

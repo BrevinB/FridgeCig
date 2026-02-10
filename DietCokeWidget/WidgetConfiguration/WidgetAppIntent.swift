@@ -44,7 +44,7 @@ struct StreakWidgetConfigurationIntent: WidgetConfigurationIntent {
 // MARK: - Configurable Main Widget Intent
 
 struct ConfigurableWidgetIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Configure DC Tracker Widget"
+    static var title: LocalizedStringResource = "Configure FridgeCig Widget"
     static var description = IntentDescription("Configure what stats to display in the widget.")
 
     @Parameter(title: "Accent Color", default: .dietCokeRed)

@@ -11,16 +11,23 @@ struct DrinkRowView: View {
         return entry.brand.color
     }
 
+    private var iconGradient: LinearGradient {
+        if entry.specialEdition != nil {
+            // Use solid color for special editions
+            return LinearGradient(colors: [accentColor, accentColor], startPoint: .top, endPoint: .bottom)
+        }
+        return entry.brand.iconGradient
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(accentColor.opacity(0.1))
+                    .fill(entry.brand.cardGradient)
                     .frame(width: 48, height: 48)
 
-                Image(systemName: entry.specialEdition?.icon ?? entry.type.icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(accentColor)
+                DrinkIconView(drinkType: entry.type, specialEdition: entry.specialEdition, size: DrinkIconSize.md)
+                    .foregroundStyle(iconGradient)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -33,7 +40,7 @@ struct DrinkRowView: View {
                     // Brand badge
                     Text(entry.brand.shortName)
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(entry.brand.color)
+                        .foregroundStyle(entry.brand.iconGradient)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(entry.brand.lightColor)

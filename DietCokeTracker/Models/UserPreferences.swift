@@ -12,6 +12,10 @@ class UserPreferences: ObservableObject {
     private let hasRequestedReviewKey = "hasRequestedReview"
     private let streakFreezeCountKey = "streakFreezeCount"
     private let lastStreakFreezeDateKey = "lastStreakFreezeDate"
+    private let lastUpsellDateKey = "lastUpsellDate"
+    private let upsellDrinkTriggerShownKey = "upsellDrinkTriggerShown"
+    private let upsellBadgeTriggerShownKey = "upsellBadgeTriggerShown"
+    private let upsellStreakTriggerShownKey = "upsellStreakTriggerShown"
 
     @Published var defaultBrand: BeverageBrand {
         didSet { saveBrand() }
@@ -47,6 +51,29 @@ class UserPreferences: ObservableObject {
         }
     }
 
+    // Upsell trigger tracking
+    @Published var lastUpsellDate: Date? {
+        didSet {
+            if let date = lastUpsellDate {
+                sharedDefaults?.set(date, forKey: lastUpsellDateKey)
+            } else {
+                sharedDefaults?.removeObject(forKey: lastUpsellDateKey)
+            }
+        }
+    }
+
+    @Published var upsellDrinkTriggerShown: Bool {
+        didSet { sharedDefaults?.set(upsellDrinkTriggerShown, forKey: upsellDrinkTriggerShownKey) }
+    }
+
+    @Published var upsellBadgeTriggerShown: Bool {
+        didSet { sharedDefaults?.set(upsellBadgeTriggerShown, forKey: upsellBadgeTriggerShownKey) }
+    }
+
+    @Published var upsellStreakTriggerShown: Bool {
+        didSet { sharedDefaults?.set(upsellStreakTriggerShown, forKey: upsellStreakTriggerShownKey) }
+    }
+
     private var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: SharedDataManager.appGroupID)
     }
@@ -77,6 +104,10 @@ class UserPreferences: ObservableObject {
         self.hasRequestedReview = defaults?.bool(forKey: hasRequestedReviewKey) ?? false
         self.streakFreezeCount = defaults?.integer(forKey: streakFreezeCountKey) ?? 0
         self.lastStreakFreezeDate = defaults?.object(forKey: lastStreakFreezeDateKey) as? Date
+        self.lastUpsellDate = defaults?.object(forKey: lastUpsellDateKey) as? Date
+        self.upsellDrinkTriggerShown = defaults?.bool(forKey: upsellDrinkTriggerShownKey) ?? false
+        self.upsellBadgeTriggerShown = defaults?.bool(forKey: upsellBadgeTriggerShownKey) ?? false
+        self.upsellStreakTriggerShown = defaults?.bool(forKey: upsellStreakTriggerShownKey) ?? false
 
         // Check if user has completed onboarding
         // For existing users upgrading (appLaunchCount > 0), auto-complete onboarding
@@ -128,6 +159,52 @@ class UserPreferences: ObservableObject {
         streakFreezeCount += count
     }
 
+    // MARK: - Upsell Triggers
+
+    /// Check if we can show an upsell today (max 1 per day)
+    var canShowUpsellToday: Bool {
+        guard let lastDate = lastUpsellDate else { return true }
+        return !Calendar.current.isDateInToday(lastDate)
+    }
+
+    /// Mark that an upsell was shown today
+    func markUpsellShown() {
+        lastUpsellDate = Date()
+    }
+
+    /// Check if the 5th drink upsell should be shown
+    func shouldShowDrinkUpsell(drinkCount: Int) -> Bool {
+        return drinkCount == 5 && !upsellDrinkTriggerShown && canShowUpsellToday
+    }
+
+    /// Mark the drink upsell as shown
+    func markDrinkUpsellShown() {
+        upsellDrinkTriggerShown = true
+        markUpsellShown()
+    }
+
+    /// Check if the first badge upsell should be shown
+    func shouldShowBadgeUpsell(isFirstBadge: Bool) -> Bool {
+        return isFirstBadge && !upsellBadgeTriggerShown && canShowUpsellToday
+    }
+
+    /// Mark the badge upsell as shown
+    func markBadgeUpsellShown() {
+        upsellBadgeTriggerShown = true
+        markUpsellShown()
+    }
+
+    /// Check if the 7-day streak upsell should be shown
+    func shouldShowStreakUpsell(streakDays: Int) -> Bool {
+        return streakDays == 7 && !upsellStreakTriggerShown && canShowUpsellToday
+    }
+
+    /// Mark the streak upsell as shown
+    func markStreakUpsellShown() {
+        upsellStreakTriggerShown = true
+        markUpsellShown()
+    }
+
     // MARK: - Data Management
 
     func exportAllData() -> [String: Any] {
@@ -148,7 +225,11 @@ class UserPreferences: ObservableObject {
             appLaunchCountKey,
             hasRequestedReviewKey,
             streakFreezeCountKey,
-            lastStreakFreezeDateKey
+            lastStreakFreezeDateKey,
+            lastUpsellDateKey,
+            upsellDrinkTriggerShownKey,
+            upsellBadgeTriggerShownKey,
+            upsellStreakTriggerShownKey
         ]
 
         for key in keys {
@@ -163,5 +244,9 @@ class UserPreferences: ObservableObject {
         hasRequestedReview = false
         streakFreezeCount = 0
         lastStreakFreezeDate = nil
+        lastUpsellDate = nil
+        upsellDrinkTriggerShown = false
+        upsellBadgeTriggerShown = false
+        upsellStreakTriggerShown = false
     }
 }

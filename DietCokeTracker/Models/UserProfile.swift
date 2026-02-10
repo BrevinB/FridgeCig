@@ -24,6 +24,9 @@ struct UserProfile: Codable, Identifiable, Equatable {
     var isSuspicious: Bool
     var suspiciousFlags: [String]
 
+    // Premium status (synced from subscription)
+    var isPremium: Bool
+
     var userIDString: String {
         id.uuidString
     }
@@ -48,6 +51,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         self.averageOuncesPerEntry = 0
         self.isSuspicious = false
         self.suspiciousFlags = []
+        self.isPremium = false
     }
 }
 
@@ -84,6 +88,7 @@ extension UserProfile {
         self.averageOuncesPerEntry = record["averageOuncesPerEntry"] as? Double ?? 0
         self.isSuspicious = (record["isSuspicious"] as? Int64 ?? 0) == 1
         self.suspiciousFlags = record["suspiciousFlags"] as? [String] ?? []
+        self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
     }
 
     func toCKRecord() -> CKRecord {
@@ -120,6 +125,7 @@ extension UserProfile {
         record["isSuspicious"] = isSuspicious ? 1 : 0
         // CloudKit can't initialize a new field with an empty array, so only set if non-empty
         record["suspiciousFlags"] = suspiciousFlags.isEmpty ? nil : suspiciousFlags
+        record["isPremium"] = isPremium ? 1 : 0
     }
 }
 

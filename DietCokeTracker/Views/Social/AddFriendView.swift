@@ -7,13 +7,11 @@ struct AddFriendView: View {
     enum AddMethod: String, CaseIterable {
         case code = "Code"
         case search = "Search"
-        case contacts = "Contacts"
 
         var icon: String {
             switch self {
             case .code: return "number"
             case .search: return "magnifyingglass"
-            case .contacts: return "person.crop.rectangle.stack"
             }
         }
     }
@@ -37,8 +35,6 @@ struct AddFriendView: View {
                     ShareCodeView()
                 case .search:
                     UsernameSearchView()
-                case .contacts:
-                    ContactsPickerView()
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -60,5 +56,4 @@ struct AddFriendView: View {
     AddFriendView()
         .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
         .environmentObject(FriendConnectionService(cloudKitManager: CloudKitManager()))
-        .environmentObject(ContactsService())
 }

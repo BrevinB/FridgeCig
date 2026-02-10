@@ -79,6 +79,7 @@ struct LeaderboardEntry: Identifiable {
     let category: LeaderboardCategory
     let isCurrentUser: Bool
     let isFriend: Bool
+    let isPremium: Bool
 
     init(from profile: UserProfile, rank: Int, category: LeaderboardCategory, currentUserID: String?, friendIDs: Set<String>) {
         self.id = profile.id
@@ -89,6 +90,7 @@ struct LeaderboardEntry: Identifiable {
         self.category = category
         self.isCurrentUser = profile.userIDString == currentUserID
         self.isFriend = friendIDs.contains(profile.userIDString)
+        self.isPremium = profile.isPremium
     }
 
     var formattedValue: String {

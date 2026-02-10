@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var selectedDate = Date()
     @State private var showingDatePicker = false
     @Environment(\.colorScheme) private var colorScheme
@@ -14,9 +15,7 @@ struct HistoryView: View {
     }
 
     private var backgroundColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.08, green: 0.08, blue: 0.10)
-            : Color(red: 0.96, green: 0.96, blue: 0.97)
+        themeManager.backgroundColor(for: colorScheme)
     }
 
     var body: some View {
@@ -40,13 +39,18 @@ struct HistoryHeroCard: View {
     let totalDays: Int
     let totalDrinks: Int
     let totalOunces: Double
+    @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            // Background with metallic gradient
+            // Background - metallic for classic, themed gradient for premium themes
             RoundedRectangle(cornerRadius: 20)
-                .fill(colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
+                .fill(
+                    themeManager.currentTheme == .classic
+                        ? (colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
+                        : themeManager.primaryGradient
+                )
 
             // Subtle fizz bubbles
             AmbientBubblesBackground(bubbleCount: 6)
@@ -57,57 +61,55 @@ struct HistoryHeroCard: View {
                 Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 32, weight: .medium))
                     .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                        themeManager.currentTheme == .classic
+                            ? AnyShapeStyle(LinearGradient(colors: [Color.dietCokeRed, Color.dietCokeDeepRed], startPoint: .top, endPoint: .bottom))
+                            : AnyShapeStyle(Color.white)
                     )
 
                 Text("Your DC Journey")
                     .font(.headline)
-                    .foregroundColor(.dietCokeCharcoal)
+                    .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
 
                 HStack(spacing: 24) {
                     VStack(spacing: 4) {
                         Text("\(totalDays)")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.dietCokeRed)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeRed : .white)
                         Text("Days")
                             .font(.caption)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(totalDays) days")
 
                     Rectangle()
-                        .fill(Color.dietCokeSilver.opacity(0.3))
+                        .fill(themeManager.currentTheme == .classic ? Color.dietCokeSilver.opacity(0.3) : Color.white.opacity(0.3))
                         .frame(width: 1, height: 40)
                         .accessibilityHidden(true)
 
                     VStack(spacing: 4) {
                         Text("\(totalDrinks)")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.dietCokeRed)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeRed : .white)
                         Text("Drinks")
                             .font(.caption)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(totalDrinks) drinks")
 
                     Rectangle()
-                        .fill(Color.dietCokeSilver.opacity(0.3))
+                        .fill(themeManager.currentTheme == .classic ? Color.dietCokeSilver.opacity(0.3) : Color.white.opacity(0.3))
                         .frame(width: 1, height: 40)
                         .accessibilityHidden(true)
 
                     VStack(spacing: 4) {
                         Text("\(String(format: "%.0f", totalOunces))")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.dietCokeRed)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeRed : .white)
                         Text("Ounces")
                             .font(.caption)
-                            .foregroundColor(.dietCokeDarkSilver)
+                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(String(format: "%.0f", totalOunces)) ounces")
@@ -298,6 +300,13 @@ struct HistoryRowView: View {
         return entry.brand.color
     }
 
+    private var iconGradient: LinearGradient {
+        if entry.specialEdition != nil {
+            return LinearGradient(colors: [accentColor, accentColor], startPoint: .top, endPoint: .bottom)
+        }
+        return entry.brand.iconGradient
+    }
+
     private var accessibilityDescription: String {
         var parts = ["\(entry.type.displayName)", "\(entry.brand.shortName)", "\(String(format: "%.0f", entry.ounces)) ounces", "at \(entry.formattedTime)"]
         if let edition = entry.specialEdition {
@@ -316,12 +325,11 @@ struct HistoryRowView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(accentColor.opacity(0.1))
+                    .fill(entry.brand.cardGradient)
                     .frame(width: 44, height: 44)
 
-                Image(systemName: entry.specialEdition?.icon ?? entry.type.icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(accentColor)
+                DrinkIconView(drinkType: entry.type, specialEdition: entry.specialEdition, size: DrinkIconSize.md)
+                    .foregroundStyle(iconGradient)
             }
             .accessibilityHidden(true)
 
@@ -335,7 +343,7 @@ struct HistoryRowView: View {
                     // Brand badge
                     Text(entry.brand.shortName)
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(entry.brand.color)
+                        .foregroundStyle(entry.brand.iconGradient)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(entry.brand.lightColor)

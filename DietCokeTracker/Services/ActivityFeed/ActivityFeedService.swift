@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 import CloudKit
 import Combine
+import os
 
 @MainActor
 class ActivityFeedService: ObservableObject {
@@ -30,21 +31,21 @@ class ActivityFeedService: ObservableObject {
     // MARK: - Fetch Activities
 
     func fetchActivities() async {
-        print("[ActivityFeed] fetchActivities called")
-        print("[ActivityFeed] currentUserID: \(currentUserID ?? "nil")")
-        print("[ActivityFeed] friendIDs: \(friendIDs)")
+        AppLogger.activity.debug("fetchActivities called")
+        AppLogger.activity.debug("currentUserID: \(self.currentUserID ?? "nil")")
+        AppLogger.activity.debug("friendIDs: \(self.friendIDs)")
 
         #if DEBUG
         // Don't overwrite fake data
         if isUsingFakeData {
-            print("[ActivityFeed] Using fake data, skipping fetch")
+            AppLogger.activity.debug("Using fake data, skipping fetch")
             return
         }
         #endif
 
         // Need at least current user to fetch
         guard currentUserID != nil || !friendIDs.isEmpty else {
-            print("[ActivityFeed] No userID or friends, skipping fetch")
+            AppLogger.activity.debug("No userID or friends, skipping fetch")
             // Don't clear activities - keep any locally posted ones
             return
         }
@@ -54,22 +55,22 @@ class ActivityFeedService: ObservableObject {
 
         do {
             let records = try await fetchActivityRecords()
-            print("[ActivityFeed] Fetched \(records.count) records from CloudKit")
+            AppLogger.activity.info("Fetched \(records.count) records from CloudKit")
 
             let fetchedActivities = records.compactMap { ActivityItem(from: $0) }
-            print("[ActivityFeed] Parsed \(fetchedActivities.count) activities")
+            AppLogger.activity.debug("Parsed \(fetchedActivities.count) activities")
 
             // Merge fetched activities with local ones (keep local activities that aren't in CloudKit yet)
             let fetchedIDs = Set(fetchedActivities.map { $0.id })
             let localOnlyActivities = activities.filter { !fetchedIDs.contains($0.id) }
-            print("[ActivityFeed] Local-only activities: \(localOnlyActivities.count)")
+            AppLogger.activity.debug("Local-only activities: \(localOnlyActivities.count)")
 
             // Combine and sort by timestamp
             activities = (fetchedActivities + localOnlyActivities)
                 .sorted { $0.timestamp > $1.timestamp }
-            print("[ActivityFeed] Total activities after merge: \(activities.count)")
+            AppLogger.activity.info("Total activities after merge: \(self.activities.count)")
         } catch {
-            print("[ActivityFeed] Failed to fetch activities: \(error)")
+            AppLogger.activity.error("Failed to fetch activities: \(error.localizedDescription)")
             // Keep existing activities on error
         }
     }
@@ -82,11 +83,11 @@ class ActivityFeedService: ObservableObject {
         }
 
         guard !allUserIDs.isEmpty else {
-            print("[ActivityFeed] No user IDs to fetch activities for")
+            AppLogger.activity.debug("No user IDs to fetch activities for")
             return []
         }
 
-        print("[ActivityFeed] Fetching activities for userIDs: \(allUserIDs)")
+        AppLogger.activity.debug("Fetching activities for userIDs: \(allUserIDs)")
         let predicate = NSPredicate(format: "userID IN %@", allUserIDs)
         let sortDescriptor = NSSortDescriptor(key: "timestamp", ascending: false)
 
@@ -95,22 +96,22 @@ class ActivityFeedService: ObservableObject {
                 recordType: ActivityItem.recordType,
                 predicate: predicate,
                 sortDescriptors: [sortDescriptor],
-                limit: 50
+                limit: Constants.Sync.activityFeedLimit
             )
-            print("[ActivityFeed] CloudKit returned \(records.count) ActivityItem records")
+            AppLogger.activity.debug("CloudKit returned \(records.count) ActivityItem records")
             return records
         } catch {
-            print("[ActivityFeed] CloudKit fetch error: \(error)")
+            AppLogger.activity.error("CloudKit fetch error: \(error.localizedDescription)")
             throw error
         }
     }
 
     // MARK: - Post Activities
 
-    func postBadgeActivity(badge: Badge, userID: String, displayName: String) async {
-        print("[ActivityFeed] postBadgeActivity called for badge: \(badge.title)")
+    func postBadgeActivity(badge: Badge, userID: String, displayName: String, isPremium: Bool = false) async {
+        AppLogger.activity.debug("postBadgeActivity called for badge: \(badge.title)")
         guard sharingPreferences.shareBadges else {
-            print("[ActivityFeed] Badge sharing disabled, skipping")
+            AppLogger.activity.debug("Badge sharing disabled, skipping")
             return
         }
 
@@ -118,41 +119,43 @@ class ActivityFeedService: ObservableObject {
             userID: userID,
             displayName: displayName,
             type: .badgeUnlock,
-            payload: .forBadge(badge)
+            payload: .forBadge(badge),
+            isPremium: isPremium
         )
 
         await postActivity(activity)
     }
 
-    func postStreakActivity(days: Int, userID: String, displayName: String) async {
-        print("[ActivityFeed] postStreakActivity called for \(days) days")
+    func postStreakActivity(days: Int, userID: String, displayName: String, isPremium: Bool = false) async {
+        AppLogger.activity.debug("postStreakActivity called for \(days) days")
         guard sharingPreferences.shareStreakMilestones else {
-            print("[ActivityFeed] Streak sharing disabled, skipping")
+            AppLogger.activity.debug("Streak sharing disabled, skipping")
             return
         }
 
         // Only post for milestone streaks
         let milestones = [7, 30, 100, 365]
         guard milestones.contains(days) else {
-            print("[ActivityFeed] \(days) is not a milestone, skipping")
+            AppLogger.activity.debug("\(days) is not a milestone, skipping")
             return
         }
 
-        print("[ActivityFeed] Posting streak milestone: \(days) days")
+        AppLogger.activity.info("Posting streak milestone: \(days) days")
         let activity = ActivityItem(
             userID: userID,
             displayName: displayName,
             type: .streakMilestone,
-            payload: .forStreak(days)
+            payload: .forStreak(days),
+            isPremium: isPremium
         )
 
         await postActivity(activity)
     }
 
-    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String) async {
-        print("[ActivityFeed] postDrinkActivity called for type: \(type.displayName)")
+    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false) async {
+        AppLogger.activity.debug("postDrinkActivity called for type: \(type.displayName)")
         guard sharingPreferences.shareDrinkLogs else {
-            print("[ActivityFeed] Drink sharing disabled, skipping")
+            AppLogger.activity.debug("Drink sharing disabled, skipping")
             return
         }
 
@@ -168,16 +171,54 @@ class ActivityFeedService: ObservableObject {
             userID: userID,
             displayName: displayName,
             type: .drinkLog,
-            payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL)
+            payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID),
+            isPremium: isPremium
         )
 
         await postActivity(activity)
     }
 
+    /// Delete a drink activity when the drink entry is deleted
+    func deleteDrinkActivity(entryID: String, userID: String) async {
+        AppLogger.activity.debug("deleteDrinkActivity called for entryID: \(entryID)")
+
+        // Remove from local list
+        activities.removeAll { activity in
+            activity.type == .drinkLog && activity.payload.drinkEntryID == entryID
+        }
+
+        // Delete from CloudKit
+        do {
+            // Find the activity record by searching for matching entryID in payload
+            // We need to fetch activities for this user and find the one with matching entryID
+            let predicate = NSPredicate(format: "userID == %@", userID)
+            let records = try await cloudKitManager.fetchFromPublic(
+                recordType: ActivityItem.recordType,
+                predicate: predicate,
+                limit: 100
+            )
+
+            // Find records that match the entryID
+            for record in records {
+                if let payloadJSON = record["payloadJSON"] as? String,
+                   let payloadData = payloadJSON.data(using: .utf8),
+                   let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
+                   payload.drinkEntryID == entryID {
+                    // Delete this record
+                    try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+                    AppLogger.activity.info("Deleted activity from CloudKit for entryID: \(entryID)")
+                    break
+                }
+            }
+        } catch {
+            AppLogger.activity.error("Failed to delete activity from CloudKit: \(error.localizedDescription)")
+        }
+    }
+
     private func uploadPhoto(_ image: UIImage) async -> String? {
         // Compress image for upload
         guard let imageData = image.jpegData(compressionQuality: 0.6) else {
-            print("Failed to compress image")
+            AppLogger.activity.error("Failed to compress image")
             return nil
         }
 
@@ -203,7 +244,7 @@ class ActivityFeedService: ObservableObject {
             // Return the record ID as the photo reference
             return savedRecord.recordID.recordName
         } catch {
-            print("Failed to upload photo: \(error)")
+            AppLogger.activity.error("Failed to upload photo: \(error.localizedDescription)")
             try? FileManager.default.removeItem(at: tempURL)
             return nil
         }
@@ -220,13 +261,13 @@ class ActivityFeedService: ObservableObject {
             }
             return UIImage(data: data)
         } catch {
-            print("Failed to fetch photo: \(error)")
+            AppLogger.activity.error("Failed to fetch photo: \(error.localizedDescription)")
             return nil
         }
     }
 
     private func postActivity(_ activity: ActivityItem) async {
-        print("[ActivityFeed] Posting activity: \(activity.type.rawValue) by \(activity.displayName)")
+        AppLogger.activity.debug("Posting activity: \(activity.type.rawValue) by \(activity.displayName)")
 
         // Add to local list immediately (optimistic update)
         activities.insert(activity, at: 0)
@@ -235,9 +276,9 @@ class ActivityFeedService: ObservableObject {
         do {
             let record = activity.toCKRecord()
             try await cloudKitManager.saveToPublic(record)
-            print("[ActivityFeed] Activity posted to CloudKit successfully")
+            AppLogger.activity.info("Activity posted to CloudKit successfully")
         } catch {
-            print("[ActivityFeed] Failed to post activity to CloudKit: \(error)")
+            AppLogger.activity.error("Failed to post activity to CloudKit: \(error.localizedDescription)")
             // Activity still shows locally even if CloudKit fails
         }
     }
@@ -281,7 +322,7 @@ class ActivityFeedService: ObservableObject {
                 try await cloudKitManager.saveToPublic(existingRecord)
             }
         } catch {
-            print("Failed to update cheers: \(error)")
+            AppLogger.activity.error("Failed to update cheers: \(error.localizedDescription)")
         }
     }
 
@@ -302,7 +343,7 @@ class ActivityFeedService: ObservableObject {
             let data = try JSONEncoder().encode(sharingPreferences)
             UserDefaults.standard.set(data, forKey: preferencesKey)
         } catch {
-            print("Failed to save sharing preferences: \(error)")
+            AppLogger.activity.error("Failed to save sharing preferences: \(error.localizedDescription)")
         }
     }
 

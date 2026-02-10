@@ -12,10 +12,12 @@ struct QuickAddWidget: Widget {
             if #available(iOS 17.0, *) {
                 QuickAddWidgetView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://add") : URL(string: "fridgecig://paywall"))
             } else {
                 QuickAddWidgetView(entry: entry)
                     .padding()
                     .background()
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://add") : URL(string: "fridgecig://paywall"))
             }
         }
         .configurationDisplayName("Quick Add")

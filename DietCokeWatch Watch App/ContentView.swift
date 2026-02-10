@@ -31,14 +31,25 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
             .navigationTitle("DC")
-            .onAppear(perform: refreshData)
+            .onAppear {
+                refreshData()
+                // Request data sync from iPhone
+                connectivity.requestDataSync()
+            }
+            .onChange(of: connectivity.entriesDidUpdate) { _, didUpdate in
+                if didUpdate {
+                    refreshData()
+                    // Reset the flag
+                    connectivity.entriesDidUpdate = false
+                }
+            }
         }
     }
 
     private func refreshData() {
-        todayCount = SharedDataManager.getTodayCount()
-        todayOunces = SharedDataManager.getTodayOunces()
-        streak = SharedDataManager.getStreak()
+        todayCount = WatchDataManager.getTodayCount()
+        todayOunces = WatchDataManager.getTodayOunces()
+        streak = WatchDataManager.getStreak()
     }
 }
 
@@ -157,7 +168,7 @@ struct QuickAddSection: View {
 
     private func addDrink(_ type: DrinkType) {
         // Check rate limiting
-        let (allowed, message) = SharedDataManager.canAddEntry()
+        let (allowed, message) = WatchDataManager.canAddEntry()
         guard allowed else {
             rateLimitMessage = message ?? "Please wait before adding another drink."
             showingRateLimitAlert = true
@@ -167,22 +178,8 @@ struct QuickAddSection: View {
 
         let entry = DrinkEntry(type: type)
 
-        guard let defaults = UserDefaults(suiteName: SharedDataManager.appGroupID) else { return }
-
-        var entries: [DrinkEntry] = []
-        if let data = defaults.data(forKey: SharedDataManager.entriesKey) {
-            entries = (try? JSONDecoder().decode([DrinkEntry].self, from: data)) ?? []
-        }
-
-        entries.append(entry)
-        entries.sort { $0.timestamp > $1.timestamp }
-
-        if let encoded = try? JSONEncoder().encode(entries) {
-            defaults.set(encoded, forKey: SharedDataManager.entriesKey)
-        }
-
-        // Record for rate limiting
-        SharedDataManager.recordEntryAdded()
+        // Save locally and sync to iPhone
+        WatchDataManager.addEntry(entry)
 
         // Refresh widgets
         WidgetCenter.shared.reloadAllTimelines()

@@ -1,6 +1,7 @@
 import UIKit
 import CloudKit
 import UserNotifications
+import os
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     var notificationService: NotificationService?
@@ -25,14 +26,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        print("[AppDelegate] Registered for remote notifications with token: \(tokenString)")
+        AppLogger.notifications.debug("Registered for remote notifications with token: \(tokenString)")
     }
 
     func application(
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        print("[AppDelegate] Failed to register for remote notifications: \(error)")
+        AppLogger.notifications.error("Failed to register for remote notifications: \(error.localizedDescription)")
     }
 
     // MARK: - Remote Notification Handling

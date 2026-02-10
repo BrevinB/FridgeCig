@@ -2,14 +2,12 @@ import SwiftUI
 
 struct SharingPreferencesView: View {
     @EnvironmentObject var activityService: ActivityFeedService
-    @EnvironmentObject var purchaseService: PurchaseService
     @Environment(\.dismiss) private var dismiss
 
     @State private var shareBadges: Bool = true
     @State private var shareStreaks: Bool = true
-    @State private var shareDrinks: Bool = false
-    @State private var showPhotos: Bool = false
-    @State private var showingPaywall = false
+    @State private var shareDrinks: Bool = true
+    @State private var showPhotos: Bool = true
 
     var body: some View {
         NavigationStack {
@@ -45,38 +43,24 @@ struct SharingPreferencesView: View {
                         }
                     }
                 } header: {
-                    Text("Free Sharing")
+                    Text("Milestones")
                 } footer: {
-                    Text("These activities are shared with your friends automatically.")
+                    Text("Share your achievements and streak milestones with friends.")
                 }
 
                 Section {
                     Toggle(isOn: $shareDrinks) {
-                        HStack {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Drink Logs")
-                                        .foregroundColor(.dietCokeCharcoal)
-                                    Text("Share your drinks with friends")
-                                        .font(.caption)
-                                        .foregroundColor(.dietCokeDarkSilver)
-                                }
-                            } icon: {
-                                Image(systemName: "cup.and.saucer.fill")
-                                    .foregroundColor(.dietCokeRed)
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Drink Logs")
+                                    .foregroundColor(.dietCokeCharcoal)
+                                Text("Share your drinks with friends")
+                                    .font(.caption)
+                                    .foregroundColor(.dietCokeDarkSilver)
                             }
-
-                            if !purchaseService.isPremium {
-                                Spacer()
-                                PremiumBadge()
-                            }
-                        }
-                    }
-                    .disabled(!purchaseService.isPremium)
-                    .onChange(of: shareDrinks) { _, newValue in
-                        if newValue && !purchaseService.isPremium {
-                            shareDrinks = false
-                            showingPaywall = true
+                        } icon: {
+                            Image(systemName: "cup.and.saucer.fill")
+                                .foregroundColor(.dietCokeRed)
                         }
                     }
 
@@ -97,11 +81,9 @@ struct SharingPreferencesView: View {
                         }
                     }
                 } header: {
-                    Text("Premium Sharing")
+                    Text("Drink Sharing")
                 } footer: {
-                    if !purchaseService.isPremium {
-                        Text("Upgrade to Premium to share your drink logs with friends.")
-                    } else if shareDrinks && showPhotos {
+                    if shareDrinks && showPhotos {
                         Text("Your drink photos will be uploaded and visible to friends.")
                     } else if shareDrinks {
                         Text("Your friends can see your drink logs but not photos.")
@@ -148,9 +130,6 @@ struct SharingPreferencesView: View {
             .onAppear {
                 loadCurrentPreferences()
             }
-            .sheet(isPresented: $showingPaywall) {
-                PaywallView()
-            }
         }
     }
 
@@ -173,29 +152,7 @@ struct SharingPreferencesView: View {
     }
 }
 
-// MARK: - Premium Badge
-
-struct PremiumBadge: View {
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "crown.fill")
-                .font(.caption2)
-            Text("Premium")
-                .font(.caption2)
-                .fontWeight(.semibold)
-        }
-        .foregroundColor(.orange)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(Color.orange.opacity(0.15))
-        )
-    }
-}
-
 #Preview {
     SharingPreferencesView()
         .environmentObject(ActivityFeedService(cloudKitManager: CloudKitManager()))
-        .environmentObject(PurchaseService.shared)
 }

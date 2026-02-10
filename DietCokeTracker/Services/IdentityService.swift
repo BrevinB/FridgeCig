@@ -1,6 +1,7 @@
 import Foundation
 import CloudKit
 import Combine
+import os
 
 @MainActor
 class IdentityService: ObservableObject {
@@ -227,7 +228,7 @@ class IdentityService: ObservableObject {
             return (identity, record.recordID)
         } catch {
             // If fetch fails (schema not set up, etc.), return nil
-            print("Identity fetch failed: \(error)")
+            AppLogger.identity.error("Identity fetch failed: \(error.localizedDescription)")
             return nil
         }
     }

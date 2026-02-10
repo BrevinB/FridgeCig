@@ -1,6 +1,7 @@
 import Foundation
 import CloudKit
 import Combine
+import os
 
 @MainActor
 class DrinkSyncService: ObservableObject {
@@ -45,7 +46,7 @@ class DrinkSyncService: ObservableObject {
         do {
             try await syncDeletionsToCloud()
         } catch {
-            print("[DrinkSyncService] Deletion sync failed: \(error)")
+            AppLogger.sync.error("Deletion sync failed: \(error.localizedDescription)")
             // Continue with sync, track error but don't fail completely
         }
 
@@ -58,7 +59,7 @@ class DrinkSyncService: ObservableObject {
             do {
                 try await uploadEntry(entry)
             } catch {
-                print("[DrinkSyncService] Failed to upload entry \(entry.id): \(error)")
+                AppLogger.sync.error("Failed to upload entry \(entry.id): \(error.localizedDescription)")
                 uploadErrors.append(error)
             }
         }
@@ -100,7 +101,7 @@ class DrinkSyncService: ObservableObject {
         do {
             return try await fetchAllFromCloud()
         } catch {
-            print("Cloud fetch failed: \(error)")
+            AppLogger.sync.error("Cloud fetch failed: \(error.localizedDescription)")
             return []
         }
     }
@@ -171,7 +172,7 @@ class DrinkSyncService: ObservableObject {
             return entries
         } catch {
             // If fetch fails (e.g., schema not set up), return empty and let uploads create schema
-            print("Fetch from cloud failed (this is normal on first sync): \(error)")
+            AppLogger.sync.debug("Fetch from cloud failed (normal on first sync): \(error.localizedDescription)")
             return []
         }
     }

@@ -272,10 +272,12 @@ struct GraphWidget: Widget {
             if #available(iOS 17.0, *) {
                 GraphWidgetEntryView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://stats") : URL(string: "fridgecig://paywall"))
             } else {
                 GraphWidgetEntryView(entry: entry)
                     .padding()
                     .background()
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://stats") : URL(string: "fridgecig://paywall"))
             }
         }
         .configurationDisplayName("7-Day Graph")

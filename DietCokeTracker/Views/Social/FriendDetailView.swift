@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 struct FriendDetailView: View {
     @EnvironmentObject var identityService: IdentityService
@@ -111,7 +112,7 @@ struct FriendDetailView: View {
                 try await friendService.removeFriend(friend, currentUserID: userID)
                 dismiss()
             } catch {
-                print("Failed to remove friend: \(error)")
+                AppLogger.friends.error("Failed to remove friend: \(error.localizedDescription)")
             }
             isRemoving = false
         }

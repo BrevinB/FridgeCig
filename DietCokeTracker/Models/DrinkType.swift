@@ -17,24 +17,55 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
     case fountainMedium = "Fountain Medium"
     case fountainLarge = "Fountain Large"
     case glassBottle = "Glass Bottle"
+    case glassWithIce = "Glass with Ice"
     case cafeFreestyle = "Freestyle Machine"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
-        case .regularCan, .tallCan, .miniCan:
-            return "cylinder.fill"
-        case .bottle20oz, .bottle2Liter, .glassBottle:
-            return "flask.fill"
+        case .regularCan, .tallCan:
+            return "can"
+        case .miniCan:
+            return "mini-can"
+        case .bottle20oz:
+            return "bottle"
+        case .bottle2Liter:
+            return "two-liter"
+        case .glassBottle:
+            return "bottle"
+        case .glassWithIce:
+            return "glass-ice"
         case .mcdonaldsSmall, .mcdonaldsMedium, .mcdonaldsLarge:
             return "m.circle.fill"
         case .chickfilaSmall, .chickfilaMedium, .chickfilaLarge:
             return "c.circle.fill"
         case .fountainSmall, .fountainMedium, .fountainLarge:
-            return "cup.and.saucer.fill"
+            return "fountain-cup"
         case .cafeFreestyle:
             return "drop.circle.fill"
+        }
+    }
+
+    var usesCustomIcon: Bool {
+        switch self {
+        case .mcdonaldsSmall, .mcdonaldsMedium, .mcdonaldsLarge,
+             .chickfilaSmall, .chickfilaMedium, .chickfilaLarge,
+             .cafeFreestyle:
+            return false
+        case .regularCan, .tallCan, .miniCan, .bottle20oz, .bottle2Liter,
+             .glassBottle, .glassWithIce, .fountainSmall, .fountainMedium, .fountainLarge:
+            return true
+        }
+    }
+
+    @ViewBuilder
+    var iconImage: some View {
+        if usesCustomIcon {
+            Image(icon)
+                .renderingMode(.template)
+        } else {
+            Image(systemName: icon)
         }
     }
 
@@ -42,7 +73,7 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .miniCan:
             return 7.5
-        case .regularCan, .glassBottle:
+        case .regularCan, .glassBottle, .glassWithIce:
             return 12
         case .tallCan:
             return 16
@@ -71,7 +102,7 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
             return .mcdonalds
         case .chickfilaSmall, .chickfilaMedium, .chickfilaLarge:
             return .chickfila
-        case .fountainSmall, .fountainMedium, .fountainLarge, .cafeFreestyle:
+        case .fountainSmall, .fountainMedium, .fountainLarge, .cafeFreestyle, .glassWithIce:
             return .fountain
         }
     }
@@ -96,7 +127,8 @@ enum DrinkType: String, CaseIterable, Codable, Identifiable {
         case .fountainSmall: return "Ftn S"
         case .fountainMedium: return "Ftn M"
         case .fountainLarge: return "Ftn L"
-        case .glassBottle: return "Glass"
+        case .glassBottle: return "Glass Btl"
+        case .glassWithIce: return "Glass"
         case .cafeFreestyle: return "Freestyle"
         }
     }
@@ -116,11 +148,30 @@ enum DrinkCategory: String, CaseIterable, Codable, Identifiable {
 
     var icon: String {
         switch self {
-        case .cans: return "cylinder.fill"
-        case .bottles: return "flask.fill"
+        case .cans: return "can"
+        case .bottles: return "bottle"
         case .mcdonalds: return "m.circle.fill"
         case .chickfila: return "c.circle.fill"
-        case .fountain: return "cup.and.saucer.fill"
+        case .fountain: return "fountain-cup"
+        }
+    }
+
+    var usesCustomIcon: Bool {
+        switch self {
+        case .mcdonalds, .chickfila:
+            return false
+        default:
+            return true
+        }
+    }
+
+    @ViewBuilder
+    var iconImage: some View {
+        if usesCustomIcon {
+            Image(icon)
+                .renderingMode(.template)
+        } else {
+            Image(systemName: icon)
         }
     }
 }

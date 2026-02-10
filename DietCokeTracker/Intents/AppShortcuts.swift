@@ -173,8 +173,8 @@ struct AppShortcuts: AppShortcutsProvider {
             phrases: [
                 "Log a Diet Coke in \(.applicationName)",
                 "Add a Diet Coke in \(.applicationName)",
-                "I had a Diet Coke",
-                "Log Diet Coke"
+                "I had a Diet Coke with \(.applicationName)",
+                "Log Diet Coke with \(.applicationName)"
             ],
             shortTitle: "Log Diet Coke",
             systemImageName: "plus.circle.fill"
@@ -184,8 +184,8 @@ struct AppShortcuts: AppShortcutsProvider {
             intent: ShowTodayCountIntent(),
             phrases: [
                 "How many Diet Cokes today in \(.applicationName)",
-                "Diet Coke count",
-                "Today's Diet Cokes"
+                "Diet Coke count in \(.applicationName)",
+                "Today's Diet Cokes in \(.applicationName)"
             ],
             shortTitle: "Today's Count",
             systemImageName: "number.circle.fill"
@@ -195,8 +195,8 @@ struct AppShortcuts: AppShortcutsProvider {
             intent: ShowStreakIntent(),
             phrases: [
                 "Show my streak in \(.applicationName)",
-                "Diet Coke streak",
-                "My streak"
+                "Diet Coke streak in \(.applicationName)",
+                "My streak in \(.applicationName)"
             ],
             shortTitle: "Show Streak",
             systemImageName: "flame.fill"
@@ -205,8 +205,8 @@ struct AppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: ShowStatsIntent(),
             phrases: [
-                "Show my Diet Coke stats",
-                "Diet Coke statistics"
+                "Show my Diet Coke stats in \(.applicationName)",
+                "Diet Coke statistics in \(.applicationName)"
             ],
             shortTitle: "Show Stats",
             systemImageName: "chart.bar.fill"

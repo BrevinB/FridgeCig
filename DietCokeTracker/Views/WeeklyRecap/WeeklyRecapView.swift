@@ -2,6 +2,27 @@ import SwiftUI
 
 struct WeeklyRecapView: View {
     let recap: WeeklyRecap
+    @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var purchaseService: PurchaseService
+    @State private var showingSharePreview = false
+    @State private var showingPaywall = false
+    @State private var weekPhotos: [UIImage] = []
+
+    /// Get photos from entries within the recap's date range
+    private func loadWeekPhotos() -> [UIImage] {
+        let weekEntries = store.entries.filter { entry in
+            entry.timestamp >= recap.weekStartDate && entry.timestamp <= recap.weekEndDate
+        }
+
+        var photos: [UIImage] = []
+        for entry in weekEntries {
+            if let filename = entry.photoFilename,
+               let photo = PhotoStorage.loadPhoto(filename: filename) {
+                photos.append(photo)
+            }
+        }
+        return photos
+    }
 
     var body: some View {
         ScrollView {
@@ -24,12 +45,45 @@ struct WeeklyRecapView: View {
 
                 // Fun Fact
                 FunFactCard(funFact: recap.funFact)
+
+                // Share Button
+                Button {
+                    weekPhotos = loadWeekPhotos()
+                    showingSharePreview = true
+                } label: {
+                    Label("Share This Recap", systemImage: "square.and.arrow.up")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color.dietCokeRed)
+                        )
+                }
+                .padding(.top, 8)
             }
             .padding()
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Weekly Recap")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingSharePreview) {
+            SharePreviewSheet(
+                content: recap,
+                isPresented: $showingSharePreview,
+                isPremium: purchaseService.isPremium,
+                initialTheme: .classic,
+                availablePhotos: weekPhotos,
+                onPremiumTap: {
+                    showingSharePreview = false
+                    showingPaywall = true
+                }
+            )
+        }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView()
+        }
     }
 }
 
@@ -255,4 +309,6 @@ struct FunFactCard: View {
             comparison: WeekComparison(drinksDelta: 3, ouncesDelta: 48, percentageChange: 16.7)
         ))
     }
+    .environmentObject(DrinkStore())
+    .environmentObject(PurchaseService.shared)
 }

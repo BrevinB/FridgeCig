@@ -3,7 +3,9 @@
     "allow": [
       "Bash(xcrun simctl terminate:*)",
       "Bash(xcrun simctl launch:*)",
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(find:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

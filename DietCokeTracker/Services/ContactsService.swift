@@ -1,5 +1,6 @@
 import Foundation
 import Contacts
+import os
 
 @MainActor
 class ContactsService: ObservableObject {
@@ -73,7 +74,7 @@ class ContactsService: ObservableObject {
 
             self.contacts = loadedContacts
         } catch {
-            print("Failed to load contacts: \(error)")
+            AppLogger.general.error("Failed to load contacts: \(error.localizedDescription)")
         }
     }
 

@@ -55,6 +55,56 @@ struct DietCokeProvider: TimelineProvider {
 
 // MARK: - Widget Views
 
+// MARK: - Static Bubbles Background (for widgets)
+
+struct WidgetBubblesBackground: View {
+    let bubbleCount: Int
+    let seed: Int  // Use seed for deterministic randomness
+
+    init(bubbleCount: Int = 12, seed: Int = 0) {
+        self.bubbleCount = bubbleCount
+        self.seed = seed
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                ForEach(0..<bubbleCount, id: \.self) { index in
+                    let bubble = bubbleForIndex(index, in: geometry.size)
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.white.opacity(0.5),
+                                    Color.white.opacity(0.2),
+                                    Color.clear
+                                ],
+                                center: .topLeading,
+                                startRadius: 0,
+                                endRadius: bubble.size
+                            )
+                        )
+                        .frame(width: bubble.size, height: bubble.size)
+                        .position(x: bubble.x, y: bubble.y)
+                        .opacity(bubble.opacity)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func bubbleForIndex(_ index: Int, in size: CGSize) -> (x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double) {
+        // Use deterministic pseudo-random values based on index and seed
+        let hash = (index + 1) * (seed + 7)
+        let x = CGFloat((hash * 13) % 100) / 100.0 * size.width
+        let y = CGFloat((hash * 17) % 100) / 100.0 * size.height
+        let bubbleSize = CGFloat(6 + (hash % 12))
+        let opacity = 0.15 + Double((hash * 11) % 25) / 100.0
+
+        return (x: x, y: y, size: bubbleSize, opacity: opacity)
+    }
+}
+
 // MARK: - Lock Screen Widgets
 
 struct AccessoryCircularView: View {
@@ -105,31 +155,36 @@ struct SmallWidgetView: View {
     let entry: DietCokeEntry
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "cup.and.saucer.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red.opacity(0.8))
+        ZStack {
+            // Bubbles background
+            WidgetBubblesBackground(bubbleCount: 8, seed: entry.todayCount)
+
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "cup.and.saucer.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red.opacity(0.8))
+                    Spacer()
+                    Text("TODAY")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                }
+
                 Spacer()
-                Text("TODAY")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
+
+                Text("\(entry.todayCount)")
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .foregroundStyle(.red)
+
+                Text("\(Int(entry.todayOunces)) oz")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Spacer()
             }
-
-            Spacer()
-
-            Text("\(entry.todayCount)")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .foregroundStyle(.red)
-
-            Text("\(Int(entry.todayOunces)) oz")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer()
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -137,47 +192,52 @@ struct MediumWidgetView: View {
     let entry: DietCokeEntry
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Left side - Today's count
-            VStack(spacing: 4) {
-                Text("TODAY")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+        ZStack {
+            // Bubbles background
+            WidgetBubblesBackground(bubbleCount: 15, seed: entry.todayCount + entry.streak)
 
-                Text("\(entry.todayCount)")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(.red)
+            HStack(spacing: 16) {
+                // Left side - Today's count
+                VStack(spacing: 4) {
+                    Text("TODAY")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
 
-                Text("\(Int(entry.todayOunces)) oz")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
+                    Text("\(entry.todayCount)")
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(.red)
 
-            Divider()
-
-            // Right side - Stats
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "flame.fill")
-                        .foregroundStyle(.orange)
-                    Text("\(entry.streak) day streak")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                    Text("\(Int(entry.todayOunces)) oz")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
 
-                HStack {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(.blue)
-                    Text("\(entry.weekCount) this week")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                Divider()
+
+                // Right side - Stats
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "flame.fill")
+                            .foregroundStyle(.orange)
+                        Text("\(entry.streak) day streak")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+
+                    HStack {
+                        Image(systemName: "calendar")
+                            .foregroundStyle(.blue)
+                        Text("\(entry.weekCount) this week")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -185,64 +245,69 @@ struct LargeWidgetView: View {
     let entry: DietCokeEntry
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Image(systemName: "cup.and.saucer.fill")
-                    .foregroundStyle(.red)
-                Text("DC Tracker")
-                    .font(.headline)
-                Spacer()
-            }
+        ZStack {
+            // Bubbles background
+            WidgetBubblesBackground(bubbleCount: 20, seed: entry.todayCount + entry.weekCount)
 
-            Divider()
-
-            // Main stats
-            HStack(spacing: 24) {
-                VStack(spacing: 4) {
-                    Text("\(entry.todayCount)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
+            VStack(spacing: 16) {
+                // Header
+                HStack {
+                    Image(systemName: "cup.and.saucer.fill")
                         .foregroundStyle(.red)
-                    Text("Today")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("FridgeCig")
+                        .font(.headline)
+                    Spacer()
                 }
 
-                VStack(spacing: 4) {
-                    Text("\(Int(entry.todayOunces))")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(.red.opacity(0.7))
-                    Text("Ounces")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Divider()
+
+                // Main stats
+                HStack(spacing: 24) {
+                    VStack(spacing: 4) {
+                        Text("\(entry.todayCount)")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundStyle(.red)
+                        Text("Today")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("\(Int(entry.todayOunces))")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundStyle(.red.opacity(0.7))
+                        Text("Ounces")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("\(entry.streak)")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundStyle(.orange)
+                        Text("Streak")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                VStack(spacing: 4) {
-                    Text("\(entry.streak)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(.orange)
-                    Text("Streak")
-                        .font(.caption)
+                Divider()
+
+                // Bottom stats
+                HStack {
+                    Label("\(entry.weekCount) this week", systemImage: "calendar")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Text("Tap to log")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
-
-            Divider()
-
-            // Bottom stats
-            HStack {
-                Label("\(entry.weekCount) this week", systemImage: "calendar")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text("Tap to log")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -382,13 +447,15 @@ struct DietCokeWidget: Widget {
             if #available(iOS 17.0, *) {
                 DietCokeWidgetEntryView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://add") : URL(string: "fridgecig://paywall"))
             } else {
                 DietCokeWidgetEntryView(entry: entry)
                     .padding()
                     .background()
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://add") : URL(string: "fridgecig://paywall"))
             }
         }
-        .configurationDisplayName("DC Tracker")
+        .configurationDisplayName("FridgeCig")
         .description("Track your daily DC consumption.")
         .supportedFamilies([
             .systemSmall,
@@ -522,37 +589,42 @@ struct ConfigurableSmallWidgetView: View {
     var body: some View {
         let config = entry.configuration
 
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: config.primaryStat.icon)
-                    .font(.caption)
-                    .foregroundStyle(config.accentColor.color.opacity(0.8))
+        ZStack {
+            // Bubbles background
+            WidgetBubblesBackground(bubbleCount: 8, seed: entry.todayCount)
+
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: config.primaryStat.icon)
+                        .font(.caption)
+                        .foregroundStyle(config.accentColor.color.opacity(0.8))
+                    Spacer()
+                    Text("TODAY")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                }
+
                 Spacer()
-                Text("TODAY")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
+
+                Text(config.primaryStat.getValue(from: toDietCokeEntry(entry)))
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .foregroundStyle(config.accentColor.color)
+
+                Text(config.primaryStat.label)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+
+                if let secondaryValue = config.secondaryStat.getValue(from: toDietCokeEntry(entry)) {
+                    Text(secondaryValue)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
             }
-
-            Spacer()
-
-            Text(config.primaryStat.getValue(from: toDietCokeEntry(entry)))
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .foregroundStyle(config.accentColor.color)
-
-            Text(config.primaryStat.label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let secondaryValue = config.secondaryStat.getValue(from: toDietCokeEntry(entry)) {
-                Text(secondaryValue)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-
-            Spacer()
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -563,59 +635,64 @@ struct ConfigurableMediumWidgetView: View {
         let config = entry.configuration
         let dietCokeEntry = toDietCokeEntry(entry)
 
-        HStack(spacing: 16) {
-            // Left side - Primary stat
-            VStack(spacing: 4) {
-                Text("TODAY")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+        ZStack {
+            // Bubbles background
+            WidgetBubblesBackground(bubbleCount: 15, seed: entry.todayCount + entry.streak)
 
-                Text(config.primaryStat.getValue(from: dietCokeEntry))
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(config.accentColor.color)
+            HStack(spacing: 16) {
+                // Left side - Primary stat
+                VStack(spacing: 4) {
+                    Text("TODAY")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
 
-                Text(config.primaryStat.label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
+                    Text(config.primaryStat.getValue(from: dietCokeEntry))
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(config.accentColor.color)
 
-            Divider()
+                    Text(config.primaryStat.label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
 
-            // Right side - Other stats
-            VStack(alignment: .leading, spacing: 12) {
-                if config.primaryStat != .streak {
+                Divider()
+
+                // Right side - Other stats
+                VStack(alignment: .leading, spacing: 12) {
+                    if config.primaryStat != .streak {
+                        HStack {
+                            Image(systemName: "flame.fill")
+                                .foregroundStyle(.orange)
+                            Text("\(entry.streak) day streak")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                    }
+
+                    if config.primaryStat != .count {
+                        HStack {
+                            Image(systemName: "cup.and.saucer.fill")
+                                .foregroundStyle(config.accentColor.color)
+                            Text("\(entry.todayCount) today")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                    }
+
                     HStack {
-                        Image(systemName: "flame.fill")
-                            .foregroundStyle(.orange)
-                        Text("\(entry.streak) day streak")
+                        Image(systemName: "calendar")
+                            .foregroundStyle(.blue)
+                        Text("\(entry.weekCount) this week")
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
                 }
-
-                if config.primaryStat != .count {
-                    HStack {
-                        Image(systemName: "cup.and.saucer.fill")
-                            .foregroundStyle(config.accentColor.color)
-                        Text("\(entry.todayCount) today")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                }
-
-                HStack {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(.blue)
-                    Text("\(entry.weekCount) this week")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -625,64 +702,69 @@ struct ConfigurableLargeWidgetView: View {
     var body: some View {
         let config = entry.configuration
 
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Image(systemName: "cup.and.saucer.fill")
-                    .foregroundStyle(config.accentColor.color)
-                Text("DC Tracker")
-                    .font(.headline)
-                Spacer()
-            }
+        ZStack {
+            // Bubbles background
+            WidgetBubblesBackground(bubbleCount: 20, seed: entry.todayCount + entry.weekCount)
 
-            Divider()
-
-            // Main stats
-            HStack(spacing: 24) {
-                VStack(spacing: 4) {
-                    Text("\(entry.todayCount)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
+            VStack(spacing: 16) {
+                // Header
+                HStack {
+                    Image(systemName: "cup.and.saucer.fill")
                         .foregroundStyle(config.accentColor.color)
-                    Text("Today")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("FridgeCig")
+                        .font(.headline)
+                    Spacer()
                 }
 
-                VStack(spacing: 4) {
-                    Text("\(Int(entry.todayOunces))")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(config.accentColor.secondaryColor)
-                    Text("Ounces")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Divider()
+
+                // Main stats
+                HStack(spacing: 24) {
+                    VStack(spacing: 4) {
+                        Text("\(entry.todayCount)")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundStyle(config.accentColor.color)
+                        Text("Today")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("\(Int(entry.todayOunces))")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundStyle(config.accentColor.secondaryColor)
+                        Text("Ounces")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("\(entry.streak)")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundStyle(.orange)
+                        Text("Streak")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                VStack(spacing: 4) {
-                    Text("\(entry.streak)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(.orange)
-                    Text("Streak")
-                        .font(.caption)
+                Divider()
+
+                // Bottom stats
+                HStack {
+                    Label("\(entry.weekCount) this week", systemImage: "calendar")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Text("Tap to log")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
-
-            Divider()
-
-            // Bottom stats
-            HStack {
-                Label("\(entry.weekCount) this week", systemImage: "calendar")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text("Tap to log")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -739,10 +821,12 @@ struct ConfigurableDietCokeWidget: Widget {
             if #available(iOS 17.0, *) {
                 ConfigurableDietCokeWidgetEntryView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://add") : URL(string: "fridgecig://paywall"))
             } else {
                 ConfigurableDietCokeWidgetEntryView(entry: entry)
                     .padding()
                     .background()
+                    .widgetURL(entry.isPremium ? URL(string: "fridgecig://add") : URL(string: "fridgecig://paywall"))
             }
         }
         .configurationDisplayName("Customizable Tracker")

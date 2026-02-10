@@ -1,6 +1,8 @@
 import SwiftUI
 import CloudKit
 import UniformTypeIdentifiers
+import HealthKit
+import os
 
 struct SettingsView: View {
     @EnvironmentObject var preferences: UserPreferences
@@ -11,6 +13,9 @@ struct SettingsView: View {
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var notificationService: NotificationService
     @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var badgeStore: BadgeStore
+    @StateObject private var healthKitManager = HealthKitManager.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingDeleteConfirmation = false
@@ -19,6 +24,8 @@ struct SettingsView: View {
     @State private var isDeletingAccount = false
     @State private var showingExportSheet = false
     @State private var exportData: Data?
+    @State private var showingHealthKitPaywall = false
+    @State private var isRequestingHealthKit = false
 
     #if DEBUG
     @State private var debugTestUserCode: String?
@@ -28,14 +35,13 @@ struct SettingsView: View {
     @State private var showingFriendRequestsAdded = false
     @State private var isRunningDiagnostic = false
     @State private var diagnosticResult: String?
+    @State private var showingScreenshotDataAdded = false
     #endif
 
     @Environment(\.colorScheme) private var colorScheme
 
     private var backgroundColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.08, green: 0.08, blue: 0.10)
-            : Color(red: 0.96, green: 0.96, blue: 0.97)
+        themeManager.backgroundColor(for: colorScheme)
     }
 
     var body: some View {
@@ -122,6 +128,124 @@ struct SettingsView: View {
                         Text("Notifications")
                     }
 
+                    // App Theme Section
+                    Section {
+                        AppThemePicker()
+                    } header: {
+                        Text("Appearance")
+                    }
+
+                    // Apple Health Section
+                    Section {
+                        if healthKitManager.isHealthKitAvailable {
+                            Button {
+                                handleHealthKitToggle()
+                            } label: {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [Color.red.opacity(0.2), Color.red.opacity(0.08)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 40, height: 40)
+
+                                        Image(systemName: "heart.text.square.fill")
+                                            .foregroundColor(.red)
+                                            .font(.system(size: 16, weight: .medium))
+                                    }
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        HStack(spacing: 6) {
+                                            Text("Sync to Apple Health")
+                                                .fontWeight(.medium)
+                                                .foregroundColor(.primary)
+
+                                            // Pro badge if not premium
+                                            if !purchaseService.isPremium {
+                                                HStack(spacing: 2) {
+                                                    Image(systemName: "crown.fill")
+                                                        .font(.system(size: 8))
+                                                    Text("PRO")
+                                                        .font(.system(size: 9, weight: .bold))
+                                                }
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 2)
+                                                .background(
+                                                    LinearGradient(
+                                                        colors: [Color(red: 1.0, green: 0.84, blue: 0.0), Color(red: 0.9, green: 0.7, blue: 0.0)],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    )
+                                                )
+                                                .clipShape(Capsule())
+                                            }
+                                        }
+
+                                        Text("Auto-log caffeine intake")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    if isRequestingHealthKit {
+                                        ProgressView()
+                                    } else if purchaseService.isPremium {
+                                        Toggle("", isOn: Binding(
+                                            get: { healthKitManager.isAutoLogEnabled && healthKitManager.isAuthorized },
+                                            set: { _ in handleHealthKitToggle() }
+                                        ))
+                                        .labelsHidden()
+                                    } else {
+                                        Image(systemName: "lock.fill")
+                                            .foregroundColor(.secondary)
+                                            .font(.subheadline)
+                                    }
+                                }
+                            }
+                            .disabled(isRequestingHealthKit)
+                        } else {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.08)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 40, height: 40)
+
+                                    Image(systemName: "heart.slash.fill")
+                                        .foregroundColor(.gray)
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apple Health")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.secondary)
+
+                                    Text("Not available on this device")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Health")
+                    } footer: {
+                        if healthKitManager.isHealthKitAvailable && purchaseService.isPremium && healthKitManager.isAuthorized {
+                            Text("Caffeine from your drinks will be automatically logged to Apple Health.")
+                        }
+                    }
+
                 Section {
                     ForEach(BeverageBrand.allCases) { brand in
                         Button {
@@ -130,18 +254,11 @@ struct SettingsView: View {
                             HStack(spacing: 14) {
                                 ZStack {
                                     Circle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [brand.color.opacity(0.2), brand.color.opacity(0.08)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
+                                        .fill(brand.cardGradient)
                                         .frame(width: 40, height: 40)
 
-                                    Image(systemName: brand.icon)
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(brand.color)
+                                    BrandIconView(brand: brand, size: DrinkIconSize.sm)
+                                        .foregroundStyle(brand.iconGradient)
                                 }
 
                                 VStack(alignment: .leading, spacing: 2) {
@@ -152,20 +269,14 @@ struct SettingsView: View {
 
                                     Text(brand.shortName)
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(brand.iconGradient)
                                 }
 
                                 Spacer()
 
                                 if preferences.defaultBrand == brand {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(
-                                            LinearGradient(
-                                                colors: [brand.color, brand.color.opacity(0.8)],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
+                                        .foregroundStyle(brand.iconGradient)
                                         .font(.title3)
                                 }
                             }
@@ -209,7 +320,12 @@ struct SettingsView: View {
                     // Restore Purchases
                     Button {
                         Task {
-                            try? await purchaseService.restorePurchases()
+                            do {
+                                try await purchaseService.restorePurchases()
+                            } catch {
+                                deleteErrorMessage = "Restore failed: \(error.localizedDescription)"
+                                showingDeleteError = true
+                            }
                         }
                     } label: {
                         HStack(spacing: 14) {
@@ -279,6 +395,55 @@ struct SettingsView: View {
                 }
 
                 #if DEBUG
+                Section {
+                    // Screenshot Mode - prominent at top
+                    Button {
+                        populateScreenshotData()
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.purple.opacity(0.3), Color.pink.opacity(0.2)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "camera.fill")
+                                    .foregroundColor(.purple)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Screenshot Mode")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.purple)
+
+                                Text("Populate curated data for App Store screenshots")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+
+                    Button(role: .destructive) {
+                        clearScreenshotData()
+                    } label: {
+                        HStack {
+                            Image(systemName: "camera.badge.xmark")
+                                .foregroundColor(.red)
+                            Text("Clear Screenshot Data")
+                        }
+                    }
+                } header: {
+                    Text("App Store Screenshots")
+                } footer: {
+                    Text("Populates realistic data optimized for App Store screenshots: 14-day streak, badges, activity feed, and friends.")
+                }
+
                 Section {
                     // Debug User ID Display
                     if let identity = identityService.currentIdentity {
@@ -434,6 +599,11 @@ struct SettingsView: View {
                 }
             }
             #if DEBUG
+            .alert("Screenshot Mode Enabled", isPresented: $showingScreenshotDataAdded) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Added curated data for App Store screenshots:\n• 14-day streak with \(store.entries.count) drinks\n• \(badgeStore.earnedCount) badges unlocked\n• \(activityService.activities.count) activity feed items\n• \(friendService.friends.count) friends")
+            }
             .alert("Fake Data Added", isPresented: $showingFakeDataAdded) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -466,6 +636,9 @@ struct SettingsView: View {
                 if let data = exportData {
                     ExportDataSheet(data: data)
                 }
+            }
+            .sheet(isPresented: $showingHealthKitPaywall) {
+                PaywallView()
             }
         }
     }
@@ -623,7 +796,60 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - HealthKit Toggle
+
+    private func handleHealthKitToggle() {
+        // Check if user is premium
+        if !purchaseService.isPremium {
+            showingHealthKitPaywall = true
+            return
+        }
+
+        // If already authorized, toggle auto-log
+        if healthKitManager.isAuthorized {
+            healthKitManager.isAutoLogEnabled.toggle()
+            return
+        }
+
+        // Request authorization
+        isRequestingHealthKit = true
+        Task {
+            do {
+                try await healthKitManager.requestAuthorization()
+                await MainActor.run {
+                    if healthKitManager.isAuthorized {
+                        healthKitManager.isAutoLogEnabled = true
+                    }
+                    isRequestingHealthKit = false
+                }
+            } catch {
+                await MainActor.run {
+                    isRequestingHealthKit = false
+                }
+            }
+        }
+    }
+
     #if DEBUG
+    private func populateScreenshotData() {
+        ScreenshotDataManager.shared.populateScreenshotData(
+            drinkStore: store,
+            badgeStore: badgeStore,
+            activityService: activityService,
+            friendService: friendService
+        )
+        showingScreenshotDataAdded = true
+    }
+
+    private func clearScreenshotData() {
+        ScreenshotDataManager.shared.clearAllData(
+            drinkStore: store,
+            badgeStore: badgeStore,
+            activityService: activityService,
+            friendService: friendService
+        )
+    }
+
     private func populateFakeData() {
         friendService.addFakeFriends()
         activityService.addTestActivities()
@@ -682,7 +908,7 @@ struct SettingsView: View {
             await MainActor.run {
                 diagnosticResult = result
                 isRunningDiagnostic = false
-                print("[Diagnostic] \(result)")
+                AppLogger.general.debug("\(result)")
             }
         }
     }
@@ -735,7 +961,7 @@ struct SettingsView: View {
             await MainActor.run {
                 diagnosticResult = result
                 isRunningDiagnostic = false
-                print("[Diagnostic] \(result)")
+                AppLogger.general.debug("\(result)")
             }
         }
     }
@@ -902,4 +1128,6 @@ struct ExportDataSheet: View {
         .environmentObject(NotificationService(cloudKitManager: cloudKitManager))
         .environmentObject(IdentityService(cloudKitManager: cloudKitManager))
         .environmentObject(DrinkStore())
+        .environmentObject(ThemeManager())
+        .environmentObject(BadgeStore())
 }

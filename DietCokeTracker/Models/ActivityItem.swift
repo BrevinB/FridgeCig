@@ -13,7 +13,14 @@ enum ActivityType: String, Codable {
         switch self {
         case .badgeUnlock: return "trophy.fill"
         case .streakMilestone: return "flame.fill"
-        case .drinkLog: return "cup.and.saucer.fill"
+        case .drinkLog: return "can"
+        }
+    }
+
+    var usesCustomIcon: Bool {
+        switch self {
+        case .badgeUnlock, .streakMilestone: return false
+        case .drinkLog: return true
         }
     }
 
@@ -37,6 +44,7 @@ struct ActivityItem: Identifiable, Codable {
     let payload: ActivityPayload
     var cheersCount: Int
     var cheersUserIDs: [String]
+    var isPremium: Bool
 
     init(
         id: UUID = UUID(),
@@ -46,7 +54,8 @@ struct ActivityItem: Identifiable, Codable {
         timestamp: Date = Date(),
         payload: ActivityPayload,
         cheersCount: Int = 0,
-        cheersUserIDs: [String] = []
+        cheersUserIDs: [String] = [],
+        isPremium: Bool = false
     ) {
         self.id = id
         self.userID = userID
@@ -56,6 +65,7 @@ struct ActivityItem: Identifiable, Codable {
         self.payload = payload
         self.cheersCount = cheersCount
         self.cheersUserIDs = cheersUserIDs
+        self.isPremium = isPremium
     }
 
     var formattedTime: String {
@@ -108,6 +118,7 @@ struct ActivityPayload: Codable {
     var drinkNote: String?
     var hasPhoto: Bool?
     var photoURL: String?  // CloudKit asset URL for shared photos
+    var drinkEntryID: String?  // Links activity to drink entry for deletion
 
     init(
         badgeID: String? = nil,
@@ -119,7 +130,8 @@ struct ActivityPayload: Codable {
         drinkType: DrinkType? = nil,
         drinkNote: String? = nil,
         hasPhoto: Bool? = nil,
-        photoURL: String? = nil
+        photoURL: String? = nil,
+        drinkEntryID: String? = nil
     ) {
         self.badgeID = badgeID
         self.badgeTitle = badgeTitle
@@ -131,6 +143,7 @@ struct ActivityPayload: Codable {
         self.drinkNote = drinkNote
         self.hasPhoto = hasPhoto
         self.photoURL = photoURL
+        self.drinkEntryID = drinkEntryID
     }
 
     // MARK: - Factory Methods
@@ -160,12 +173,13 @@ struct ActivityPayload: Codable {
         )
     }
 
-    static func forDrink(type: DrinkType, note: String?, hasPhoto: Bool, photoURL: String? = nil) -> ActivityPayload {
+    static func forDrink(type: DrinkType, note: String?, hasPhoto: Bool, photoURL: String? = nil, entryID: String? = nil) -> ActivityPayload {
         ActivityPayload(
             drinkType: type,
             drinkNote: note,
             hasPhoto: hasPhoto,
-            photoURL: photoURL
+            photoURL: photoURL,
+            drinkEntryID: entryID
         )
     }
 }
@@ -181,8 +195,8 @@ struct UserSharingPreferences: Codable {
     init(
         shareBadges: Bool = true,
         shareStreakMilestones: Bool = true,
-        shareDrinkLogs: Bool = false,
-        showPhotosInFeed: Bool = false
+        shareDrinkLogs: Bool = true,
+        showPhotosInFeed: Bool = true
     ) {
         self.shareBadges = shareBadges
         self.shareStreakMilestones = shareStreakMilestones
@@ -216,6 +230,7 @@ extension ActivityItem {
         self.timestamp = timestamp
         self.cheersCount = (record["cheersCount"] as? Int64).map { Int($0) } ?? 0
         self.cheersUserIDs = record["cheersUserIDs"] as? [String] ?? []
+        self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
 
         // Decode payload from JSON
         if let payloadJSON = record["payloadJSON"] as? String,
@@ -250,6 +265,7 @@ extension ActivityItem {
         if !cheersUserIDs.isEmpty {
             record["cheersUserIDs"] = cheersUserIDs
         }
+        record["isPremium"] = isPremium ? 1 : 0
 
         // Encode payload to JSON
         if let payloadData = try? JSONEncoder().encode(payload),

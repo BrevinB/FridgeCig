@@ -156,7 +156,7 @@ struct StoryLayout: View {
 
     private var footerSection: some View {
         VStack(spacing: 8) {
-            if customization.showUsername, let username = content.shareUsername {
+            if customization.showUsername, let username = content.shareUsername ?? customization.username {
                 Text("@\(username)")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(theme.primaryTextColor)
