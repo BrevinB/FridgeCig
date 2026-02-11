@@ -70,7 +70,7 @@ enum BadgeRarity: String, Codable, CaseIterable {
 
 enum SpecialEditionCategory: String, CaseIterable {
     case limited = "Limited Editions"
-    case dietCokeFlavors = "Diet Coke Flavors"
+    case dietCokeFlavors = "DC Flavors"
     case cokeCreations = "Coca-Cola Creations"
 }
 
@@ -81,7 +81,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case holidaySeason = "Holiday Season"
     case retroEdition = "Retro Edition"
 
-    // Diet Coke Flavors
+    // DC Flavors
     case zeroSugarLime = "Zero Sugar Lime"
     case cherryVanilla = "Cherry Vanilla"
     case gingerLime = "Ginger Lime"
@@ -140,7 +140,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .zestyBloodOrange: return "circle.hexagongrid.fill"
         case .strawberryGuava: return "heart.circle.fill"
         case .blueberryAcai: return "circle.grid.cross.fill"
-        case .dietCherry: return "cherry.fill"
+        case .dietCherry: return "apple.meditate"
         case .cherryFloat: return "mug.fill"
         case .retroLime: return "clock.badge.checkmark.fill"
         case .starlight: return "star.fill"

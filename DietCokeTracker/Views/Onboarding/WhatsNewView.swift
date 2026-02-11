@@ -94,7 +94,7 @@ struct WhatsNewFeature: Identifiable {
                     icon: "sparkles",
                     iconColor: .dietCokeRed,
                     title: "Welcome to FridgeCig!",
-                    description: "Track your Diet Coke consumption, earn badges, and compete with friends."
+                    description: "Track your DC consumption, earn badges, and compete with friends."
                 )
             ]
         case "1.1":
@@ -109,7 +109,7 @@ struct WhatsNewFeature: Identifiable {
                     icon: "leaf.fill",
                     iconColor: .yellow,
                     title: "Caffeine Free Options",
-                    description: "Now track Diet Coke Caffeine Free and Coke Zero Caffeine Free."
+                    description: "Now track DC Caffeine Free and Coke Zero Caffeine Free."
                 ),
                 WhatsNewFeature(
                     icon: "bell.badge.fill",

@@ -6,7 +6,7 @@ import SwiftUI
 /// Unified theme system for all shareable content types
 enum ShareTheme: String, CaseIterable, Identifiable, Codable {
     // Free themes
-    case classic       // Diet Coke Red
+    case classic       // DC Red
     case minimal       // Clean white
 
     // Premium themes

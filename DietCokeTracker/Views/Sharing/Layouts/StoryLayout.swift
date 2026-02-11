@@ -90,7 +90,7 @@ struct StoryLayout: View {
                         .font(.system(size: 96, weight: .heavy, design: .rounded))
                         .foregroundColor(theme.primaryTextColor)
 
-                    Text("Diet Cokes")
+                    Text("DC's")
                         .font(.system(size: 28, weight: .semibold))
                         .foregroundColor(accentColor)
                 }

@@ -179,7 +179,7 @@ struct WeeklyRecapCardView: View {
                         .font(.system(size: 48, weight: .bold))
                         .foregroundColor(theme.primaryTextColor)
 
-                    Text("Diet Cokes")
+                    Text("DC's")
                         .font(.headline)
                         .foregroundColor(theme.accentColor)
                 }

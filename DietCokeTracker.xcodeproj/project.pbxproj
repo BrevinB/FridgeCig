@@ -1020,7 +1020,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1031,6 +1031,7 @@
 				INFOPLIST_KEY_NSContactsUsageDescription = "Find friends who use FridgeCig";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "FridgeCig uses Health data to display your caffeine intake alongside your drink tracking.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FridgeCig logs your caffeine intake from drinks to Apple Health, helping you track your daily caffeine consumption.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save shared drink images and badges to your photo library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1056,7 +1057,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1067,6 +1068,7 @@
 				INFOPLIST_KEY_NSContactsUsageDescription = "Find friends who use FridgeCig";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "FridgeCig uses Health data to display your caffeine intake alongside your drink tracking.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FridgeCig logs your caffeine intake from drinks to Apple Health, helping you track your daily caffeine consumption.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save shared drink images and badges to your photo library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -15,6 +15,8 @@ struct SharePreviewSheet: View {
 
     @State private var customization: ShareCustomization
     @State private var isGenerating = false
+    @State private var showActivitySheet = false
+    @State private var shareFileURL: URL?
     @State private var showStickerPicker = false
     @State private var showExpandedPreview = false
     @State private var selectedBackgroundPhoto: UIImage?
@@ -126,6 +128,9 @@ struct SharePreviewSheet: View {
                 customization: $customization,
                 backgroundPhoto: effectiveBackgroundPhoto
             )
+        }
+        .onChange(of: customization) { _ in
+            shareFileURL = nil
         }
     }
 
@@ -370,7 +375,7 @@ struct SharePreviewSheet: View {
 
     private var shareButton: some View {
         Button {
-            performShare()
+            prepareAndShare()
         } label: {
             HStack {
                 if isGenerating {
@@ -379,7 +384,7 @@ struct SharePreviewSheet: View {
                 } else {
                     Image(systemName: "square.and.arrow.up")
                 }
-                Text("Share")
+                Text(isGenerating ? "Preparing..." : "Share")
                     .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity)
@@ -393,7 +398,7 @@ struct SharePreviewSheet: View {
 
     // MARK: - Actions
 
-    private func performShare() {
+    private func prepareAndShare() {
         isGenerating = true
 
         Task {
@@ -406,19 +411,32 @@ struct SharePreviewSheet: View {
             await MainActor.run {
                 isGenerating = false
 
-                if let image = image {
-                    shareImage(image)
-                }
+                guard let image,
+                      let url = writeImageToTempFile(image) else { return }
+                shareFileURL = url
+                presentActivityController(for: url)
             }
         }
     }
 
-    private func shareImage(_ image: UIImage) {
+    private func writeImageToTempFile(_ image: UIImage) -> URL? {
+        guard let data = image.jpegData(compressionQuality: 0.95) else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FridgeCig-Share.jpg")
+        // Overwrite any previous share file
+        try? FileManager.default.removeItem(at: url)
+        do {
+            try data.write(to: url)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func presentActivityController(for url: URL) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first,
-              let rootVC = window.rootViewController else {
-            return
-        }
+              let rootVC = window.rootViewController else { return }
 
         var topVC = rootVC
         while let presented = topVC.presentedViewController {
@@ -426,15 +444,16 @@ struct SharePreviewSheet: View {
         }
 
         let activityVC = UIActivityViewController(
-            activityItems: [image],
+            activityItems: [url],
             applicationActivities: nil
         )
+        activityVC.excludedActivityTypes = [.assignToContact, .addToReadingList]
 
         if let popover = activityVC.popoverPresentationController {
             popover.sourceView = topVC.view
             popover.sourceRect = CGRect(
                 x: topVC.view.bounds.midX,
-                y: topVC.view.bounds.midY,
+                y: topVC.view.bounds.maxY - 100,
                 width: 0,
                 height: 0
             )
@@ -590,15 +609,29 @@ struct ExpandedStickerArrangeView: View {
     var body: some View {
         GeometryReader { geometry in
             let safeArea = geometry.safeAreaInsets
-            let availableHeight = geometry.size.height - safeArea.top - safeArea.bottom - 100 // Leave room for button
-            let availableWidth = geometry.size.width - 32 // Padding
+            // Ensure non-negative available space
+            let rawAvailableHeight = geometry.size.height - safeArea.top - safeArea.bottom - 100 // Leave room for button
+            let rawAvailableWidth = geometry.size.width - 32 // Padding
+            let availableHeight = max(0, rawAvailableHeight)
+            let availableWidth = max(0, rawAvailableWidth)
 
-            let scaleToFitHeight = availableHeight / cardHeight
-            let scaleToFitWidth = availableWidth / cardWidth
-            let scale = min(scaleToFitHeight, scaleToFitWidth)
+            // Prevent division by zero
+            let safeCardWidth = max(1, cardWidth)
+            let safeCardHeight = max(1, cardHeight)
 
-            let scaledWidth = cardWidth * scale
-            let scaledHeight = cardHeight * scale
+            let scaleToFitHeight = availableHeight / safeCardHeight
+            let scaleToFitWidth = availableWidth / safeCardWidth
+            // Clamp scale to a sane, finite range
+            let rawScale = min(scaleToFitHeight, scaleToFitWidth)
+            let scale = rawScale.isFinite ? max(0, rawScale) : 0
+
+            let rawScaledWidth = safeCardWidth * scale
+            let rawScaledHeight = safeCardHeight * scale
+            let scaledWidth = rawScaledWidth.isFinite ? max(0, rawScaledWidth) : 0
+            let scaledHeight = rawScaledHeight.isFinite ? max(0, rawScaledHeight) : 0
+
+            let safeScaledWidth = (scaledWidth.isFinite && scaledWidth > 0) ? scaledWidth : 0
+            let safeScaledHeight = (scaledHeight.isFinite && scaledHeight > 0) ? scaledHeight : 0
 
             ZStack {
                 // Dark background
@@ -634,7 +667,7 @@ struct ExpandedStickerArrangeView: View {
                         // Interactive sticker layer
                         interactiveStickerLayer(scaledWidth: scaledWidth, scaledHeight: scaledHeight)
                     }
-                    .frame(width: scaledWidth, height: scaledHeight)
+                    .modifier(SafeSizedFrame(width: safeScaledWidth, height: safeScaledHeight))
 
                     Spacer()
 
@@ -684,16 +717,22 @@ struct ExpandedStickerArrangeView: View {
             useEntryPhotoBackground: customization.useEntryPhotoBackground
         )
 
+        let safeWidth = (scaledWidth.isFinite && scaledWidth > 0) ? scaledWidth : 0
+        let safeHeight = (scaledHeight.isFinite && scaledHeight > 0) ? scaledHeight : 0
+
         ShareCardView(content: content, customization: baseCustomization, backgroundPhoto: backgroundPhoto)
             .frame(width: cardWidth, height: cardHeight)
             .clipShape(Rectangle())
             .scaleEffect(scale)
-            .frame(width: scaledWidth, height: scaledHeight)
+            .modifier(SafeSizedFrame(width: safeWidth, height: safeHeight))
             .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder
     private func interactiveStickerLayer(scaledWidth: CGFloat, scaledHeight: CGFloat) -> some View {
+        let safeWidth = (scaledWidth.isFinite && scaledWidth > 0) ? scaledWidth : 0
+        let safeHeight = (scaledHeight.isFinite && scaledHeight > 0) ? scaledHeight : 0
+
         ZStack {
             Color.clear
                 .contentShape(Rectangle())
@@ -704,7 +743,7 @@ struct ExpandedStickerArrangeView: View {
             ForEach($customization.stickers) { $sticker in
                 DraggableStickerView(
                     sticker: $sticker,
-                    containerSize: CGSize(width: scaledWidth, height: scaledHeight),
+                    containerSize: CGSize(width: safeWidth, height: safeHeight),
                     isSelected: selectedStickerId == sticker.id,
                     onSelect: { selectedStickerId = sticker.id },
                     onDelete: {
@@ -714,7 +753,22 @@ struct ExpandedStickerArrangeView: View {
                 )
             }
         }
-        .frame(width: scaledWidth, height: scaledHeight)
+        .modifier(SafeSizedFrame(width: safeWidth, height: safeHeight))
+    }
+}
+
+// MARK: - Safe Sized Frame Modifier
+
+private struct SafeSizedFrame: ViewModifier {
+    let width: CGFloat
+    let height: CGFloat
+
+    func body(content: Content) -> some View {
+        if width > 0, width.isFinite, height > 0, height.isFinite {
+            content.frame(width: width, height: height)
+        } else {
+            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 }
 
@@ -731,3 +785,4 @@ struct SharePreviewSheet_Previews: PreviewProvider {
     }
 }
 #endif
+

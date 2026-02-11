@@ -123,7 +123,7 @@ struct RecapStatsCard: View {
                     .font(.system(size: 56, weight: .bold))
                     .foregroundColor(.dietCokeCharcoal)
 
-                Text("Diet Cokes this week")
+                Text("DC's this week")
                     .font(.subheadline)
                     .foregroundColor(.dietCokeDarkSilver)
             }

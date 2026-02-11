@@ -431,10 +431,18 @@ struct ShareableBadgeView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Header
-            HStack {
-                BrandIconView(brand: brand, size: DrinkIconSize.sm)
-                    .foregroundStyle(brand.iconGradient)
+            // Header with app logo
+            HStack(spacing: 8) {
+                if let icon = Self.loadAppIcon() {
+                    Image(uiImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                } else {
+                    BrandIconView(brand: brand, size: DrinkIconSize.sm)
+                        .foregroundStyle(brand.iconGradient)
+                }
                 Text("FridgeCig")
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -492,6 +500,30 @@ struct ShareableBadgeView: View {
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
         .environment(\.colorScheme, .light) // Always render in light mode for sharing
+    }
+
+    static func loadAppIcon() -> UIImage? {
+        let candidates = [
+            "AppIcon60x60@3x.png",
+            "AppIcon60x60@2x.png",
+            "AppIcon76x76@2x.png",
+            "AppIcon120x120.png",
+            "AppIcon180x180.png"
+        ]
+        for name in candidates {
+            if let path = Bundle.main.path(forResource: name, ofType: nil),
+               let image = UIImage(contentsOfFile: path) {
+                return image
+            }
+        }
+        if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+           let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
+           let files = primary["CFBundleIconFiles"] as? [String],
+           let name = files.last,
+           let image = UIImage(named: name) {
+            return image
+        }
+        return nil
     }
 }
 

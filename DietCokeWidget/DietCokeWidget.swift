@@ -365,7 +365,7 @@ struct PremiumRequiredLargeView: View {
             Text("FridgeCig Pro")
                 .font(.title2.bold())
 
-            Text("Unlock widgets to track your Diet Cokes at a glance")
+            Text("Unlock widgets to track your DC's at a glance")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

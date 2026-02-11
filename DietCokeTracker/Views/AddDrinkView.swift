@@ -81,6 +81,12 @@ struct AddDrinkView: View {
                             selectedBrand: $selectedBrand,
                             defaultBrand: preferences.defaultBrand
                         )
+                        
+                        // Photo section
+                        PhotoSection(
+                            capturedPhoto: $capturedPhoto,
+                            showingCamera: $showingCamera
+                        )
 
                         // Category filter
                         AddDrinkCategoryFilterView(selectedCategory: $selectedCategory)
@@ -106,12 +112,6 @@ struct AddDrinkView: View {
 
                         // Rating selector
                         RatingSection(selectedRating: $selectedRating)
-
-                        // Photo section
-                        PhotoSection(
-                            capturedPhoto: $capturedPhoto,
-                            showingCamera: $showingCamera
-                        )
 
                         // Optional note
                         NoteInputView(note: $note)
@@ -578,7 +578,7 @@ struct SpecialEditionSection: View {
                         isExpanded: .constant(true)
                     )
 
-                    // Diet Coke Flavors
+                    // DC Flavors
                     SpecialEditionCategorySection(
                         category: .dietCokeFlavors,
                         selectedSpecialEdition: $selectedSpecialEdition,
@@ -1161,7 +1161,7 @@ struct PhotoSection: View {
             guard let photo = newPhoto else { return }
             verifyPhoto(photo)
         }
-        .alert("Not a Diet Coke?", isPresented: $showingVerificationAlert) {
+        .alert("Not a DC?", isPresented: $showingVerificationAlert) {
             Button("Use Anyway", role: .destructive) {
                 if let photo = pendingPhoto {
                     capturedPhoto = photo

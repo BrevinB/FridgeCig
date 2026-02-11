@@ -195,7 +195,6 @@ struct HomeView: View {
     @State private var celebrationActive = false
     @State private var showDrinkUpsell = false
     @State private var showingPaywall = false
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -243,6 +242,29 @@ struct HomeView: View {
                     FizzBurstView(isActive: $celebrationActive)
                         .ignoresSafeArea()
                 }
+
+                // Floating add button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button {
+                            showingAddDrink = true
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(preferences.defaultBrand.gradient)
+                                    .frame(width: 56, height: 56)
+                                    .shadow(color: preferences.defaultBrand.color.opacity(0.4), radius: 8, y: 4)
+                                Image(systemName: "plus")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 16)
+                    }
+                }
             }
             .navigationTitle("FridgeCig")
             .navigationBarTitleDisplayMode(.large)
@@ -254,20 +276,6 @@ struct HomeView: View {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 17))
                             .foregroundColor(.dietCokeDarkSilver)
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingAddDrink = true
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(preferences.defaultBrand.gradient)
-                                .frame(width: 32, height: 32)
-                            Image(systemName: "plus")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(.white)
-                        }
                     }
                 }
             }
@@ -749,7 +757,7 @@ struct QuickAddSection: View {
             guard let photo = newPhoto, let type = selectedTypeForPhoto else { return }
             verifyAndAddPhoto(photo, for: type)
         }
-        .alert("Not a Diet Coke?", isPresented: $showingVerificationAlert) {
+        .alert("Not a DC?", isPresented: $showingVerificationAlert) {
             Button("Use Anyway", role: .destructive) {
                 if let photo = pendingPhoto, let type = selectedTypeForPhoto {
                     addDrinkWithPhoto(type: type, photo: photo)

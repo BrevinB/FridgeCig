@@ -4,8 +4,8 @@ import WidgetKit
 // MARK: - Show Today Count Intent
 
 struct ShowTodayCountIntent: AppIntent {
-    static var title: LocalizedStringResource = "How many Diet Cokes today"
-    static var description = IntentDescription("Check how many Diet Cokes you've had today")
+    static var title: LocalizedStringResource = "How many DC's today"
+    static var description = IntentDescription("Check how many DC's you've had today")
 
     static var openAppWhenRun: Bool = false
 
@@ -14,11 +14,11 @@ struct ShowTodayCountIntent: AppIntent {
         let ounces = SharedDataManager.getTodayOunces()
 
         if count == 0 {
-            return .result(dialog: "You haven't had any Diet Cokes today yet.")
+            return .result(dialog: "You haven't had any DC's today yet.")
         } else if count == 1 {
-            return .result(dialog: "You've had 1 Diet Coke today (\(Int(ounces)) oz).")
+            return .result(dialog: "You've had 1 DC today (\(Int(ounces)) oz).")
         } else {
-            return .result(dialog: "You've had \(count) Diet Cokes today (\(Int(ounces)) oz).")
+            return .result(dialog: "You've had \(count) DC's today (\(Int(ounces)) oz).")
         }
     }
 }
@@ -27,7 +27,7 @@ struct ShowTodayCountIntent: AppIntent {
 
 struct ShowStreakIntent: AppIntent {
     static var title: LocalizedStringResource = "Show my streak"
-    static var description = IntentDescription("Check your current Diet Coke streak")
+    static var description = IntentDescription("Check your current DC streak")
 
     static var openAppWhenRun: Bool = false
 
@@ -35,7 +35,7 @@ struct ShowStreakIntent: AppIntent {
         let streak = SharedDataManager.getStreak()
 
         if streak == 0 {
-            return .result(dialog: "You don't have an active streak. Log a Diet Coke to start one!")
+            return .result(dialog: "You don't have an active streak. Log a DC to start one!")
         } else if streak == 1 {
             return .result(dialog: "You're on a 1 day streak! Keep it going!")
         } else {
@@ -47,8 +47,8 @@ struct ShowStreakIntent: AppIntent {
 // MARK: - Show Stats Intent
 
 struct ShowStatsIntent: AppIntent {
-    static var title: LocalizedStringResource = "Show my Diet Coke stats"
-    static var description = IntentDescription("View your Diet Coke statistics")
+    static var title: LocalizedStringResource = "Show my DC stats"
+    static var description = IntentDescription("View your DC statistics")
 
     static var openAppWhenRun: Bool = false
 
@@ -70,8 +70,8 @@ struct ShowStatsIntent: AppIntent {
 // MARK: - Log Drink Intent (opens app)
 
 struct LogDrinkIntent: AppIntent {
-    static var title: LocalizedStringResource = "Log a Diet Coke"
-    static var description = IntentDescription("Open FridgeCig to log a Diet Coke")
+    static var title: LocalizedStringResource = "Log a DC"
+    static var description = IntentDescription("Open FridgeCig to log a DC")
 
     // Open app so user can properly log with all options
     static var openAppWhenRun: Bool = true
@@ -171,21 +171,21 @@ struct AppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: LogDrinkIntent(),
             phrases: [
-                "Log a Diet Coke in \(.applicationName)",
-                "Add a Diet Coke in \(.applicationName)",
-                "I had a Diet Coke with \(.applicationName)",
-                "Log Diet Coke with \(.applicationName)"
+                "Log a DC in \(.applicationName)",
+                "Add a DC in \(.applicationName)",
+                "I had a DC with \(.applicationName)",
+                "Log DC with \(.applicationName)"
             ],
-            shortTitle: "Log Diet Coke",
+            shortTitle: "Log DC",
             systemImageName: "plus.circle.fill"
         )
 
         AppShortcut(
             intent: ShowTodayCountIntent(),
             phrases: [
-                "How many Diet Cokes today in \(.applicationName)",
-                "Diet Coke count in \(.applicationName)",
-                "Today's Diet Cokes in \(.applicationName)"
+                "How many DC's today in \(.applicationName)",
+                "DC count in \(.applicationName)",
+                "Today's DC's in \(.applicationName)"
             ],
             shortTitle: "Today's Count",
             systemImageName: "number.circle.fill"
@@ -195,7 +195,7 @@ struct AppShortcuts: AppShortcutsProvider {
             intent: ShowStreakIntent(),
             phrases: [
                 "Show my streak in \(.applicationName)",
-                "Diet Coke streak in \(.applicationName)",
+                "DC streak in \(.applicationName)",
                 "My streak in \(.applicationName)"
             ],
             shortTitle: "Show Streak",
@@ -205,8 +205,8 @@ struct AppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: ShowStatsIntent(),
             phrases: [
-                "Show my Diet Coke stats in \(.applicationName)",
-                "Diet Coke statistics in \(.applicationName)"
+                "Show my DC stats in \(.applicationName)",
+                "DC statistics in \(.applicationName)"
             ],
             shortTitle: "Show Stats",
             systemImageName: "chart.bar.fill"

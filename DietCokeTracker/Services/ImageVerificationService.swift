@@ -178,7 +178,7 @@ class ImageVerificationService: ObservableObject {
             result = VerificationResult(
                 isValid: false,
                 confidence: min(nonBeverageScore, 1.0),
-                message: "That looks like \(topMatch.components(separatedBy: "(").first ?? "something else"), not a Diet Coke! 📸",
+                message: "That looks like \(topMatch.components(separatedBy: "(").first ?? "something else"), not a DC! 📸",
                 detectedLabels: detectedLabels
             )
         } else {

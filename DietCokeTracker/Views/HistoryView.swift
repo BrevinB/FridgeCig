@@ -119,7 +119,7 @@ struct HistoryHeroCard: View {
         }
         .frame(height: 180)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Your Diet Coke journey: \(totalDays) days, \(totalDrinks) drinks, \(String(format: "%.0f", totalOunces)) ounces")
+        .accessibilityLabel("Your DC journey: \(totalDays) days, \(totalDrinks) drinks, \(String(format: "%.0f", totalOunces)) ounces")
         .shadow(
             color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08),
             radius: 10,

@@ -90,7 +90,7 @@ struct TwitterCardLayout: View {
                             .font(.system(size: 52, weight: .heavy, design: .rounded))
                             .foregroundColor(theme.primaryTextColor)
 
-                        Text("Diet Cokes")
+                        Text("DC's")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(theme.secondaryTextColor)
                     }

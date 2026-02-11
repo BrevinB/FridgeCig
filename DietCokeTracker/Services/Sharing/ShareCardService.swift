@@ -156,7 +156,7 @@ class ShareCardService: ObservableObject {
         case .milestone:
             return "\(content.shareTitle) \(content.shareSubtitle) #FridgeCig"
         case .weeklyRecap:
-            return "My weekly recap: \(content.shareValue) Diet Cokes! #FridgeCig"
+            return "My weekly recap: \(content.shareValue) DC's! #FridgeCig"
         default:
             return nil
         }

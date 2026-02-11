@@ -365,7 +365,7 @@ struct WeeklyRecapShareView: View {
                         .font(.system(size: 120, weight: .bold))
                         .foregroundColor(theme.primaryTextColor)
 
-                    Text("Diet Cokes")
+                    Text("DC's")
                         .font(.system(size: 32, weight: .semibold))
                         .foregroundColor(theme.accentColor)
                 }

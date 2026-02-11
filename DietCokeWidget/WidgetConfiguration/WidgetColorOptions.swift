@@ -17,7 +17,7 @@ enum WidgetAccentColor: String, CaseIterable, AppEnum {
 
     static var caseDisplayRepresentations: [WidgetAccentColor: DisplayRepresentation] {
         [
-            .dietCokeRed: DisplayRepresentation(title: "Diet Coke Red"),
+            .dietCokeRed: DisplayRepresentation(title: "DC Red"),
             .cokeZeroBlack: DisplayRepresentation(title: "Coke Zero Black"),
             .oceanBlue: DisplayRepresentation(title: "Ocean Blue"),
             .mintGreen: DisplayRepresentation(title: "Mint Green"),

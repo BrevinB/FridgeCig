@@ -155,7 +155,7 @@ private struct WelcomePage: View {
                         )
                     )
 
-                Text("Track your Diet Coke journey")
+                Text("Track your DC journey")
                     .font(.body)
                     .foregroundColor(.dietCokeDarkSilver)
                     .padding(.top, 4)

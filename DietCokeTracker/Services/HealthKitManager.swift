@@ -9,7 +9,7 @@ class HealthKitManager: ObservableObject {
 
     private let healthStore = HKHealthStore()
 
-    /// Caffeine per 12oz of Diet Coke (mg)
+    /// Caffeine per 12oz of DC (mg)
     static let caffeinePerTwelveOunces: Double = Constants.HealthKit.caffeinePerTwelveOunces
 
     @Published var isAuthorized = false

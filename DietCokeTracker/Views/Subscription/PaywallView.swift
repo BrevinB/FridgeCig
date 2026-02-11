@@ -9,65 +9,66 @@ struct PaywallView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 12) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.orange, .dietCokeRed],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
+            VStack(spacing: 0) {
+                // Scrollable: header + features
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Header
+                        VStack(spacing: 12) {
+                            AppIconView(size: 80)
+
+                            Text("FridgeCig Pro")
+                                .font(.largeTitle.bold())
+                                .foregroundColor(.dietCokeCharcoal)
+                                .multilineTextAlignment(.center)
+
+                            Text("Widgets, streak protection, and more")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 20)
+
+                        // Features
+                        VStack(spacing: 12) {
+                            FeatureRow(
+                                icon: "rectangle.3.offgrid.fill",
+                                title: "Home Screen Widgets",
+                                description: "Track at a glance from your home screen"
                             )
-
-                        Text("Never Break Your Streak")
-                            .font(.largeTitle.bold())
-                            .foregroundColor(.dietCokeCharcoal)
-                            .multilineTextAlignment(.center)
-
-                        Text("Widgets, streak protection, and more")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            FeatureRow(
+                                icon: "applewatch",
+                                title: "Apple Watch App",
+                                description: "Log drinks from your wrist instantly"
+                            )
+                            FeatureRow(
+                                icon: "snowflake",
+                                title: "Streak Freezes",
+                                description: "Protect your streak with 3 freezes per month"
+                            )
+                            FeatureRow(
+                                icon: "paintpalette.fill",
+                                title: "Premium Themes",
+                                description: "Customize your app with exclusive themes"
+                            )
+                            FeatureRow(
+                                icon: "heart.text.square.fill",
+                                title: "Sync to Apple Health",
+                                description: "Auto-log caffeine intake to HealthKit"
+                            )
+                        }
+                        .padding(.horizontal)
                     }
-                    .padding(.top, 20)
+                    .padding(.bottom, 16)
+                }
 
-                    // Features
-                    VStack(spacing: 16) {
-                        FeatureRow(
-                            icon: "rectangle.3.offgrid.fill",
-                            title: "Home Screen Widgets",
-                            description: "Track at a glance from your home screen"
-                        )
-                        FeatureRow(
-                            icon: "applewatch",
-                            title: "Apple Watch App",
-                            description: "Log drinks from your wrist instantly"
-                        )
-                        FeatureRow(
-                            icon: "snowflake",
-                            title: "Streak Freezes",
-                            description: "Protect your streak with 3 freezes per month"
-                        )
-                        FeatureRow(
-                            icon: "paintpalette.fill",
-                            title: "Premium Themes",
-                            description: "Customize your app with exclusive themes"
-                        )
-                        FeatureRow(
-                            icon: "heart.text.square.fill",
-                            title: "Sync to Apple Health",
-                            description: "Auto-log caffeine intake to HealthKit"
-                        )
-                    }
-                    .padding(.horizontal)
+                // Pinned bottom: packages + CTA + restore + terms
+                VStack(spacing: 12) {
+                    Divider()
 
                     // Packages
-                    if let offerings = purchaseService.offerings,
-                       let packages = offerings.current?.availablePackages {
-                        VStack(spacing: 12) {
+                    VStack(spacing: 8) {
+                        if let offerings = purchaseService.offerings,
+                           let packages = offerings.current?.availablePackages {
                             ForEach(packages, id: \.identifier) { package in
                                 PackageButton(
                                     package: package,
@@ -77,12 +78,12 @@ struct PaywallView: View {
                                     selectedPackage = package
                                 }
                             }
+                        } else {
+                            ProgressView()
+                                .padding(.vertical, 8)
                         }
-                        .padding(.horizontal)
-                    } else {
-                        ProgressView()
-                            .padding()
                     }
+                    .padding(.horizontal)
 
                     // Purchase button
                     Button {
@@ -100,21 +101,32 @@ struct PaywallView: View {
                     .opacity(selectedPackage == nil ? 0.6 : 1)
                     .padding(.horizontal)
 
-                    // Restore
-                    Button("Restore Purchases") {
-                        Task {
-                            do {
-                                try await purchaseService.restorePurchases()
-                                if purchaseService.isPremium {
-                                    dismiss()
+                    // Restore + terms
+                    HStack(spacing: 16) {
+                        Button("Restore Purchases") {
+                            Task {
+                                do {
+                                    try await purchaseService.restorePurchases()
+                                    if purchaseService.isPremium {
+                                        dismiss()
+                                    }
+                                } catch {
+                                    errorMessage = "Restore failed: \(error.localizedDescription)"
                                 }
-                            } catch {
-                                errorMessage = "Restore failed: \(error.localizedDescription)"
                             }
                         }
+                        .font(.caption2)
+                        .foregroundColor(.dietCokeRed)
+
+                        Text("·")
+                            .foregroundColor(.secondary)
+
+                        Text(selectedPackage?.packageType == .lifetime
+                             ? "One-time purchase"
+                             : "Auto-renews. Cancel anytime.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
-                    .font(.footnote)
-                    .foregroundColor(.dietCokeRed)
 
                     // Error message
                     if let error = errorMessage {
@@ -124,22 +136,8 @@ struct PaywallView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
-
-                    // Terms
-                    VStack(spacing: 4) {
-                        if selectedPackage?.packageType == .lifetime {
-                            Text("One-time purchase. No subscription required.")
-                        } else {
-                            Text("Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current period.")
-                        }
-                        Text("Payment will be charged to your Apple ID account.")
-                    }
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
                 }
-                .padding(.bottom, 40)
+                .padding(.bottom, 8)
             }
             .navigationTitle("Upgrade")
             .navigationBarTitleDisplayMode(.inline)
@@ -150,11 +148,17 @@ struct PaywallView: View {
             }
         }
         .onAppear {
-            if let packages = purchaseService.offerings?.current?.availablePackages {
-                // Select yearly by default (better value)
-                selectedPackage = packages.first { $0.packageType == .annual } ?? packages.first
-            }
+            autoSelectPackage()
         }
+        .onChange(of: purchaseService.offerings?.current?.availablePackages.count) { _ in
+            autoSelectPackage()
+        }
+    }
+
+    private func autoSelectPackage() {
+        guard selectedPackage == nil,
+              let packages = purchaseService.offerings?.current?.availablePackages else { return }
+        selectedPackage = packages.first { $0.packageType == .annual } ?? packages.first
     }
 
     private var purchaseButtonText: String {
@@ -438,6 +442,60 @@ private struct PackageButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - App Icon View
+
+private struct AppIconView: View {
+    let size: CGFloat
+
+    private var cornerRadius: CGFloat { size * 0.2237 }
+
+    var body: some View {
+        Group {
+            if let icon = loadAppIcon() {
+                Image(uiImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                // Fallback
+                Image(systemName: "app.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundColor(.dietCokeRed)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+    }
+
+    private func loadAppIcon() -> UIImage? {
+        // Modern single-size icon: Xcode generates files like "AppIcon60x60@3x.png" in the bundle
+        let candidates = [
+            "AppIcon60x60@3x.png",
+            "AppIcon60x60@2x.png",
+            "AppIcon76x76@2x.png",
+            "AppIcon120x120.png",
+            "AppIcon180x180.png",
+            "AppIcon1024x1024.png"
+        ]
+        for name in candidates {
+            if let path = Bundle.main.path(forResource: name, ofType: nil),
+               let image = UIImage(contentsOfFile: path) {
+                return image
+            }
+        }
+        // Fallback: try UIImage(named:) for older icon formats
+        if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+           let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
+           let files = primary["CFBundleIconFiles"] as? [String],
+           let name = files.last,
+           let image = UIImage(named: name) {
+            return image
+        }
+        return nil
     }
 }
 

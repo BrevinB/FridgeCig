@@ -20,7 +20,7 @@ enum MilestoneType: String, Codable {
 // MARK: - Card Theme
 
 enum CardTheme: String, Codable, CaseIterable, Identifiable {
-    case classic     // Free - Diet Coke red
+    case classic     // Free - DC red
     case midnight    // Premium - Dark mode
     case neon        // Premium - Vibrant gradients
     case retro       // Premium - Vintage style
@@ -198,7 +198,7 @@ struct MilestoneCard: Identifiable, Codable, Equatable {
             type: .drinkCount,
             title: "\(count) DCs!",
             subtitle: subtitle,
-            value: "You've logged \(count) Diet Cokes!",
+            value: "You've logged \(count) DC's!",
             icon: "flask.fill",
             username: username
         )

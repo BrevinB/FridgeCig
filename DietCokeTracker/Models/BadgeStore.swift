@@ -10,6 +10,9 @@ class BadgeStore: ObservableObject {
     @Published var recentlyUnlocked: Badge?
     @Published var isSyncing = false
 
+    /// Queue of badges waiting to be shown
+    private var pendingBadges: [Badge] = []
+
     /// Publisher that emits when a new badge is unlocked (for activity feed integration)
     let badgeUnlocked = PassthroughSubject<Badge, Never>()
 
@@ -77,9 +80,15 @@ class BadgeStore: ObservableObject {
         saveBadges()
 
         if let badge = badge(for: badgeId) {
-            recentlyUnlocked = badge
             // Notify listeners (for activity feed)
             badgeUnlocked.send(badge)
+
+            // Queue the badge for display
+            if recentlyUnlocked == nil {
+                recentlyUnlocked = badge
+            } else {
+                pendingBadges.append(badge)
+            }
         }
     }
 
@@ -89,7 +98,11 @@ class BadgeStore: ObservableObject {
     }
 
     func dismissRecentBadge() {
-        recentlyUnlocked = nil
+        if !pendingBadges.isEmpty {
+            recentlyUnlocked = pendingBadges.removeFirst()
+        } else {
+            recentlyUnlocked = nil
+        }
     }
 
     // MARK: - Check Achievements

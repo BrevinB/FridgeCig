@@ -89,7 +89,7 @@ class UserPreferences: ObservableObject {
     init() {
         let defaults = UserDefaults(suiteName: SharedDataManager.appGroupID)
 
-        // Load saved brand or default to Diet Coke
+        // Load saved brand or default to DC
         if let savedValue = defaults?.string(forKey: defaultBrandKey),
            let brand = BeverageBrand(rawValue: savedValue) {
             self.defaultBrand = brand
