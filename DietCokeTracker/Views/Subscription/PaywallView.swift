@@ -128,6 +128,15 @@ struct PaywallView: View {
                             .foregroundColor(.secondary)
                     }
 
+                    HStack(spacing: 4) {
+                        Link("Privacy Policy", destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/privacy.html")!)
+                        Text("·")
+                            .foregroundColor(.secondary)
+                        Link("Terms of Service", destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/terms.html")!)
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
                     // Error message
                     if let error = errorMessage {
                         Text(error)

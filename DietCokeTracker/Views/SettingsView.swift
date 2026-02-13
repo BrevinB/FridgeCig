@@ -3,6 +3,7 @@ import CloudKit
 import UniformTypeIdentifiers
 import HealthKit
 import os
+import StoreKit
 
 struct SettingsView: View {
     @EnvironmentObject var preferences: UserPreferences
@@ -392,6 +393,117 @@ struct SettingsView: View {
                     Text("Data & Privacy")
                 } footer: {
                     Text("Export your data in JSON format. Deleting your account removes all drinks, badges, social connections, and profile data from our servers.")
+                }
+
+                // Support Section
+                Section {
+                    // Rate FridgeCig
+                    Button {
+                        if let windowScene = UIApplication.shared.connectedScenes
+                            .compactMap({ $0 as? UIWindowScene })
+                            .first {
+                            AppStore.requestReview(in: windowScene)
+                        }
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.orange.opacity(0.2), Color.orange.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Rate FridgeCig")
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+
+                    // Contact Us
+                    Link(destination: URL(string: "mailto:brevbot2@gmail.com")!) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "envelope.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Contact Us")
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+
+                    // Privacy Policy
+                    Link(destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/privacy.html")!) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "lock.shield.fill")
+                                    .foregroundColor(.gray)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Privacy Policy")
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+
+                    // Terms of Service
+                    Link(destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/terms.html")!) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "doc.text.fill")
+                                    .foregroundColor(.gray)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Terms of Service")
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                } header: {
+                    Text("Support")
                 }
 
                 #if DEBUG
