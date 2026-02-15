@@ -10,8 +10,17 @@ struct WeeklyRecapView: View {
 
     /// Get photos from entries within the recap's date range
     private func loadWeekPhotos() -> [UIImage] {
+        let calendar = Calendar.current
+        // Use the calendar week interval for accurate filtering that includes the full last day
+        let weekEnd: Date
+        if let weekInterval = calendar.dateInterval(of: .weekOfYear, for: recap.weekStartDate) {
+            weekEnd = weekInterval.end
+        } else {
+            weekEnd = calendar.date(byAdding: .day, value: 7, to: recap.weekStartDate) ?? recap.weekEndDate
+        }
+
         let weekEntries = store.entries.filter { entry in
-            entry.timestamp >= recap.weekStartDate && entry.timestamp <= recap.weekEndDate
+            entry.timestamp >= recap.weekStartDate && entry.timestamp < weekEnd
         }
 
         var photos: [UIImage] = []
@@ -48,6 +57,7 @@ struct WeeklyRecapView: View {
 
                 // Share Button
                 Button {
+                    // Refresh photos in case new entries were added since onAppear
                     weekPhotos = loadWeekPhotos()
                     showingSharePreview = true
                 } label: {
@@ -68,6 +78,9 @@ struct WeeklyRecapView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Weekly Recap")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            weekPhotos = loadWeekPhotos()
+        }
         .sheet(isPresented: $showingSharePreview) {
             SharePreviewSheet(
                 content: recap,
