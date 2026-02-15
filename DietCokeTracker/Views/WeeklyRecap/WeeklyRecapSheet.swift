@@ -12,9 +12,18 @@ struct WeeklyRecapSheet: View {
 
     /// Get photos from entries within the recap's date range
     private func loadWeekPhotos(for recap: WeeklyRecap) -> [UIImage] {
+        let calendar = Calendar.current
+        // Use the calendar week interval for accurate filtering that includes the full last day
+        let weekEnd: Date
+        if let weekInterval = calendar.dateInterval(of: .weekOfYear, for: recap.weekStartDate) {
+            weekEnd = weekInterval.end
+        } else {
+            weekEnd = calendar.date(byAdding: .day, value: 7, to: recap.weekStartDate) ?? recap.weekEndDate
+        }
+
         // Filter entries within the recap's week
         let weekEntries = store.entries.filter { entry in
-            entry.timestamp >= recap.weekStartDate && entry.timestamp <= recap.weekEndDate
+            entry.timestamp >= recap.weekStartDate && entry.timestamp < weekEnd
         }
 
         // Load photos from entries that have them
