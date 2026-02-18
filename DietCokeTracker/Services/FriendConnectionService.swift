@@ -36,17 +36,17 @@ class FriendConnectionService: ObservableObject {
         }
     }
 
-    private let cloudKitManager: CloudKitManager
-    private var connectionRecordIDs: [UUID: CKRecord.ID] = [:]
-    /// Maps friend userID to the CKRecord.ID of the connection (for removal)
-    private var friendConnectionRecordIDs: [String: CKRecord.ID] = [:]
+    private let cloudProvider: any CloudProvider
+    private var connectionRecordIDs: [UUID: String] = [:]
+    /// Maps friend userID to the record ID of the connection (for removal)
+    private var friendConnectionRecordIDs: [String: String] = [:]
 
     var friendIDs: Set<String> {
         Set(friends.map { $0.userIDString })
     }
 
-    init(cloudKitManager: CloudKitManager) {
-        self.cloudKitManager = cloudKitManager
+    init(cloudProvider: any CloudProvider) {
+        self.cloudProvider = cloudProvider
     }
 
     // MARK: - Load Data
@@ -59,7 +59,7 @@ class FriendConnectionService: ObservableObject {
 
         do {
             // Fetch accepted connections
-            let connectionRecords = try await cloudKitManager.fetchFriendConnections(forUserID: userID)
+            let connectionRecords = try await cloudProvider.fetchFriendConnections(forUserID: userID)
             AppLogger.friends.debug("Fetched \(connectionRecords.count) accepted connections")
             var connections: [FriendConnection] = []
 
@@ -82,7 +82,7 @@ class FriendConnectionService: ObservableObject {
             // Fetch friend profiles
             var loadedFriends: [UserProfile] = []
             for friendID in friendUserIDs {
-                if let record = try await cloudKitManager.fetchUserProfile(byUserID: friendID),
+                if let record = try await cloudProvider.fetchUserProfile(byUserID: friendID),
                    let profile = UserProfile(from: record) {
                     loadedFriends.append(profile)
                 }
@@ -91,7 +91,7 @@ class FriendConnectionService: ObservableObject {
             friends = loadedFriends.sorted { $0.displayName < $1.displayName }
 
             // Fetch pending requests (requests TO this user)
-            let pendingRecords = try await cloudKitManager.fetchPendingRequests(forUserID: userID)
+            let pendingRecords = try await cloudProvider.fetchPendingRequests(forUserID: userID)
             AppLogger.friends.debug("Fetched \(pendingRecords.count) pending requests (to this user)")
             pendingRequests = pendingRecords.compactMap { record in
                 if let connection = FriendConnection(from: record) {
@@ -99,20 +99,13 @@ class FriendConnectionService: ObservableObject {
                     AppLogger.friends.debug("Pending request from: \(connection.requesterID) to: \(connection.targetID)")
                     return connection
                 } else {
-                    // Log why parsing failed
                     AppLogger.friends.error("Failed to parse FriendConnection record!")
-                    AppLogger.friends.error("  connectionID: \(record["connectionID"] as? String ?? "MISSING")")
-                    AppLogger.friends.error("  requesterID: \(record["requesterID"] as? String ?? "MISSING")")
-                    AppLogger.friends.error("  targetID: \(record["targetID"] as? String ?? "MISSING")")
-                    AppLogger.friends.error("  status: \(record["status"] as? String ?? "MISSING")")
-                    AppLogger.friends.error("  createdAt: \(record["createdAt"] as? Date ?? Date.distantPast)")
-                    AppLogger.friends.error("  All keys: \(record.allKeys())")
                 }
                 return nil
             }
 
             // Fetch sent requests (requests FROM this user)
-            let sentRecords = try await cloudKitManager.fetchSentRequests(forUserID: userID)
+            let sentRecords = try await cloudProvider.fetchSentRequests(forUserID: userID)
             AppLogger.friends.debug("Fetched \(sentRecords.count) sent requests (from this user)")
             sentRequests = sentRecords.compactMap { record in
                 if let connection = FriendConnection(from: record) {
@@ -134,7 +127,7 @@ class FriendConnectionService: ObservableObject {
 
     func lookupUserByFriendCode(_ code: String) async throws -> UserProfile? {
         AppLogger.friends.debug("Looking up user by friend code: \(code)")
-        guard let record = try await cloudKitManager.fetchUserProfile(byFriendCode: code) else {
+        guard let record = try await cloudProvider.fetchUserProfile(byFriendCode: code) else {
             AppLogger.friends.debug("No user found for friend code: \(code)")
             return nil
         }
@@ -158,7 +151,7 @@ class FriendConnectionService: ObservableObject {
         }
         #endif
 
-        guard let record = try await cloudKitManager.fetchUserProfile(byUserID: userID) else {
+        guard let record = try await cloudProvider.fetchUserProfile(byUserID: userID) else {
             AppLogger.friends.debug("No profile found for userID: \(userID)")
             return nil
         }
@@ -173,7 +166,7 @@ class FriendConnectionService: ObservableObject {
     // MARK: - Username Search
 
     func searchByUsername(_ query: String) async throws -> [UserProfile] {
-        let records = try await cloudKitManager.searchUserProfiles(byUsername: query)
+        let records = try await cloudProvider.searchUserProfiles(byUsername: query)
         return records.compactMap { UserProfile(from: $0) }
     }
 
@@ -217,11 +210,11 @@ class FriendConnectionService: ObservableObject {
             targetID: targetProfile.userIDString
         )
 
-        AppLogger.friends.debug("Saving FriendConnection to CloudKit...")
-        let record = connection.toCKRecord()
-        try await cloudKitManager.saveToPublic(record)
-        AppLogger.friends.info("FriendConnection saved successfully! RecordID: \(record.recordID)")
-        connectionRecordIDs[connection.id] = record.recordID
+        AppLogger.friends.debug("Saving FriendConnection to cloud...")
+        let record = connection.toCloudRecord()
+        let saved = try await cloudProvider.saveToPublic(record)
+        AppLogger.friends.info("FriendConnection saved successfully! RecordID: \(saved.recordID)")
+        connectionRecordIDs[connection.id] = saved.recordID
         sentRequests.append(connection)
         AppLogger.friends.info("=== FRIEND REQUEST SENT SUCCESSFULLY ===")
     }
@@ -230,7 +223,6 @@ class FriendConnectionService: ObservableObject {
 
     func acceptRequest(_ connection: FriendConnection, currentUserID: String) async throws {
         AppLogger.friends.debug("acceptRequest for connection.id: \(connection.id)")
-        AppLogger.friends.debug("connectionRecordIDs keys: \(self.connectionRecordIDs.keys)")
 
         var updated = connection
         updated.status = .accepted
@@ -242,14 +234,14 @@ class FriendConnectionService: ObservableObject {
         }
         AppLogger.friends.debug("Found recordID: \(recordID)")
 
-        let record = updated.toCKRecord(existingRecordID: recordID)
-        try await cloudKitManager.saveToPublic(record)
+        let record = updated.toCloudRecord(existingRecordID: recordID)
+        try await cloudProvider.saveToPublic(record)
 
         // Remove from pending and add friend
         pendingRequests.removeAll { $0.id == connection.id }
 
         // Fetch the requester's profile
-        if let requesterRecord = try await cloudKitManager.fetchUserProfile(byUserID: connection.requesterID),
+        if let requesterRecord = try await cloudProvider.fetchUserProfile(byUserID: connection.requesterID),
            let requesterProfile = UserProfile(from: requesterRecord) {
             friends.append(requesterProfile)
             friends.sort { $0.displayName < $1.displayName }
@@ -260,7 +252,6 @@ class FriendConnectionService: ObservableObject {
 
     func declineRequest(_ connection: FriendConnection) async throws {
         AppLogger.friends.debug("declineRequest for connection.id: \(connection.id)")
-        AppLogger.friends.debug("connectionRecordIDs keys: \(self.connectionRecordIDs.keys)")
 
         guard let recordID = connectionRecordIDs[connection.id] else {
             AppLogger.friends.error("No recordID found for connection.id: \(connection.id)")
@@ -268,7 +259,7 @@ class FriendConnectionService: ObservableObject {
         }
         AppLogger.friends.debug("Found recordID: \(recordID), deleting...")
 
-        try await cloudKitManager.deleteFromPublic(recordID: recordID)
+        try await cloudProvider.deleteFromPublic(recordID: recordID)
         pendingRequests.removeAll { $0.id == connection.id }
         connectionRecordIDs.removeValue(forKey: connection.id)
         AppLogger.friends.info("Decline completed successfully")
@@ -280,13 +271,12 @@ class FriendConnectionService: ObservableObject {
         // Find the connection record ID using the friend's userID
         guard let recordID = friendConnectionRecordIDs[profile.userIDString] else {
             AppLogger.friends.error("No connection record found for userID: \(profile.userIDString)")
-            AppLogger.friends.error("Available mappings: \(self.friendConnectionRecordIDs.keys.joined(separator: ", "))")
             throw FriendError.notFound
         }
 
-        AppLogger.friends.debug("Found connection recordID: \(recordID.recordName), deleting...")
+        AppLogger.friends.debug("Found connection recordID: \(recordID), deleting...")
 
-        try await cloudKitManager.deleteFromPublic(recordID: recordID)
+        try await cloudProvider.deleteFromPublic(recordID: recordID)
 
         // Update local state
         friends.removeAll { $0.id == profile.id }
@@ -298,7 +288,7 @@ class FriendConnectionService: ObservableObject {
     // MARK: - Leaderboard
 
     func fetchLeaderboard(category: LeaderboardCategory, scope: LeaderboardScope, currentUserID: String?) async throws -> [LeaderboardEntry] {
-        let records: [CKRecord]
+        let records: [CloudRecord]
 
         switch scope {
         case .friends:
@@ -306,13 +296,13 @@ class FriendConnectionService: ObservableObject {
             if let currentUserID = currentUserID {
                 ids.append(currentUserID)
             }
-            records = try await cloudKitManager.fetchLeaderboard(
+            records = try await cloudProvider.fetchLeaderboard(
                 category: category.sortKey,
                 friendsOnly: true,
                 friendIDs: ids
             )
         case .global:
-            records = try await cloudKitManager.fetchLeaderboard(
+            records = try await cloudProvider.fetchLeaderboard(
                 category: category.sortKey,
                 friendsOnly: false,
                 friendIDs: []

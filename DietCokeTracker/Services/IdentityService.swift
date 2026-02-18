@@ -18,14 +18,14 @@ class IdentityService: ObservableObject {
     }
 
     enum IdentityError: Error, LocalizedError {
-        case cloudKitUnavailable
+        case cloudUnavailable
         case saveFailed(Error)
         case fetchFailed(Error)
 
         var errorDescription: String? {
             switch self {
-            case .cloudKitUnavailable:
-                return "iCloud is not available. Your data will be stored locally."
+            case .cloudUnavailable:
+                return "Cloud service is not available. Your data will be stored locally."
             case .saveFailed(let error):
                 return "Failed to save: \(error.localizedDescription)"
             case .fetchFailed(let error):
@@ -34,13 +34,13 @@ class IdentityService: ObservableObject {
         }
     }
 
-    private let cloudKitManager: CloudKitManager
+    private let cloudProvider: any CloudProvider
     private let localIdentityKey = "LocalUserIdentity"
-    private var profileRecordID: CKRecord.ID?
-    private var identityRecordID: CKRecord.ID?
+    private var profileRecordID: String?
+    private var identityRecordID: String?
 
-    init(cloudKitManager: CloudKitManager) {
-        self.cloudKitManager = cloudKitManager
+    init(cloudProvider: any CloudProvider) {
+        self.cloudProvider = cloudProvider
     }
 
     // MARK: - Initialization
@@ -53,12 +53,12 @@ class IdentityService: ObservableObject {
             currentIdentity = localIdentity
         }
 
-        // Check iCloud status
-        await cloudKitManager.checkAccountStatus()
+        // Check cloud status
+        await cloudProvider.checkAccountStatus()
 
-        if cloudKitManager.isAvailable {
-            // Try to fetch from private iCloud (with retry)
-            var fetchedIdentity: (UserIdentity, CKRecord.ID)?
+        if cloudProvider.isAvailable {
+            // Try to fetch from private cloud (with retry)
+            var fetchedIdentity: (UserIdentity, String)?
             var fetchAttempts = 0
             let maxAttempts = 2
 
@@ -96,7 +96,7 @@ class IdentityService: ObservableObject {
                 state = .noIdentity
             }
         } else {
-            // No iCloud - use local only with local profile
+            // No cloud - use local only with local profile
             if let identity = currentIdentity {
                 // Create local-only profile
                 if currentProfile == nil {
@@ -117,7 +117,7 @@ class IdentityService: ObservableObject {
         currentIdentity = identity
         saveLocalIdentity(identity)
 
-        if cloudKitManager.isAvailable {
+        if cloudProvider.isAvailable {
             try await saveIdentityToCloud(identity)
             await fetchOrCreateProfile()
         } else {
@@ -136,10 +136,10 @@ class IdentityService: ObservableObject {
         currentIdentity = identity
         saveLocalIdentity(identity)
 
-        if cloudKitManager.isAvailable {
+        if cloudProvider.isAvailable {
             if let recordID = identityRecordID {
-                let record = identity.toCKRecord(existingRecordID: recordID)
-                try await cloudKitManager.saveToPrivate(record)
+                let record = identity.toCloudRecord(existingRecordID: recordID)
+                try await cloudProvider.saveToPrivate(record)
             }
 
             // Update public profile too
@@ -147,8 +147,8 @@ class IdentityService: ObservableObject {
                 profile.displayName = name
                 currentProfile = profile
                 if let recordID = profileRecordID {
-                    let record = profile.toCKRecord(existingRecordID: recordID)
-                    try await cloudKitManager.saveToPublic(record)
+                    let record = profile.toCloudRecord(existingRecordID: recordID)
+                    try await cloudProvider.saveToPublic(record)
                 }
             }
         }
@@ -160,18 +160,18 @@ class IdentityService: ObservableObject {
         currentIdentity = identity
         saveLocalIdentity(identity)
 
-        if cloudKitManager.isAvailable {
+        if cloudProvider.isAvailable {
             if let recordID = identityRecordID {
-                let record = identity.toCKRecord(existingRecordID: recordID)
-                try await cloudKitManager.saveToPrivate(record)
+                let record = identity.toCloudRecord(existingRecordID: recordID)
+                try await cloudProvider.saveToPrivate(record)
             }
 
             if var profile = currentProfile {
                 profile.username = username?.lowercased()
                 currentProfile = profile
                 if let recordID = profileRecordID {
-                    let record = profile.toCKRecord(existingRecordID: recordID)
-                    try await cloudKitManager.saveToPublic(record)
+                    let record = profile.toCloudRecord(existingRecordID: recordID)
+                    try await cloudProvider.saveToPublic(record)
                 }
             }
         }
@@ -182,9 +182,9 @@ class IdentityService: ObservableObject {
         profile.isPublic = isPublic
         currentProfile = profile
 
-        if cloudKitManager.isAvailable, let recordID = profileRecordID {
-            let record = profile.toCKRecord(existingRecordID: recordID)
-            try await cloudKitManager.saveToPublic(record)
+        if cloudProvider.isAvailable, let recordID = profileRecordID {
+            let record = profile.toCloudRecord(existingRecordID: recordID)
+            try await cloudProvider.saveToPublic(record)
         }
     }
 
@@ -210,17 +210,17 @@ class IdentityService: ObservableObject {
 
         currentProfile = profile
 
-        if cloudKitManager.isAvailable, let recordID = profileRecordID {
-            let record = profile.toCKRecord(existingRecordID: recordID)
-            try await cloudKitManager.saveToPublic(record)
+        if cloudProvider.isAvailable, let recordID = profileRecordID {
+            let record = profile.toCloudRecord(existingRecordID: recordID)
+            try await cloudProvider.saveToPublic(record)
         }
     }
 
     // MARK: - Private Helpers
 
-    private func fetchIdentityFromCloud() async throws -> (UserIdentity, CKRecord.ID)? {
+    private func fetchIdentityFromCloud() async throws -> (UserIdentity, String)? {
         do {
-            let records = try await cloudKitManager.fetchFromPrivate(recordType: UserIdentity.recordType)
+            let records = try await cloudProvider.fetchFromPrivate(recordType: UserIdentity.recordType)
             guard let record = records.first,
                   let identity = UserIdentity(from: record) else {
                 return nil
@@ -234,25 +234,25 @@ class IdentityService: ObservableObject {
     }
 
     private func saveIdentityToCloud(_ identity: UserIdentity) async throws {
-        let record = identity.toCKRecord()
-        try await cloudKitManager.saveToPrivate(record)
-        identityRecordID = record.recordID
+        let record = identity.toCloudRecord()
+        let saved = try await cloudProvider.saveToPrivate(record)
+        identityRecordID = saved.recordID
     }
 
     private func fetchOrCreateProfile() async {
         guard let identity = currentIdentity else { return }
 
         do {
-            if let record = try await cloudKitManager.fetchUserProfile(byUserID: identity.userIDString) {
+            if let record = try await cloudProvider.fetchUserProfile(byUserID: identity.userIDString) {
                 currentProfile = UserProfile(from: record)
                 profileRecordID = record.recordID
             } else {
                 // Create new public profile
                 let profile = UserProfile(from: identity)
-                let record = profile.toCKRecord()
-                try await cloudKitManager.saveToPublic(record)
+                let record = profile.toCloudRecord()
+                let saved = try await cloudProvider.saveToPublic(record)
                 currentProfile = profile
-                profileRecordID = record.recordID
+                profileRecordID = saved.recordID
             }
         } catch {
             self.error = .fetchFailed(error)
@@ -285,4 +285,3 @@ class IdentityService: ObservableObject {
         state = .noIdentity
     }
 }
-

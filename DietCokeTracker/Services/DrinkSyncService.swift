@@ -9,19 +9,19 @@ class DrinkSyncService: ObservableObject {
     @Published var lastSyncDate: Date?
     @Published var syncError: Error?
 
-    private let cloudKitManager: CloudKitManager
+    private let cloudProvider: any CloudProvider
     private let recordIDsKey = "DrinkEntryRecordIDs"
     private let lastSyncKey = "LastDrinkSyncDate"
     private let deletedEntriesKey = "DeletedDrinkEntryIDs"
 
-    // Maps entry UUID to CloudKit record ID
+    // Maps entry UUID to cloud record ID
     private var recordIDs: [UUID: String] = [:]
 
     // Track locally deleted entries to sync deletions
     private var deletedEntryIDs: Set<UUID> = []
 
-    init(cloudKitManager: CloudKitManager) {
-        self.cloudKitManager = cloudKitManager
+    init(cloudProvider: any CloudProvider) {
+        self.cloudProvider = cloudProvider
         loadRecordIDs()
         loadDeletedEntryIDs()
         lastSyncDate = UserDefaults.standard.object(forKey: lastSyncKey) as? Date
@@ -31,7 +31,7 @@ class DrinkSyncService: ObservableObject {
 
     /// Performs a full sync: fetches from cloud, merges with local, uploads changes
     func performFullSync(localEntries: [DrinkEntry]) async throws -> [DrinkEntry] {
-        guard cloudKitManager.isAvailable else {
+        guard cloudProvider.isAvailable else {
             return localEntries
         }
 
@@ -39,7 +39,7 @@ class DrinkSyncService: ObservableObject {
         syncError = nil
         defer { isSyncing = false }
 
-        // 1. Fetch all entries from CloudKit (may fail on first sync, that's OK)
+        // 1. Fetch all entries from cloud (may fail on first sync, that's OK)
         let cloudEntries = await fetchAllFromCloudSafe()
 
         // 2. Sync deletions to cloud
@@ -110,22 +110,21 @@ class DrinkSyncService: ObservableObject {
 
     /// Upload a single new entry
     func uploadEntry(_ entry: DrinkEntry) async throws {
-        guard cloudKitManager.isAvailable else { return }
+        guard cloudProvider.isAvailable else { return }
 
-        let record = entry.toCKRecord()
-        try await cloudKitManager.saveToPrivate(record)
-        recordIDs[entry.id] = record.recordID.recordName
+        let record = entry.toCloudRecord()
+        let saved = try await cloudProvider.saveToPrivate(record)
+        recordIDs[entry.id] = saved.recordID
         saveRecordIDs()
     }
 
     /// Update an existing entry
     func updateEntry(_ entry: DrinkEntry) async throws {
-        guard cloudKitManager.isAvailable else { return }
+        guard cloudProvider.isAvailable else { return }
 
         if let recordName = recordIDs[entry.id] {
-            let recordID = CKRecord.ID(recordName: recordName)
-            let record = entry.toCKRecord(existingRecordID: recordID)
-            try await cloudKitManager.saveToPrivate(record)
+            let record = entry.toCloudRecord(existingRecordID: recordName)
+            try await cloudProvider.saveToPrivate(record)
         } else {
             // Entry not yet synced, upload it
             try await uploadEntry(entry)
@@ -134,11 +133,10 @@ class DrinkSyncService: ObservableObject {
 
     /// Delete an entry from cloud
     func deleteEntry(_ entry: DrinkEntry) async throws {
-        guard cloudKitManager.isAvailable else { return }
+        guard cloudProvider.isAvailable else { return }
 
         if let recordName = recordIDs[entry.id] {
-            let recordID = CKRecord.ID(recordName: recordName)
-            try await cloudKitManager.deleteFromPrivate(recordID: recordID)
+            try await cloudProvider.deleteFromPrivate(recordID: recordName)
             recordIDs.removeValue(forKey: entry.id)
             saveRecordIDs()
         }
@@ -158,13 +156,13 @@ class DrinkSyncService: ObservableObject {
 
     private func fetchAllFromCloud() async throws -> [DrinkEntry] {
         do {
-            let records = try await cloudKitManager.fetchFromPrivate(recordType: DrinkEntry.recordType)
+            let records = try await cloudProvider.fetchFromPrivate(recordType: DrinkEntry.recordType)
 
             var entries: [DrinkEntry] = []
             for record in records {
                 if let entry = DrinkEntry(from: record) {
                     entries.append(entry)
-                    recordIDs[entry.id] = record.recordID.recordName
+                    recordIDs[entry.id] = record.recordID
                 }
             }
             saveRecordIDs()
@@ -180,9 +178,8 @@ class DrinkSyncService: ObservableObject {
     private func syncDeletionsToCloud() async throws {
         for entryID in deletedEntryIDs {
             if let recordName = recordIDs[entryID] {
-                let recordID = CKRecord.ID(recordName: recordName)
                 do {
-                    try await cloudKitManager.deleteFromPrivate(recordID: recordID)
+                    try await cloudProvider.deleteFromPrivate(recordID: recordName)
                 } catch {
                     // Ignore errors for records that may already be deleted
                 }

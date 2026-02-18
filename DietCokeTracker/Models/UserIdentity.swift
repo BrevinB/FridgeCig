@@ -67,3 +67,40 @@ extension UserIdentity {
         return record
     }
 }
+
+// MARK: - CloudRecord Conversion (Provider-Agnostic)
+
+extension UserIdentity {
+    init?(from record: CloudRecord) {
+        guard let idString = record["userID"]?.stringValue,
+              let id = UUID(uuidString: idString),
+              let displayName = record["displayName"]?.stringValue,
+              let friendCode = record["friendCode"]?.stringValue,
+              let createdAt = record["createdAt"]?.dateValue else {
+            return nil
+        }
+
+        self.id = id
+        self.displayName = displayName
+        self.friendCode = friendCode
+        self.username = record["username"]?.stringValue
+        self.createdAt = createdAt
+    }
+
+    func toCloudRecord(existingRecordID: String? = nil) -> CloudRecord {
+        var fields: [String: CloudValue] = [
+            "userID": .string(userIDString),
+            "displayName": .string(displayName),
+            "friendCode": .string(friendCode),
+            "createdAt": .date(createdAt),
+        ]
+
+        if let username = username { fields["username"] = .string(username) }
+
+        return CloudRecord(
+            recordType: Self.recordType,
+            recordID: existingRecordID ?? "",
+            fields: fields
+        )
+    }
+}

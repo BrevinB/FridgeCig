@@ -222,3 +222,52 @@ extension DrinkEntry {
         record["createdAt"] = createdAt
     }
 }
+
+// MARK: - CloudRecord Conversion (Provider-Agnostic)
+
+extension DrinkEntry {
+    /// Create from a provider-agnostic CloudRecord
+    init?(from record: CloudRecord) {
+        guard let idString = record["entryID"]?.stringValue,
+              let id = UUID(uuidString: idString),
+              let typeRaw = record["type"]?.stringValue,
+              let type = DrinkType(rawValue: typeRaw),
+              let timestamp = record["timestamp"]?.dateValue else {
+            return nil
+        }
+
+        self.id = id
+        self.type = type
+        self.timestamp = timestamp
+        self.brand = record["brand"]?.stringValue.flatMap { BeverageBrand(rawValue: $0) } ?? .dietCoke
+        self.note = record["note"]?.stringValue
+        self.specialEdition = record["specialEdition"]?.stringValue.flatMap { SpecialEdition(rawValue: $0) }
+        self.customOunces = record["customOunces"]?.doubleValue
+        self.rating = record["rating"]?.intValue.flatMap { DrinkRating(rawValue: $0) }
+        self.photoFilename = record["photoFilename"]?.stringValue
+        self.createdAt = record["createdAt"]?.dateValue ?? timestamp
+    }
+
+    /// Convert to a provider-agnostic CloudRecord
+    func toCloudRecord(existingRecordID: String? = nil) -> CloudRecord {
+        var fields: [String: CloudValue] = [
+            "entryID": .string(id.uuidString),
+            "type": .string(type.rawValue),
+            "brand": .string(brand.rawValue),
+            "timestamp": .date(timestamp),
+            "createdAt": .date(createdAt),
+        ]
+
+        if let note = note { fields["note"] = .string(note) }
+        if let specialEdition = specialEdition { fields["specialEdition"] = .string(specialEdition.rawValue) }
+        if let customOunces = customOunces { fields["customOunces"] = .double(customOunces) }
+        if let rating = rating { fields["rating"] = .int(rating.rawValue) }
+        if let photoFilename = photoFilename { fields["photoFilename"] = .string(photoFilename) }
+
+        return CloudRecord(
+            recordType: Self.recordType,
+            recordID: existingRecordID ?? "",
+            fields: fields
+        )
+    }
+}

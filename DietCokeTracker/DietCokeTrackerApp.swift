@@ -13,7 +13,9 @@ struct DietCokeTrackerApp: App {
     @StateObject private var milestoneService = MilestoneCardService()
     @StateObject private var recapService = WeeklyRecapService()
 
-    // Social/Leaderboard services
+    // Cloud provider (swap CloudKitProvider for FirebaseProvider to enable Android)
+    @StateObject private var cloudProvider = CloudKitProvider()
+    // Keep CloudKitManager reference for components that still need it directly
     @StateObject private var cloudKitManager = CloudKitManager()
     @StateObject private var identityService: IdentityService
     @StateObject private var friendService: FriendConnectionService
@@ -40,11 +42,19 @@ struct DietCokeTrackerApp: App {
     @StateObject private var themeManager = ThemeManager()
 
     init() {
+        // Create the cloud provider — swap CloudKitProvider() for FirebaseProvider()
+        // to switch to Firebase for cross-platform (Android) support
+        let provider = CloudKitProvider()
+        _cloudProvider = StateObject(wrappedValue: provider)
+
+        // Keep CloudKitManager for notification service and badge store (not yet migrated)
         let ckManager = CloudKitManager()
         _cloudKitManager = StateObject(wrappedValue: ckManager)
-        _identityService = StateObject(wrappedValue: IdentityService(cloudKitManager: ckManager))
-        _friendService = StateObject(wrappedValue: FriendConnectionService(cloudKitManager: ckManager))
-        _drinkSyncService = StateObject(wrappedValue: DrinkSyncService(cloudKitManager: ckManager))
+
+        // Services now use the CloudProvider protocol
+        _identityService = StateObject(wrappedValue: IdentityService(cloudProvider: provider))
+        _friendService = StateObject(wrappedValue: FriendConnectionService(cloudProvider: provider))
+        _drinkSyncService = StateObject(wrappedValue: DrinkSyncService(cloudProvider: provider))
         _activityService = StateObject(wrappedValue: ActivityFeedService(cloudKitManager: ckManager))
         _notificationService = StateObject(wrappedValue: NotificationService(cloudKitManager: ckManager))
 

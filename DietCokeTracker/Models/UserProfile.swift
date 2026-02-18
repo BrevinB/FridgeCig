@@ -174,3 +174,67 @@ extension UserProfile {
         )
     }
 }
+
+// MARK: - CloudRecord Conversion (Provider-Agnostic)
+
+extension UserProfile {
+    init?(from record: CloudRecord) {
+        guard let idString = record["userID"]?.stringValue,
+              let id = UUID(uuidString: idString),
+              let displayName = record["displayName"]?.stringValue,
+              let friendCode = record["friendCode"]?.stringValue else {
+            return nil
+        }
+
+        self.id = id
+        self.displayName = displayName
+        self.friendCode = friendCode
+        self.username = record["username"]?.stringValue
+        self.isPublic = record["isPublic"]?.boolValue ?? false
+
+        self.currentStreak = record["currentStreak"]?.intValue ?? 0
+        self.weeklyDrinks = record["weeklyDrinks"]?.intValue ?? 0
+        self.weeklyOunces = record["weeklyOunces"]?.doubleValue ?? 0
+        self.monthlyDrinks = record["monthlyDrinks"]?.intValue ?? 0
+        self.monthlyOunces = record["monthlyOunces"]?.doubleValue ?? 0
+        self.allTimeDrinks = record["allTimeDrinks"]?.intValue ?? 0
+        self.allTimeOunces = record["allTimeOunces"]?.doubleValue ?? 0
+        self.statsUpdatedAt = record["statsUpdatedAt"]?.dateValue ?? Date()
+
+        self.entryCount = record["entryCount"]?.intValue ?? 0
+        self.averageOuncesPerEntry = record["averageOuncesPerEntry"]?.doubleValue ?? 0
+        self.isSuspicious = record["isSuspicious"]?.boolValue ?? false
+        self.suspiciousFlags = record["suspiciousFlags"]?.stringArrayValue ?? []
+        self.isPremium = record["isPremium"]?.boolValue ?? false
+    }
+
+    func toCloudRecord(existingRecordID: String? = nil) -> CloudRecord {
+        var fields: [String: CloudValue] = [
+            "userID": .string(userIDString),
+            "displayName": .string(displayName),
+            "friendCode": .string(friendCode),
+            "isPublic": .bool(isPublic),
+            "currentStreak": .int(currentStreak),
+            "weeklyDrinks": .int(weeklyDrinks),
+            "weeklyOunces": .double(weeklyOunces),
+            "monthlyDrinks": .int(monthlyDrinks),
+            "monthlyOunces": .double(monthlyOunces),
+            "allTimeDrinks": .int(allTimeDrinks),
+            "allTimeOunces": .double(allTimeOunces),
+            "statsUpdatedAt": .date(statsUpdatedAt),
+            "entryCount": .int(entryCount),
+            "averageOuncesPerEntry": .double(averageOuncesPerEntry),
+            "isSuspicious": .bool(isSuspicious),
+            "isPremium": .bool(isPremium),
+        ]
+
+        if let username = username { fields["username"] = .string(username) }
+        if !suspiciousFlags.isEmpty { fields["suspiciousFlags"] = .stringArray(suspiciousFlags) }
+
+        return CloudRecord(
+            recordType: Self.recordType,
+            recordID: existingRecordID ?? "",
+            fields: fields
+        )
+    }
+}

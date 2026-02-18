@@ -274,3 +274,63 @@ extension ActivityItem {
         }
     }
 }
+
+// MARK: - CloudRecord Conversion (Provider-Agnostic)
+
+extension ActivityItem {
+    init?(from record: CloudRecord) {
+        guard let activityIDString = record["activityID"]?.stringValue,
+              let activityID = UUID(uuidString: activityIDString),
+              let userID = record["userID"]?.stringValue,
+              let displayName = record["displayName"]?.stringValue,
+              let typeRaw = record["type"]?.stringValue,
+              let type = ActivityType(rawValue: typeRaw),
+              let timestamp = record["timestamp"]?.dateValue else {
+            return nil
+        }
+
+        self.id = activityID
+        self.userID = userID
+        self.displayName = displayName
+        self.type = type
+        self.timestamp = timestamp
+        self.cheersCount = record["cheersCount"]?.intValue ?? 0
+        self.cheersUserIDs = record["cheersUserIDs"]?.stringArrayValue ?? []
+        self.isPremium = record["isPremium"]?.boolValue ?? false
+
+        if let payloadJSON = record["payloadJSON"]?.stringValue,
+           let payloadData = payloadJSON.data(using: .utf8),
+           let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData) {
+            self.payload = payload
+        } else {
+            self.payload = ActivityPayload()
+        }
+    }
+
+    func toCloudRecord(existingRecordID: String? = nil) -> CloudRecord {
+        var fields: [String: CloudValue] = [
+            "activityID": .string(id.uuidString),
+            "userID": .string(userID),
+            "displayName": .string(displayName),
+            "type": .string(type.rawValue),
+            "timestamp": .date(timestamp),
+            "cheersCount": .int(cheersCount),
+            "isPremium": .bool(isPremium),
+        ]
+
+        if !cheersUserIDs.isEmpty {
+            fields["cheersUserIDs"] = .stringArray(cheersUserIDs)
+        }
+
+        if let payloadData = try? JSONEncoder().encode(payload),
+           let payloadJSON = String(data: payloadData, encoding: .utf8) {
+            fields["payloadJSON"] = .string(payloadJSON)
+        }
+
+        return CloudRecord(
+            recordType: Self.recordType,
+            recordID: existingRecordID ?? "",
+            fields: fields
+        )
+    }
+}
