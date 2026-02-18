@@ -6,37 +6,37 @@ import Foundation
 ///
 /// This protocol decouples the app's data services from any specific cloud backend.
 /// By coding against `CloudProvider` instead of `CloudKitManager` directly, the app
-/// can support multiple backends:
+/// can support multiple clients hitting the same CloudKit container:
 ///
-/// - **CloudKit** (iOS/macOS) — Apple's native cloud, current production backend
-/// - **Firebase Firestore** (cross-platform) — enables Android and web support
-/// - **Custom REST API** — full control over the backend
+/// - **CloudKitProvider** (iOS/macOS) — native CloudKit SDK, current production backend
+/// - **CloudKitRESTProvider** (Android/web) — CloudKit Web Services REST API,
+///   accesses the same iCloud container from non-Apple platforms
 ///
 /// ## Architecture for Cross-Platform Support
 ///
 /// ```
 /// ┌─────────────┐    ┌──────────────┐    ┌──────────────┐
 /// │   iOS App    │    │  Android App │    │   Web App    │
-/// │  (SwiftUI)   │    │  (Kotlin)    │    │  (React)     │
+/// │  (SwiftUI)   │    │  (Kotlin)    │    │  (JS)        │
 /// └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
 ///        │                   │                   │
 ///        ▼                   ▼                   ▼
 /// ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-/// │ CloudKit     │    │  Firebase    │    │  Firebase    │
-/// │ Provider     │    │  Provider    │    │    SDK       │
+/// │ CloudKit     │    │ CloudKit     │    │ CloudKit     │
+/// │ Native SDK   │    │ REST API     │    │   JS SDK     │
 /// └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
 ///        │                   │                   │
-///        ▼                   ▼                   ▼
-/// ┌──────────────┐    ┌──────────────────────────────────┐
-/// │   iCloud     │    │        Firebase / Shared API      │
-/// │  (private    │    │  (profiles, friends, leaderboard, │
-/// │   data)      │    │   activity feed — cross-platform) │
-/// └──────────────┘    └──────────────────────────────────┘
+///        └───────────────────┼───────────────────┘
+///                            ▼
+///              ┌──────────────────────────┐
+///              │     iCloud / CloudKit     │
+///              │  iCloud.co.brevinb.       │
+///              │      fridgecig            │
+///              │  (same data for everyone) │
+///              └──────────────────────────┘
 /// ```
 ///
-/// **Private data** (drink entries) can stay on each platform's native storage.
-/// **Social data** (profiles, friends, leaderboard, activity feed) should use a
-/// shared backend so iOS and Android users can interact with each other.
+/// All platforms share the **same CloudKit container**. No data migration needed.
 @MainActor
 protocol CloudProvider: AnyObject {
 

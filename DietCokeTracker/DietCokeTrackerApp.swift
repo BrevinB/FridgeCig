@@ -13,7 +13,7 @@ struct DietCokeTrackerApp: App {
     @StateObject private var milestoneService = MilestoneCardService()
     @StateObject private var recapService = WeeklyRecapService()
 
-    // Cloud provider (swap CloudKitProvider for FirebaseProvider to enable Android)
+    // Cloud provider (swap CloudKitProvider for CloudKitRESTProvider for Android)
     @StateObject private var cloudProvider = CloudKitProvider()
     // Keep CloudKitManager reference for components that still need it directly
     @StateObject private var cloudKitManager = CloudKitManager()
@@ -42,8 +42,8 @@ struct DietCokeTrackerApp: App {
     @StateObject private var themeManager = ThemeManager()
 
     init() {
-        // Create the cloud provider — swap CloudKitProvider() for FirebaseProvider()
-        // to switch to Firebase for cross-platform (Android) support
+        // Create the cloud provider — CloudKitProvider uses the native SDK (iOS),
+        // CloudKitRESTProvider uses the REST API (for Android/web clients)
         let provider = CloudKitProvider()
         _cloudProvider = StateObject(wrappedValue: provider)
 
