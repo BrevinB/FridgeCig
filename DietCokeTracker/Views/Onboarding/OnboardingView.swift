@@ -3,13 +3,14 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var notificationService: NotificationService
+    @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var themeManager: ThemeManager
     @State private var currentPage = 0
     @State private var selectedBrand: BeverageBrand = .dietCoke
     @State private var showingPaywall = false
     @Environment(\.colorScheme) private var colorScheme
 
-    private let totalPages = 4
+    private let totalPages = 5
 
     var body: some View {
         ZStack {
@@ -31,6 +32,9 @@ struct OnboardingView: View {
 
                     BrandSelectionPage(selectedBrand: $selectedBrand)
                         .tag(3)
+
+                    LeaderboardPage(identityService: identityService)
+                        .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: currentPage)
@@ -438,8 +442,147 @@ private struct BrandOptionRow: View {
     }
 }
 
+// MARK: - Leaderboard Page
+
+private struct LeaderboardPage: View {
+    @ObservedObject var identityService: IdentityService
+    @State private var displayName = ""
+    @State private var isCreating = false
+    @State private var hasJoined = false
+    @State private var showError = false
+    @FocusState private var isNameFocused: Bool
+
+    private var canJoin: Bool {
+        !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 140, height: 140)
+
+                Image(systemName: "globe.americas.fill")
+                    .font(.system(size: 60, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+
+            VStack(spacing: 12) {
+                Text("Join the Leaderboard")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Text("Compete globally and see how you rank against other DC fans")
+                    .font(.body)
+                    .foregroundColor(.dietCokeDarkSilver)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
+            if hasJoined {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("You're on the leaderboard!")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
+                }
+            } else {
+                VStack(spacing: 12) {
+                    TextField("Display Name", text: $displayName)
+                        .textFieldStyle(.plain)
+                        .padding()
+                        .background(Color.dietCokeCardBackground)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.dietCokeSilver.opacity(0.3), lineWidth: 1)
+                        )
+                        .focused($isNameFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            if canJoin { joinLeaderboard() }
+                        }
+
+                    Button {
+                        joinLeaderboard()
+                    } label: {
+                        HStack {
+                            if isCreating {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                Text("Join Leaderboard")
+                            }
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                colors: canJoin ? [.blue, .purple] : [.gray, .gray],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(Capsule())
+                    }
+                    .disabled(!canJoin || isCreating)
+
+                    Text("You can also join later from the Social tab")
+                        .font(.caption)
+                        .foregroundColor(.dietCokeDarkSilver)
+                }
+                .padding(.horizontal, 24)
+            }
+
+            Spacer()
+            Spacer()
+        }
+        .padding()
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(identityService.error?.localizedDescription ?? "Something went wrong. You can try again later from the Social tab.")
+        }
+    }
+
+    private func joinLeaderboard() {
+        guard canJoin else { return }
+        isCreating = true
+        Task {
+            do {
+                try await identityService.createIdentity(displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines))
+                hasJoined = true
+            } catch {
+                showError = true
+            }
+            isCreating = false
+        }
+    }
+}
+
 #Preview {
     OnboardingView()
         .environmentObject(UserPreferences())
         .environmentObject(NotificationService(cloudKitManager: CloudKitManager()))
+        .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
 }
