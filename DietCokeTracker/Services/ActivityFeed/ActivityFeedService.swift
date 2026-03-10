@@ -11,6 +11,12 @@ class ActivityFeedService: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var sharingPreferences: UserSharingPreferences
 
+    /// Emits when a global photo activity is posted (for GlobalFeedService to pick up)
+    let globalPhotoPosted = PassthroughSubject<ActivityItem, Never>()
+
+    /// Emits when cheers are updated (activityID, newCount, newUserIDs)
+    let cheersUpdated = PassthroughSubject<(UUID, Int, [String]), Never>()
+
     private let cloudKitManager: CloudKitManager
     private let preferencesKey = "UserSharingPreferences"
     private var friendIDs: [String] = []
@@ -29,6 +35,8 @@ class ActivityFeedService: ObservableObject {
     }
 
     // MARK: - Fetch Activities
+
+    private var isCurrentlyFetching = false
 
     func fetchActivities() async {
         AppLogger.activity.debug("fetchActivities called")
@@ -50,8 +58,14 @@ class ActivityFeedService: ObservableObject {
             return
         }
 
+        // Prevent redundant concurrent fetches
+        guard !isCurrentlyFetching else { return }
+        isCurrentlyFetching = true
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            isCurrentlyFetching = false
+        }
 
         do {
             let records = try await fetchActivityRecords()
@@ -161,10 +175,21 @@ class ActivityFeedService: ObservableObject {
 
         let hasPhoto = photo != nil
         var photoURL: String? = nil
+        var isGlobalPhoto = false
 
         // Upload photo if user enabled photo sharing and has a photo
         if let photo = photo, sharingPreferences.showPhotosInFeed {
             photoURL = await uploadPhoto(photo)
+
+            // Check if user opted into global sharing and photo is safe
+            if sharingPreferences.sharePhotosGlobally, photoURL != nil {
+                let verificationService = ImageVerificationService()
+                let safetyResult = await verificationService.classifyForSafety(photo)
+                isGlobalPhoto = safetyResult.isSafe
+                if !safetyResult.isSafe {
+                    AppLogger.activity.info("Photo blocked from global feed: \(safetyResult.flaggedCategories.joined(separator: ", "))")
+                }
+            }
         }
 
         let activity = ActivityItem(
@@ -172,7 +197,8 @@ class ActivityFeedService: ObservableObject {
             displayName: displayName,
             type: .drinkLog,
             payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID),
-            isPremium: isPremium
+            isPremium: isPremium,
+            isGlobalPhoto: isGlobalPhoto
         )
 
         await postActivity(activity)
@@ -281,6 +307,11 @@ class ActivityFeedService: ObservableObject {
             AppLogger.activity.error("Failed to post activity to CloudKit: \(error.localizedDescription)")
             // Activity still shows locally even if CloudKit fails
         }
+
+        // Notify global feed if this is a global photo
+        if activity.isGlobalPhoto {
+            globalPhotoPosted.send(activity)
+        }
     }
 
     // MARK: - Cheers (Reactions)
@@ -288,27 +319,29 @@ class ActivityFeedService: ObservableObject {
     func toggleCheers(for activity: ActivityItem) async {
         guard let currentID = currentUserID else { return }
 
-        // Find the activity in our list
-        guard let index = activities.firstIndex(where: { $0.id == activity.id }) else { return }
+        // Build updated cheers data from the source of truth
+        var cheersUserIDs = activity.cheersUserIDs
+        var cheersCount = activity.cheersCount
 
-        var updatedActivity = activities[index]
-
-        if updatedActivity.cheersUserIDs.contains(currentID) {
-            // Remove cheers
-            updatedActivity.cheersUserIDs.removeAll { $0 == currentID }
-            updatedActivity.cheersCount = max(0, updatedActivity.cheersCount - 1)
+        if cheersUserIDs.contains(currentID) {
+            cheersUserIDs.removeAll { $0 == currentID }
+            cheersCount = max(0, cheersCount - 1)
         } else {
-            // Add cheers
-            updatedActivity.cheersUserIDs.append(currentID)
-            updatedActivity.cheersCount += 1
+            cheersUserIDs.append(currentID)
+            cheersCount += 1
         }
 
-        // Update local state immediately
-        activities[index] = updatedActivity
+        // Update in activities list (friends feed) if present
+        if let index = activities.firstIndex(where: { $0.id == activity.id }) {
+            activities[index].cheersUserIDs = cheersUserIDs
+            activities[index].cheersCount = cheersCount
+        }
+
+        // Notify so GlobalFeedService can update too
+        cheersUpdated.send((activity.id, cheersCount, cheersUserIDs))
 
         // Sync to cloud
         do {
-            // We need to fetch the existing record to update it
             let predicate = NSPredicate(format: "activityID == %@", activity.id.uuidString)
             let records = try await cloudKitManager.fetchFromPublic(
                 recordType: ActivityItem.recordType,
@@ -317,8 +350,8 @@ class ActivityFeedService: ObservableObject {
             )
 
             if let existingRecord = records.first {
-                existingRecord["cheersCount"] = updatedActivity.cheersCount
-                existingRecord["cheersUserIDs"] = updatedActivity.cheersUserIDs
+                existingRecord["cheersCount"] = cheersCount
+                existingRecord["cheersUserIDs"] = cheersUserIDs
                 try await cloudKitManager.saveToPublic(existingRecord)
             }
         } catch {
@@ -328,7 +361,44 @@ class ActivityFeedService: ObservableObject {
 
     func hasUserCheered(_ activity: ActivityItem) -> Bool {
         guard let currentID = currentUserID else { return false }
+        // Check the live list first (friends feed), then fall back to passed-in item
+        if let liveItem = activities.first(where: { $0.id == activity.id }) {
+            return liveItem.cheersUserIDs.contains(currentID)
+        }
         return activity.cheersUserIDs.contains(currentID)
+    }
+
+    // MARK: - Content Reports
+
+    func submitReport(activityID: String, reportedUserID: String, reporterUserID: String, reason: ContentReport.ReportReason, details: String?) async {
+        let report = ContentReport(
+            reportedActivityID: activityID,
+            reportedUserID: reportedUserID,
+            reporterUserID: reporterUserID,
+            reason: reason,
+            details: details
+        )
+
+        do {
+            let record = report.toCKRecord()
+            try await cloudKitManager.saveToPublic(record)
+            AppLogger.activity.info("Content report submitted for activity: \(activityID)")
+
+            // Auto-hide: set isGlobalPhoto = 0 so it disappears from everyone's Explore feed
+            let predicate = NSPredicate(format: "activityID == %@", activityID)
+            let records = try await cloudKitManager.fetchFromPublic(
+                recordType: ActivityItem.recordType,
+                predicate: predicate,
+                limit: 1
+            )
+            if let activityRecord = records.first {
+                activityRecord["isGlobalPhoto"] = 0
+                try await cloudKitManager.saveToPublic(activityRecord)
+                AppLogger.activity.info("Reported activity hidden from global feed: \(activityID)")
+            }
+        } catch {
+            AppLogger.activity.error("Failed to submit report: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Sharing Preferences

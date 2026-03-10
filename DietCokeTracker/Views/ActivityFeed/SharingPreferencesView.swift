@@ -2,12 +2,16 @@ import SwiftUI
 
 struct SharingPreferencesView: View {
     @EnvironmentObject var activityService: ActivityFeedService
+    @EnvironmentObject var identityService: IdentityService
+    @EnvironmentObject var cloudKitManager: CloudKitManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var shareBadges: Bool = true
     @State private var shareStreaks: Bool = true
     @State private var shareDrinks: Bool = true
     @State private var showPhotos: Bool = true
+    @State private var shareGlobally: Bool = false
+    @State private var showingGlobalExplanation: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -92,6 +96,34 @@ struct SharingPreferencesView: View {
                     }
                 }
 
+                if shareDrinks && showPhotos {
+                    Section {
+                        Toggle(isOn: $shareGlobally) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Share Photos Globally")
+                                        .foregroundColor(.dietCokeCharcoal)
+                                    Text("Your drink photos will appear in the Explore feed for all users")
+                                        .font(.caption)
+                                        .foregroundColor(.dietCokeDarkSilver)
+                                }
+                            } icon: {
+                                Image(systemName: "globe")
+                                    .foregroundColor(.green)
+                            }
+                        }
+                        .onChange(of: shareGlobally) { _, newValue in
+                            if newValue {
+                                showingGlobalExplanation = true
+                            }
+                        }
+                    } header: {
+                        Text("Global Feed")
+                    } footer: {
+                        Text("Photos shared globally are screened for safety before appearing in the Explore tab. You can turn this off at any time.")
+                    }
+                }
+
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -103,7 +135,7 @@ struct SharingPreferencesView: View {
                                 .foregroundColor(.dietCokeCharcoal)
                         }
 
-                        Text("Activities are only visible to your friends. You can change these settings at any time.")
+                        Text("Activities are only visible to your friends unless you enable global sharing. You can change these settings at any time.")
                             .font(.caption)
                             .foregroundColor(.dietCokeDarkSilver)
                     }
@@ -130,6 +162,14 @@ struct SharingPreferencesView: View {
             .onAppear {
                 loadCurrentPreferences()
             }
+            .alert("Share Photos Globally", isPresented: $showingGlobalExplanation) {
+                Button("Enable") { }
+                Button("Cancel", role: .cancel) {
+                    shareGlobally = false
+                }
+            } message: {
+                Text("Your drink photos will be visible to all users in the Explore tab. Photos are automatically screened for safety before appearing. You can disable this at any time.")
+            }
         }
     }
 
@@ -139,6 +179,7 @@ struct SharingPreferencesView: View {
         shareStreaks = prefs.shareStreakMilestones
         shareDrinks = prefs.shareDrinkLogs
         showPhotos = prefs.showPhotosInFeed
+        shareGlobally = prefs.sharePhotosGlobally
     }
 
     private func savePreferences() {
@@ -146,13 +187,28 @@ struct SharingPreferencesView: View {
             shareBadges: shareBadges,
             shareStreakMilestones: shareStreaks,
             shareDrinkLogs: shareDrinks,
-            showPhotosInFeed: showPhotos
+            showPhotosInFeed: showPhotos,
+            sharePhotosGlobally: shareGlobally
         )
         activityService.updatePreferences(newPrefs)
+
+        // Sync sharePhotosGlobally to CloudKit UserProfile
+        if var profile = identityService.currentProfile {
+            profile.sharePhotosGlobally = shareGlobally
+            Task {
+                if let record = try? await cloudKitManager.fetchUserProfile(byUserID: profile.userIDString) {
+                    record["sharePhotosGlobally"] = shareGlobally ? 1 : 0
+                    try? await cloudKitManager.saveToPublic(record)
+                }
+            }
+        }
     }
 }
 
 #Preview {
+    let ckManager = CloudKitManager()
     SharingPreferencesView()
-        .environmentObject(ActivityFeedService(cloudKitManager: CloudKitManager()))
+        .environmentObject(ActivityFeedService(cloudKitManager: ckManager))
+        .environmentObject(IdentityService(cloudKitManager: ckManager))
+        .environmentObject(ckManager)
 }

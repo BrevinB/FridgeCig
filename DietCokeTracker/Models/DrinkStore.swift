@@ -437,21 +437,14 @@ class DrinkStore: ObservableObject {
         let today = calendar.startOfDay(for: Date())
         var streak = 0
         var checkDate = today
+        let daysWithEntries = Set(entries.map { calendar.startOfDay(for: $0.timestamp) })
 
-        while true {
-            let hasEntry = entries.contains { entry in
-                calendar.isDate(entry.timestamp, inSameDayAs: checkDate)
-            }
-
-            if hasEntry {
-                streak += 1
-                guard let previousDay = calendar.date(byAdding: .day, value: -1, to: checkDate) else {
-                    break
-                }
-                checkDate = previousDay
-            } else {
+        while daysWithEntries.contains(checkDate) {
+            streak += 1
+            guard let previousDay = calendar.date(byAdding: .day, value: -1, to: checkDate) else {
                 break
             }
+            checkDate = previousDay
         }
 
         return streak

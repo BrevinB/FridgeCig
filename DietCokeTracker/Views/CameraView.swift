@@ -239,44 +239,41 @@ struct CameraView: View {
     private var topBar: some View {
         HStack {
             // Close button
-            Button {
+            Button("Close", systemImage: "xmark") {
                 dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.2))
-                    .clipShape(Circle())
             }
+            .labelStyle(.iconOnly)
+            .font(.system(size: 16, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: 36, height: 36)
+            .background(Color.white.opacity(0.2))
+            .clipShape(Circle())
 
             Spacer()
 
             // Flash toggle — hidden when front camera
             if cameraManager.cameraPosition == .back {
-                Button {
+                Button("Toggle Flash", systemImage: flashIconName) {
                     cameraManager.toggleFlash()
-                } label: {
-                    Image(systemName: flashIconName)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(cameraManager.flashMode == .off ? .white : themeManager.accentColor)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
                 }
+                .labelStyle(.iconOnly)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(cameraManager.flashMode == .off ? .white : themeManager.accentColor)
+                .frame(width: 36, height: 36)
+                .background(Color.white.opacity(0.2))
+                .clipShape(Circle())
             }
 
             // Camera flip
-            Button {
+            Button("Flip Camera", systemImage: "camera.rotate.fill") {
                 cameraManager.flipCamera()
-            } label: {
-                Image(systemName: "camera.rotate.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.2))
-                    .clipShape(Circle())
             }
+            .labelStyle(.iconOnly)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(.white)
+            .frame(width: 36, height: 36)
+            .background(Color.white.opacity(0.2))
+            .clipShape(Circle())
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
@@ -307,10 +304,13 @@ struct CameraView: View {
     // MARK: Capture Button
 
     private var captureButton: some View {
-        Button {
+        Button("Capture Photo") {
             HapticManager.mediumImpact()
             cameraManager.capturePhoto()
-        } label: {
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.plain)
+        .background(
             ZStack {
                 // Outer white ring
                 Circle()
@@ -327,7 +327,9 @@ struct CameraView: View {
                     .fill(Color.white)
                     .frame(width: 61, height: 61)
             }
-        }
+        )
+        .frame(width: 75, height: 75)
+        .accessibilityLabel("Capture Photo")
     }
 
     // MARK: Flash Icon

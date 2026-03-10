@@ -18,6 +18,7 @@ struct FizzBubblesView: View {
     let isAnimating: Bool
 
     @State private var bubbles: [Bubble] = []
+    @State private var animationTimer: Timer?
 
     init(bubbleCount: Int = 20, isAnimating: Bool = true) {
         self.bubbleCount = bubbleCount
@@ -49,8 +50,12 @@ struct FizzBubblesView: View {
             .onAppear {
                 initializeBubbles(in: geometry.size)
                 if isAnimating {
-                    startAnimation(in: geometry.size)
+                    animationTimer = startAnimation(in: geometry.size)
                 }
+            }
+            .onDisappear {
+                animationTimer?.invalidate()
+                animationTimer = nil
             }
         }
         .allowsHitTesting(false)
@@ -68,7 +73,7 @@ struct FizzBubblesView: View {
         }
     }
 
-    private func startAnimation(in size: CGSize) {
+    private func startAnimation(in size: CGSize) -> Timer {
         Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
             withAnimation(.linear(duration: 0.05)) {
                 for i in bubbles.indices {

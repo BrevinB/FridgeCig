@@ -129,7 +129,7 @@ struct SharePreviewSheet: View {
                 backgroundPhoto: effectiveBackgroundPhoto
             )
         }
-        .onChange(of: customization) { _ in
+        .onChange(of: customization) { _, _ in
             shareFileURL = nil
         }
     }

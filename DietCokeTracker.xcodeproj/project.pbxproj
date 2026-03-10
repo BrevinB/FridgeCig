@@ -43,7 +43,6 @@
 		23CA15AA2F19A825000C7B43 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15A92F19A825000C7B43 /* CameraView.swift */; };
 		23CA15AF2F19B764000C7B43 /* fridgecig.icon in Resources */ = {isa = PBXBuildFile; fileRef = 23CA15AE2F19B6D7000C7B43 /* fridgecig.icon */; };
 		23CA15B02F19B764000C7B43 /* fridgecig.icon in Resources */ = {isa = PBXBuildFile; fileRef = 23CA15AE2F19B6D7000C7B43 /* fridgecig.icon */; };
-		23CA15B22F19EC86000C7B43 /* EditEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15B12F19EC86000C7B43 /* EditEntrySheet.swift */; };
 		23CA15BB2F19ECA4000C7B43 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15BA2F19ECA4000C7B43 /* UserIdentity.swift */; };
 		23CA15BD2F19ECAD000C7B43 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15BC2F19ECAD000C7B43 /* UserProfile.swift */; };
 		23CA15D52F19F322000C7B43 /* FriendConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15D42F19F322000C7B43 /* FriendConnection.swift */; };
@@ -63,6 +62,7 @@
 		A1000011 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000011 /* StatsView.swift */; };
 		A1000012 /* DrinkRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000012 /* DrinkRowView.swift */; };
 		A1000013 /* QuickAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* QuickAddButton.swift */; };
+		CC000005000000000000001E /* ContentReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000004000000000000001D /* ContentReport.swift */; };
 		DD0000020000000000001A /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000010000000000001A /* AppLogger.swift */; };
 		DD0000040000000000001B /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000030000000000001B /* Constants.swift */; };
 		DD0000060000000000001C /* SyncErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000050000000000001C /* SyncErrorBanner.swift */; };
@@ -173,12 +173,36 @@
 		A2000011 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		A2000012 /* DrinkRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkRowView.swift; sourceTree = "<group>"; };
 		A2000013 /* QuickAddButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddButton.swift; sourceTree = "<group>"; };
+		CC000004000000000000001D /* ContentReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentReport.swift; sourceTree = "<group>"; };
 		DD0000010000000000001A /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLogger.swift; path = Services/AppLogger.swift; sourceTree = "<group>"; };
 		DD0000030000000000001B /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DD0000050000000000001C /* SyncErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncErrorBanner.swift; path = Views/Components/SyncErrorBanner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2385D8A92F5E9B0C00DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				GlobalFeedDetailView.swift,
+				GlobalFeedView.swift,
+				ReportContentSheet.swift,
+			);
+			target = A5000000 /* DietCokeTracker */;
+		};
+		2385D8AC2F5FB60800DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppLogger.swift,
+			);
+			target = A5000000 /* DietCokeTracker */;
+		};
+		2385D8AD2F5FB60800DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SyncErrorBanner.swift,
+			);
+			target = A5000000 /* DietCokeTracker */;
+		};
 		23CA14092F189F6B000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -223,7 +247,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		23733BBC2F2B2052007CD14A /* Components */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Components; sourceTree = "<group>"; };
+		23733BBC2F2B2052007CD14A /* Components */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (2385D8AD2F5FB60800DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Components; sourceTree = "<group>"; };
 		237342D02F21D184007CD14A /* MilestoneCard */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MilestoneCard; sourceTree = "<group>"; };
 		237342D72F21D184007CD14A /* WeeklyRecap */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = WeeklyRecap; sourceTree = "<group>"; };
 		237342EC2F21D1D3007CD14A /* ActivityFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ActivityFeed; sourceTree = "<group>"; };
@@ -234,13 +258,14 @@
 		23CA14212F18A889000C7B43 /* DietCokeWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "DietCokeWatch Watch App"; sourceTree = "<group>"; };
 		23CA14402F18ACE1000C7B43 /* DietCokeWatchWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23CA14502F18ACE2000C7B43 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DietCokeWatchWidget; sourceTree = "<group>"; };
 		23CA15B62F19EC8E000C7B43 /* Social */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Social; sourceTree = "<group>"; };
-		23CA15C12F19ECC4000C7B43 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
+		23CA15C12F19ECC4000C7B43 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (2385D8AC2F5FB60800DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		23CA15E72F1AF9C7000C7B43 /* Subscription */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Subscription; sourceTree = "<group>"; };
 		23D248992F2F943F00CF4128 /* Theme */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Theme; sourceTree = "<group>"; };
 		23D2489D2F2F944700CF4128 /* Intents */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Intents; sourceTree = "<group>"; };
 		CC000001000000000000001A /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
 		CC000002000000000000001B /* Sharing */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sharing; sourceTree = "<group>"; };
 		CC000003000000000000001C /* Onboarding */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Onboarding; sourceTree = "<group>"; };
+		CC000006000000000000001F /* GlobalFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (2385D8A92F5E9B0C00DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = GlobalFeed; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -337,6 +362,7 @@
 				237349B02F2AE6E5007CD14A /* NotificationPreferences.swift */,
 				CC000001000000000000001A /* Sharing */,
 				237342E02F21D1B7007CD14A /* ActivityItem.swift */,
+				CC000004000000000000001D /* ContentReport.swift */,
 				237342E12F21D1B7007CD14A /* MilestoneCard.swift */,
 				237342E42F21D1B7007CD14A /* WeeklyRecap.swift */,
 				23CA15D62F19F351000C7B43 /* LeaderboardCategory.swift */,
@@ -362,6 +388,7 @@
 				237349B32F2AE6F3007CD14A /* Settings */,
 				CC000002000000000000001B /* Sharing */,
 				237342EC2F21D1D3007CD14A /* ActivityFeed */,
+				CC000006000000000000001F /* GlobalFeed */,
 				237342D02F21D184007CD14A /* MilestoneCard */,
 				237342D72F21D184007CD14A /* WeeklyRecap */,
 				23CA15E72F1AF9C7000C7B43 /* Subscription */,
@@ -525,7 +552,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					23CA13F52F189F69000C7B43 = {
 						CreatedOnToolsVersion = 26.2;
@@ -659,11 +686,11 @@
 				237342E72F21D1B7007CD14A /* WeeklyRecap.swift in Sources */,
 				237342E82F21D1B7007CD14A /* MilestoneCard.swift in Sources */,
 				237342E92F21D1B7007CD14A /* ActivityItem.swift in Sources */,
+				CC000005000000000000001E /* ContentReport.swift in Sources */,
 				A1000008 /* Color+DietCoke.swift in Sources */,
 				A1000009 /* AddDrinkView.swift in Sources */,
 				23CA15BB2F19ECA4000C7B43 /* UserIdentity.swift in Sources */,
 				A1000010 /* HistoryView.swift in Sources */,
-				23CA15B22F19EC86000C7B43 /* EditEntrySheet.swift in Sources */,
 				23CA13DC2F186169000C7B43 /* Badge.swift in Sources */,
 				23CA13DD2F186169000C7B43 /* BadgeStore.swift in Sources */,
 				23CA15AA2F19A825000C7B43 /* CameraView.swift in Sources */,
@@ -1020,7 +1047,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1037,11 +1064,12 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1057,7 +1085,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = DietCokeTracker/DietCokeTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"DietCokeTracker/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1074,11 +1102,12 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

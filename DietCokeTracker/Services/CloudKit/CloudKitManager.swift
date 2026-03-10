@@ -118,7 +118,7 @@ class CloudKitManager: ObservableObject {
             atomically: false
         )
 
-        for (recordID, result) in saveResults {
+        for (_, result) in saveResults {
             switch result {
             case .success(let savedRecord):
                 return savedRecord
@@ -149,6 +149,26 @@ class CloudKitManager: ObservableObject {
         } catch let error as CKError where error.code == .unknownItem {
             // Schema doesn't exist yet
             return []
+        }
+    }
+
+    func fetchFromPublicWithCursor(
+        recordType: String,
+        predicate: NSPredicate,
+        sortDescriptors: [NSSortDescriptor],
+        limit: Int,
+        cursor: CKQueryOperation.Cursor?
+    ) async throws -> (records: [CKRecord], cursor: CKQueryOperation.Cursor?) {
+        if let cursor = cursor {
+            let (results, newCursor) = try await publicDatabase.records(continuingMatchFrom: cursor, resultsLimit: limit)
+            let records = results.compactMap { try? $0.1.get() }
+            return (records, newCursor)
+        } else {
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            query.sortDescriptors = sortDescriptors
+            let (results, newCursor) = try await publicDatabase.records(matching: query, resultsLimit: limit)
+            let records = results.compactMap { try? $0.1.get() }
+            return (records, newCursor)
         }
     }
 

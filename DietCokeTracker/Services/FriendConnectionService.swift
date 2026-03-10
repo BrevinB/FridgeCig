@@ -51,9 +51,17 @@ class FriendConnectionService: ObservableObject {
 
     // MARK: - Load Data
 
+    private var isCurrentlyLoading = false
+
     func loadFriends(forUserID userID: String) async {
+        // Prevent redundant concurrent loads
+        guard !isCurrentlyLoading else { return }
+        isCurrentlyLoading = true
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            isCurrentlyLoading = false
+        }
 
         AppLogger.friends.debug("Loading friends for userID: \(userID)")
 
@@ -293,6 +301,74 @@ class FriendConnectionService: ObservableObject {
         friendConnectionRecordIDs.removeValue(forKey: profile.userIDString)
 
         AppLogger.friends.info("Friend removed successfully")
+    }
+
+    // MARK: - Block / Unblock
+
+    func blockUser(blockerID: String, targetID: String) async throws {
+        AppLogger.friends.debug("Blocking user: \(targetID)")
+
+        let connection = FriendConnection(
+            requesterID: blockerID,
+            targetID: targetID,
+            status: .blocked,
+            createdAt: Date()
+        )
+
+        let record = connection.toCKRecord()
+        try await cloudKitManager.saveToPublic(record)
+
+        // Remove from friends if they were a friend
+        friends.removeAll { $0.userIDString == targetID }
+        friendConnectionRecordIDs.removeValue(forKey: targetID)
+
+        AppLogger.friends.info("User blocked: \(targetID)")
+    }
+
+    func unblockUser(blockerID: String, targetID: String) async throws {
+        AppLogger.friends.debug("Unblocking user: \(targetID)")
+
+        // Find the block record
+        let predicate = NSPredicate(format: "requesterID == %@ AND targetID == %@ AND status == %@", blockerID, targetID, "blocked")
+        let records = try await cloudKitManager.fetchFromPublic(recordType: FriendConnection.recordType, predicate: predicate, limit: 1)
+
+        if let record = records.first {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+            AppLogger.friends.info("User unblocked: \(targetID)")
+        }
+    }
+
+    func fetchBlockedUserIDs(forUserID userID: String) async throws -> Set<String> {
+        let predicate = NSPredicate(format: "requesterID == %@ AND status == %@", userID, "blocked")
+        do {
+            let records = try await cloudKitManager.fetchFromPublic(recordType: FriendConnection.recordType, predicate: predicate)
+            let blockedIDs = records.compactMap { $0["targetID"] as? String }
+            return Set(blockedIDs)
+        } catch let error as CKError where error.code == .unknownItem {
+            return []
+        }
+    }
+
+    func fetchBlockedUsers(forUserID userID: String) async throws -> [BlockedUser] {
+        let predicate = NSPredicate(format: "requesterID == %@ AND status == %@", userID, "blocked")
+        do {
+            let records = try await cloudKitManager.fetchFromPublic(recordType: FriendConnection.recordType, predicate: predicate)
+            var blockedUsers: [BlockedUser] = []
+            for record in records {
+                guard let targetID = record["targetID"] as? String else { continue }
+                let displayName: String
+                if let profileRecord = try await cloudKitManager.fetchUserProfile(byUserID: targetID),
+                   let profile = UserProfile(from: profileRecord) {
+                    displayName = profile.displayName
+                } else {
+                    displayName = "Unknown User"
+                }
+                blockedUsers.append(BlockedUser(userID: targetID, displayName: displayName, recordID: record.recordID))
+            }
+            return blockedUsers
+        } catch let error as CKError where error.code == .unknownItem {
+            return []
+        }
     }
 
     // MARK: - Leaderboard

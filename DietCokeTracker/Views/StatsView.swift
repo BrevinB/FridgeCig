@@ -350,15 +350,17 @@ struct WeeklyChartSection: View {
     @EnvironmentObject var store: DrinkStore
     @Environment(\.colorScheme) private var colorScheme
 
-    var chartData: [(date: Date, ounces: Double)] {
-        store.ouncesLast7Days()
-    }
-
-    var maxOunces: Double {
-        max(chartData.map { $0.ounces }.max() ?? 1, 1)
-    }
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter
+    }()
 
     var body: some View {
+        let chartData = store.ouncesLast7Days()
+        let totalOz = chartData.reduce(0.0) { $0 + $1.ounces }
+        let maxOunces = max(chartData.lazy.map(\.ounces).max() ?? 1, 1)
+
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Last 7 Days")
@@ -367,7 +369,7 @@ struct WeeklyChartSection: View {
 
                 Spacer()
 
-                Text("\(String(format: "%.0f", chartData.map { $0.ounces }.reduce(0, +))) oz total")
+                Text("\(String(format: "%.0f", totalOz)) oz total")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(.dietCokeRed)
@@ -392,14 +394,14 @@ struct WeeklyChartSection: View {
                             )
                             .frame(height: max(CGFloat(data.ounces / maxOunces) * 100, 4))
 
-                        Text(dayLabel(for: data.date))
+                        Text(Self.dayFormatter.string(from: data.date))
                             .font(.caption2)
                             .fontWeight(.medium)
                             .foregroundColor(Calendar.current.isDateInToday(data.date) ? .dietCokeRed : .dietCokeDarkSilver)
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(dayLabel(for: data.date)): \(String(format: "%.0f", data.ounces)) ounces\(Calendar.current.isDateInToday(data.date) ? ", today" : "")")
+                    .accessibilityLabel("\(Self.dayFormatter.string(from: data.date)): \(String(format: "%.0f", data.ounces)) ounces\(Calendar.current.isDateInToday(data.date) ? ", today" : "")")
                 }
             }
             .frame(height: 130)
@@ -419,30 +421,21 @@ struct WeeklyChartSection: View {
             y: 3
         )
     }
-
-    private func dayLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: date)
-    }
 }
 
 struct FavoriteTypesSection: View {
     @EnvironmentObject var store: DrinkStore
     @Environment(\.colorScheme) private var colorScheme
 
-    var topTypes: [(type: DrinkType, count: Int)] {
-        let counts = store.countByType()
-        return counts.sorted { $0.value > $1.value }
-            .prefix(5)
-            .map { (type: $0.key, count: $0.value) }
-    }
-
-    var totalCount: Int {
-        topTypes.reduce(0) { $0 + $1.count }
-    }
-
     var body: some View {
+        let topTypes: [(type: DrinkType, count: Int)] = {
+            let counts = store.countByType()
+            return counts.sorted { $0.value > $1.value }
+                .prefix(5)
+                .map { (type: $0.key, count: $0.value) }
+        }()
+        let totalCount = topTypes.reduce(0) { $0 + $1.count }
+
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Favorite Types")

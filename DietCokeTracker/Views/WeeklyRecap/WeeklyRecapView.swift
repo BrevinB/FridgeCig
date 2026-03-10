@@ -6,7 +6,7 @@ struct WeeklyRecapView: View {
     @EnvironmentObject var purchaseService: PurchaseService
     @State private var showingSharePreview = false
     @State private var showingPaywall = false
-    @State private var weekPhotos: [UIImage] = []
+    @State private var weekPhotos: [UIImage]?
 
     /// Get photos from entries within the recap's date range
     private func loadWeekPhotos() -> [UIImage] {
@@ -57,7 +57,6 @@ struct WeeklyRecapView: View {
 
                 // Share Button
                 Button {
-                    // Refresh photos in case new entries were added since onAppear
                     weekPhotos = loadWeekPhotos()
                     showingSharePreview = true
                 } label: {
@@ -78,16 +77,13 @@ struct WeeklyRecapView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Weekly Recap")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            weekPhotos = loadWeekPhotos()
-        }
         .sheet(isPresented: $showingSharePreview) {
             SharePreviewSheet(
                 content: recap,
                 isPresented: $showingSharePreview,
                 isPremium: purchaseService.isPremium,
                 initialTheme: .classic,
-                availablePhotos: weekPhotos,
+                availablePhotos: weekPhotos ?? loadWeekPhotos(),
                 onPremiumTap: {
                     showingSharePreview = false
                     showingPaywall = true

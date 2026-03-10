@@ -1,6 +1,6 @@
 import Foundation
 import UIKit
-import Vision
+@preconcurrency import Vision
 import os
 
 /// Service to verify photos contain a beverage using Vision framework
@@ -45,6 +45,66 @@ class ImageVerificationService: ObservableObject {
         "phone", "computer", "laptop", "screen", "television", "furniture",
         "chair", "table", "bed", "couch", "book", "toy"
     ]
+
+    // MARK: - Safety Classification
+
+    struct SafetyResult {
+        let isSafe: Bool
+        let flaggedCategories: [String]
+    }
+
+    /// Unsafe content keywords for global feed filtering
+    private static let unsafeKeywords: [String] = [
+        "nudity", "explicit", "lingerie", "sexual",
+        "violence", "gore", "weapon", "drug"
+    ]
+
+    /// Classify an image for safety before allowing it into the global feed
+    func classifyForSafety(_ image: UIImage) async -> SafetyResult {
+        guard let cgImage = image.cgImage else {
+            return SafetyResult(isSafe: true, flaggedCategories: [])
+        }
+
+        return await withCheckedContinuation { continuation in
+            let request = VNClassifyImageRequest { request, error in
+                if error != nil {
+                    continuation.resume(returning: SafetyResult(isSafe: true, flaggedCategories: []))
+                    return
+                }
+
+                guard let observations = request.results as? [VNClassificationObservation] else {
+                    continuation.resume(returning: SafetyResult(isSafe: true, flaggedCategories: []))
+                    return
+                }
+
+                var flagged: [String] = []
+                for observation in observations where observation.confidence > 0.3 {
+                    let identifier = observation.identifier.lowercased()
+                    for keyword in Self.unsafeKeywords {
+                        if identifier.contains(keyword) {
+                            flagged.append("\(keyword) (\(String(format: "%.0f%%", observation.confidence * 100)))")
+                            break
+                        }
+                    }
+                }
+
+                let isSafe = flagged.isEmpty
+                if !isSafe {
+                    AppLogger.general.warning("Image flagged for safety: \(flagged.joined(separator: ", "))")
+                }
+                continuation.resume(returning: SafetyResult(isSafe: isSafe, flaggedCategories: flagged))
+            }
+
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    try handler.perform([request])
+                } catch {
+                    continuation.resume(returning: SafetyResult(isSafe: true, flaggedCategories: []))
+                }
+            }
+        }
+    }
 
     /// Check if Vision-based image verification is available
     static var isAvailable: Bool {

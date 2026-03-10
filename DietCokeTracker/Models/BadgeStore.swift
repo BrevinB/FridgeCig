@@ -171,10 +171,6 @@ class BadgeStore: ObservableObject {
             calendar.startOfDay(for: entry.timestamp)
         }
 
-        // Get today's entries
-        let todayStart = calendar.startOfDay(for: now)
-        let todayEntries = entriesByDay[todayStart] ?? []
-
         // MARK: - Time-based badges
 
         for entry in entries {

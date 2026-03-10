@@ -26,6 +26,9 @@ struct FriendsListView: View {
         .task {
             await loadFriends()
         }
+        .onChange(of: identityService.currentIdentity?.userIDString) { _, _ in
+            Task { await loadFriends() }
+        }
         .sheet(isPresented: $showingAddFriend) {
             AddFriendView()
         }
@@ -367,7 +370,7 @@ private struct FriendRow: View {
     let friend: UserProfile
 
     var body: some View {
-        NavigationLink(destination: FriendDetailView(friend: friend)) {
+        NavigationLink(value: friend) {
             HStack(spacing: 14) {
                 // Avatar
                 ZStack {

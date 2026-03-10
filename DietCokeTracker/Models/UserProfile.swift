@@ -1,7 +1,7 @@
 import Foundation
 import CloudKit
 
-struct UserProfile: Codable, Identifiable, Equatable {
+struct UserProfile: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
     var displayName: String
     var friendCode: String
@@ -26,6 +26,9 @@ struct UserProfile: Codable, Identifiable, Equatable {
 
     // Premium status (synced from subscription)
     var isPremium: Bool
+
+    // Global feed opt-in
+    var sharePhotosGlobally: Bool
 
     var userIDString: String {
         id.uuidString
@@ -52,6 +55,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         self.isSuspicious = false
         self.suspiciousFlags = []
         self.isPremium = false
+        self.sharePhotosGlobally = false
     }
 }
 
@@ -89,6 +93,7 @@ extension UserProfile {
         self.isSuspicious = (record["isSuspicious"] as? Int64 ?? 0) == 1
         self.suspiciousFlags = record["suspiciousFlags"] as? [String] ?? []
         self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
+        self.sharePhotosGlobally = (record["sharePhotosGlobally"] as? Int64 ?? 0) == 1
     }
 
     func toCKRecord() -> CKRecord {
@@ -126,6 +131,7 @@ extension UserProfile {
         // CloudKit can't initialize a new field with an empty array, so only set if non-empty
         record["suspiciousFlags"] = suspiciousFlags.isEmpty ? nil : suspiciousFlags
         record["isPremium"] = isPremium ? 1 : 0
+        record["sharePhotosGlobally"] = sharePhotosGlobally ? 1 : 0
     }
 }
 

@@ -50,13 +50,22 @@ struct ActivityFeedView: View {
             SharingPreferencesView()
         }
         .task {
-            // Configure with current user and friends
-            if let userID = identityService.currentProfile?.userIDString {
-                let friendIDs = friendService.friends.map { $0.userIDString }
-                activityService.configure(currentUserID: userID, friendIDs: friendIDs)
-                await activityService.fetchActivities()
-            }
+            // Fetch every time the view appears (tab switch recreates the view)
+            await loadActivities()
         }
+        .onChange(of: identityService.currentProfile?.userIDString) { _, _ in
+            Task { await loadActivities() }
+        }
+        .onChange(of: friendService.friends) { _, _ in
+            Task { await loadActivities() }
+        }
+    }
+
+    private func loadActivities() async {
+        guard let userID = identityService.currentProfile?.userIDString else { return }
+        let friendIDs = friendService.friends.map { $0.userIDString }
+        activityService.configure(currentUserID: userID, friendIDs: friendIDs)
+        await activityService.fetchActivities()
     }
 }
 

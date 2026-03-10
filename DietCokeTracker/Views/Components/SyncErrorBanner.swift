@@ -5,7 +5,7 @@ struct SyncErrorBanner: View {
     @State private var isDismissed = false
 
     var body: some View {
-        if let error = store.syncError, !isDismissed {
+        if let _ = store.syncError, !isDismissed {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.icloud.fill")

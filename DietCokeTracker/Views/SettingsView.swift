@@ -27,6 +27,7 @@ struct SettingsView: View {
     @State private var exportData: Data?
     @State private var showingHealthKitPaywall = false
     @State private var isRequestingHealthKit = false
+    @State private var isHealthKitEnabled = false
 
     #if DEBUG
     @State private var debugTestUserCode: String?
@@ -197,11 +198,11 @@ struct SettingsView: View {
                                     if isRequestingHealthKit {
                                         ProgressView()
                                     } else if purchaseService.isPremium {
-                                        Toggle("", isOn: Binding(
-                                            get: { healthKitManager.isAutoLogEnabled && healthKitManager.isAuthorized },
-                                            set: { _ in handleHealthKitToggle() }
-                                        ))
+                                        Toggle("Sync to Apple Health", isOn: $isHealthKitEnabled)
                                         .labelsHidden()
+                                        .onChange(of: isHealthKitEnabled) { _, _ in
+                                            handleHealthKitToggle()
+                                        }
                                     } else {
                                         Image(systemName: "lock.fill")
                                             .foregroundColor(.secondary)
@@ -349,6 +350,32 @@ struct SettingsView: View {
                             Text("Restore Purchases")
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
+                        }
+                    }
+
+                    // Blocked Users
+                    NavigationLink {
+                        BlockedUsersView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.orange.opacity(0.2), Color.orange.opacity(0.08)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+
+                                Image(systemName: "hand.raised")
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+
+                            Text("Blocked Users")
+                                .fontWeight(.medium)
                         }
                     }
 
@@ -751,6 +778,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingHealthKitPaywall) {
                 PaywallView()
+            }
+            .onAppear {
+                isHealthKitEnabled = healthKitManager.isAutoLogEnabled && healthKitManager.isAuthorized
             }
         }
     }

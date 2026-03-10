@@ -59,7 +59,7 @@ struct QuickAddButton: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
 
-                        Text("\(String(format: "%.0f", type.ounces)) oz")
+                        Text("\(type.ounces, format: .number.precision(.fractionLength(0))) oz")
                             .font(.caption.weight(.medium))
                             .foregroundColor(.dietCokeSilver)
                     }

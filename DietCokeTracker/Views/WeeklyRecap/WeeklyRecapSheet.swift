@@ -8,7 +8,7 @@ struct WeeklyRecapSheet: View {
 
     @State private var showingSharePreview = false
     @State private var showingPaywall = false
-    @State private var weekPhotos: [UIImage] = []
+    @State private var weekPhotos: [UIImage]?
 
     /// Get photos from entries within the recap's date range
     private func loadWeekPhotos(for recap: WeeklyRecap) -> [UIImage] {
@@ -145,7 +145,7 @@ struct WeeklyRecapSheet: View {
                     isPresented: $showingSharePreview,
                     isPremium: purchaseService.isPremium,
                     initialTheme: .classic,
-                    availablePhotos: weekPhotos,
+                    availablePhotos: weekPhotos ?? loadWeekPhotos(for: recap),
                     onPremiumTap: {
                         showingSharePreview = false
                         showingPaywall = true

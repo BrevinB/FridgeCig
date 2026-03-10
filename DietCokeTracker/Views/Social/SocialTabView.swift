@@ -117,6 +117,7 @@ struct SocialMainView: View {
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
+    @EnvironmentObject var globalFeedService: GlobalFeedService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedSection: SocialSection = .leaderboard
@@ -125,6 +126,7 @@ struct SocialMainView: View {
     enum SocialSection: String, CaseIterable {
         case activity = "Activity"
         case leaderboard = "Leaderboard"
+        case explore = "Explore"
         case friends = "Friends"
         case profile = "Profile"
 
@@ -132,6 +134,7 @@ struct SocialMainView: View {
             switch self {
             case .activity: return "bell.fill"
             case .leaderboard: return "trophy.fill"
+            case .explore: return "globe"
             case .friends: return "person.2.fill"
             case .profile: return "person.crop.circle.fill"
             }
@@ -177,6 +180,8 @@ struct SocialMainView: View {
                     ActivityFeedView()
                 case .leaderboard:
                     LeaderboardView()
+                case .explore:
+                    GlobalFeedView()
                 case .friends:
                     FriendsListView()
                 case .profile:
@@ -185,10 +190,20 @@ struct SocialMainView: View {
             }
             .background(backgroundColor.ignoresSafeArea())
             .navigationTitle("Social")
+            .navigationDestination(for: UserProfile.self) { friend in
+                FriendDetailView(friend: friend)
+            }
             .task {
                 // Load friends to get pending request count
                 if let userID = identityService.currentIdentity?.userIDString {
                     await friendService.loadFriends(forUserID: userID)
+                }
+            }
+            .onChange(of: identityService.currentIdentity?.userIDString) { _, _ in
+                Task {
+                    if let userID = identityService.currentIdentity?.userIDString {
+                        await friendService.loadFriends(forUserID: userID)
+                    }
                 }
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
@@ -290,4 +305,5 @@ private struct SocialTabButton: View {
         .environmentObject(IdentityService(cloudKitManager: ckManager))
         .environmentObject(FriendConnectionService(cloudKitManager: ckManager))
         .environmentObject(ActivityFeedService(cloudKitManager: ckManager))
+        .environmentObject(GlobalFeedService(cloudKitManager: ckManager))
 }

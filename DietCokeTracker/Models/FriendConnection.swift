@@ -30,6 +30,16 @@ struct FriendConnection: Codable, Identifiable {
     }
 }
 
+// MARK: - Blocked User
+
+struct BlockedUser: Identifiable {
+    let userID: String
+    let displayName: String
+    let recordID: CKRecord.ID
+
+    var id: String { userID }
+}
+
 // MARK: - CloudKit Conversion
 
 extension FriendConnection {

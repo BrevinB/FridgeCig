@@ -5,14 +5,8 @@ struct HistoryView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @State private var selectedDate = Date()
     @State private var showingDatePicker = false
+    @State private var groupedEntries: [(date: Date, entries: [DrinkEntry])] = []
     @Environment(\.colorScheme) private var colorScheme
-
-    var groupedEntries: [(date: Date, entries: [DrinkEntry])] {
-        let grouped = store.entries.groupedByDay()
-        return grouped.keys.sorted(by: >).map { date in
-            (date: date, entries: grouped[date]!.sorted { $0.timestamp > $1.timestamp })
-        }
-    }
 
     private var backgroundColor: Color {
         themeManager.backgroundColor(for: colorScheme)
@@ -29,6 +23,16 @@ struct HistoryView: View {
             }
             .background(backgroundColor.ignoresSafeArea())
             .navigationTitle("History")
+            .task(id: store.entries.count) {
+                groupedEntries = Self.buildGroupedEntries(from: store.entries)
+            }
+        }
+    }
+
+    private static func buildGroupedEntries(from entries: [DrinkEntry]) -> [(date: Date, entries: [DrinkEntry])] {
+        let grouped = entries.groupedByDay()
+        return grouped.keys.sorted(by: >).map { date in
+            (date: date, entries: grouped[date]!.sorted { $0.timestamp > $1.timestamp })
         }
     }
 }
@@ -240,6 +244,12 @@ struct HistorySectionHeader: View {
     let count: Int
     let ounces: Double
 
+    private static let headerFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter
+    }()
+
     var dateString: String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
@@ -247,9 +257,7 @@ struct HistorySectionHeader: View {
         } else if calendar.isDateInYesterday(date) {
             return "Yesterday"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE, MMM d"
-            return formatter.string(from: date)
+            return Self.headerFormatter.string(from: date)
         }
     }
 

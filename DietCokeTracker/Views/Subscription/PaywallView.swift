@@ -159,7 +159,7 @@ struct PaywallView: View {
         .onAppear {
             autoSelectPackage()
         }
-        .onChange(of: purchaseService.offerings?.current?.availablePackages.count) { _ in
+        .onChange(of: purchaseService.offerings?.current?.availablePackages.count) { _, _ in
             autoSelectPackage()
         }
     }

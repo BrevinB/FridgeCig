@@ -45,6 +45,7 @@ struct ActivityItem: Identifiable, Codable {
     var cheersCount: Int
     var cheersUserIDs: [String]
     var isPremium: Bool
+    var isGlobalPhoto: Bool
 
     init(
         id: UUID = UUID(),
@@ -55,7 +56,8 @@ struct ActivityItem: Identifiable, Codable {
         payload: ActivityPayload,
         cheersCount: Int = 0,
         cheersUserIDs: [String] = [],
-        isPremium: Bool = false
+        isPremium: Bool = false,
+        isGlobalPhoto: Bool = false
     ) {
         self.id = id
         self.userID = userID
@@ -66,6 +68,7 @@ struct ActivityItem: Identifiable, Codable {
         self.cheersCount = cheersCount
         self.cheersUserIDs = cheersUserIDs
         self.isPremium = isPremium
+        self.isGlobalPhoto = isGlobalPhoto
     }
 
     var formattedTime: String {
@@ -191,20 +194,33 @@ struct UserSharingPreferences: Codable {
     var shareStreakMilestones: Bool
     var shareDrinkLogs: Bool
     var showPhotosInFeed: Bool
+    var sharePhotosGlobally: Bool
 
     init(
         shareBadges: Bool = true,
         shareStreakMilestones: Bool = true,
         shareDrinkLogs: Bool = true,
-        showPhotosInFeed: Bool = true
+        showPhotosInFeed: Bool = true,
+        sharePhotosGlobally: Bool = false
     ) {
         self.shareBadges = shareBadges
         self.shareStreakMilestones = shareStreakMilestones
         self.shareDrinkLogs = shareDrinkLogs
         self.showPhotosInFeed = showPhotosInFeed
+        self.sharePhotosGlobally = sharePhotosGlobally
     }
 
     static let `default` = UserSharingPreferences()
+
+    // Custom decoding to handle missing sharePhotosGlobally from older saved data
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        shareBadges = try container.decode(Bool.self, forKey: .shareBadges)
+        shareStreakMilestones = try container.decode(Bool.self, forKey: .shareStreakMilestones)
+        shareDrinkLogs = try container.decode(Bool.self, forKey: .shareDrinkLogs)
+        showPhotosInFeed = try container.decode(Bool.self, forKey: .showPhotosInFeed)
+        sharePhotosGlobally = try container.decodeIfPresent(Bool.self, forKey: .sharePhotosGlobally) ?? false
+    }
 }
 
 // MARK: - CloudKit Conversion
@@ -231,6 +247,7 @@ extension ActivityItem {
         self.cheersCount = (record["cheersCount"] as? Int64).map { Int($0) } ?? 0
         self.cheersUserIDs = record["cheersUserIDs"] as? [String] ?? []
         self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
+        self.isGlobalPhoto = (record["isGlobalPhoto"] as? Int64 ?? 0) == 1
 
         // Decode payload from JSON
         if let payloadJSON = record["payloadJSON"] as? String,
@@ -266,6 +283,7 @@ extension ActivityItem {
             record["cheersUserIDs"] = cheersUserIDs
         }
         record["isPremium"] = isPremium ? 1 : 0
+        record["isGlobalPhoto"] = isGlobalPhoto ? 1 : 0
 
         // Encode payload to JSON
         if let payloadData = try? JSONEncoder().encode(payload),

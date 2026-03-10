@@ -19,6 +19,7 @@ struct DietCokeTrackerApp: App {
     @StateObject private var friendService: FriendConnectionService
     @StateObject private var drinkSyncService: DrinkSyncService
     @StateObject private var activityService: ActivityFeedService
+    @StateObject private var globalFeedService: GlobalFeedService
 
     // Notification service
     @StateObject private var notificationService: NotificationService
@@ -46,6 +47,7 @@ struct DietCokeTrackerApp: App {
         _friendService = StateObject(wrappedValue: FriendConnectionService(cloudKitManager: ckManager))
         _drinkSyncService = StateObject(wrappedValue: DrinkSyncService(cloudKitManager: ckManager))
         _activityService = StateObject(wrappedValue: ActivityFeedService(cloudKitManager: ckManager))
+        _globalFeedService = StateObject(wrappedValue: GlobalFeedService(cloudKitManager: ckManager))
         _notificationService = StateObject(wrappedValue: NotificationService(cloudKitManager: ckManager))
 
         // Configure RevenueCat - Replace with your API key from RevenueCat dashboard
@@ -65,6 +67,7 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(milestoneService)
                 .environmentObject(recapService)
                 .environmentObject(activityService)
+                .environmentObject(globalFeedService)
                 .environmentObject(notificationService)
                 .environmentObject(reviewService)
                 .environmentObject(networkMonitor)
@@ -75,6 +78,9 @@ struct DietCokeTrackerApp: App {
                     _ = deepLinkHandler.handleURL(url)
                 }
                 .task {
+                    // Migrate photos from legacy app group container to main app container
+                    PhotoStorage.migrateIfNeeded()
+
                     // Set up sync services
                     store.syncService = drinkSyncService
                     badgeStore.cloudKitManager = cloudKitManager
@@ -107,8 +113,11 @@ struct DietCokeTrackerApp: App {
                         Task {
                             try? await identityService.syncStats(from: store)
 
-                            // Configure activity service with current user
+                            // Load friends first so downstream services have the data
                             if let userID = identityService.currentProfile?.userIDString {
+                                await friendService.loadFriends(forUserID: userID)
+
+                                // Configure activity service with current user
                                 activityService.configure(
                                     currentUserID: userID,
                                     friendIDs: Array(friendService.friendIDs)
@@ -235,6 +244,9 @@ struct DietCokeTrackerApp: App {
                 .onChange(of: purchaseService.isPremium) { _, isPremium in
                     // Sync subscription status to Apple Watch
                     WatchConnectivityManager.shared.sendSubscriptionStatus(isPremium)
+                }
+                .onReceive(activityService.globalPhotoPosted) { activity in
+                    globalFeedService.insertLocalItem(activity)
                 }
         }
     }
