@@ -125,20 +125,9 @@ class ImageVerificationService: ObservableObject {
             )
         }
 
-        return await withCheckedContinuation { continuation in
-            let request = VNClassifyImageRequest { [weak self] request, error in
-                guard let self = self else {
-                    continuation.resume(returning: VerificationResult(
-                        isValid: true,
-                        confidence: 0.5,
-                        message: "Verification cancelled",
-                        detectedLabels: []
-                    ))
-                    return
-                }
-
-                if let error = error {
-                    AppLogger.general.error("Vision classification error: \(error.localizedDescription)")
+        let result = await withCheckedContinuation { continuation in
+            let request = VNClassifyImageRequest { request, error in
+                if error != nil {
                     continuation.resume(returning: VerificationResult(
                         isValid: true,
                         confidence: 0.5,
@@ -158,7 +147,7 @@ class ImageVerificationService: ObservableObject {
                     return
                 }
 
-                let result = self.analyzeClassifications(observations)
+                let result = Self.analyzeClassifications(observations)
                 continuation.resume(returning: result)
             }
 
@@ -178,9 +167,11 @@ class ImageVerificationService: ObservableObject {
                 }
             }
         }
+        lastVerificationResult = result
+        return result
     }
 
-    private func analyzeClassifications(_ observations: [VNClassificationObservation]) -> VerificationResult {
+    private static func analyzeClassifications(_ observations: [VNClassificationObservation]) -> VerificationResult {
         // Get top classifications with confidence > 0.05 (lower threshold to catch more)
         let topClassifications = observations
             .filter { $0.confidence > 0.05 }
@@ -251,7 +242,6 @@ class ImageVerificationService: ObservableObject {
             )
         }
 
-        lastVerificationResult = result
         return result
     }
 }

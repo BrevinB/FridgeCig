@@ -21,6 +21,7 @@ class ActivityFeedService: ObservableObject {
     private let preferencesKey = "UserSharingPreferences"
     private var friendIDs: [String] = []
     private var currentUserID: String?
+    private var blockedUserIDs: Set<String> = []
 
     init(cloudKitManager: CloudKitManager) {
         self.cloudKitManager = cloudKitManager
@@ -32,6 +33,12 @@ class ActivityFeedService: ObservableObject {
     func configure(currentUserID: String, friendIDs: [String]) {
         self.currentUserID = currentUserID
         self.friendIDs = friendIDs
+    }
+
+    func configure(blockedUserIDs: Set<String>) {
+        self.blockedUserIDs = blockedUserIDs
+        // Remove any existing activities from blocked users
+        activities.removeAll { blockedUserIDs.contains($0.userID) }
     }
 
     // MARK: - Fetch Activities
@@ -72,6 +79,7 @@ class ActivityFeedService: ObservableObject {
             AppLogger.activity.info("Fetched \(records.count) records from CloudKit")
 
             let fetchedActivities = records.compactMap { ActivityItem(from: $0) }
+                .filter { !blockedUserIDs.contains($0.userID) }
             AppLogger.activity.debug("Parsed \(fetchedActivities.count) activities")
 
             // Merge fetched activities with local ones (keep local activities that aren't in CloudKit yet)
@@ -166,7 +174,7 @@ class ActivityFeedService: ObservableObject {
         await postActivity(activity)
     }
 
-    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false) async {
+    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil) async {
         AppLogger.activity.debug("postDrinkActivity called for type: \(type.displayName)")
         guard sharingPreferences.shareDrinkLogs else {
             AppLogger.activity.debug("Drink sharing disabled, skipping")
@@ -196,7 +204,7 @@ class ActivityFeedService: ObservableObject {
             userID: userID,
             displayName: displayName,
             type: .drinkLog,
-            payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID),
+            payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID, rating: rating, ounces: ounces, specialEdition: specialEdition, brand: brand),
             isPremium: isPremium,
             isGlobalPhoto: isGlobalPhoto
         )
@@ -213,27 +221,36 @@ class ActivityFeedService: ObservableObject {
             activity.type == .drinkLog && activity.payload.drinkEntryID == entryID
         }
 
-        // Delete from CloudKit
+        // Delete from CloudKit using the top-level entryID field for efficient lookup
         do {
-            // Find the activity record by searching for matching entryID in payload
-            // We need to fetch activities for this user and find the one with matching entryID
-            let predicate = NSPredicate(format: "userID == %@", userID)
+            let predicate = NSPredicate(format: "entryID == %@ AND userID == %@", entryID, userID)
             let records = try await cloudKitManager.fetchFromPublic(
                 recordType: ActivityItem.recordType,
                 predicate: predicate,
-                limit: 100
+                limit: 1
             )
 
-            // Find records that match the entryID
-            for record in records {
-                if let payloadJSON = record["payloadJSON"] as? String,
-                   let payloadData = payloadJSON.data(using: .utf8),
-                   let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
-                   payload.drinkEntryID == entryID {
-                    // Delete this record
-                    try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
-                    AppLogger.activity.info("Deleted activity from CloudKit for entryID: \(entryID)")
-                    break
+            if let record = records.first {
+                try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+                AppLogger.activity.info("Deleted activity from CloudKit for entryID: \(entryID)")
+            } else {
+                // Fallback: query by userID and check payload JSON (for older records without entryID field)
+                let fallbackPredicate = NSPredicate(format: "userID == %@ AND type == %@", userID, ActivityType.drinkLog.rawValue)
+                let fallbackRecords = try await cloudKitManager.fetchFromPublic(
+                    recordType: ActivityItem.recordType,
+                    predicate: fallbackPredicate,
+                    limit: 100
+                )
+
+                for record in fallbackRecords {
+                    if let payloadJSON = record["payloadJSON"] as? String,
+                       let payloadData = payloadJSON.data(using: .utf8),
+                       let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
+                       payload.drinkEntryID == entryID {
+                        try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+                        AppLogger.activity.info("Deleted activity via fallback for entryID: \(entryID)")
+                        break
+                    }
                 }
             }
         } catch {
@@ -340,7 +357,8 @@ class ActivityFeedService: ObservableObject {
         // Notify so GlobalFeedService can update too
         cheersUpdated.send((activity.id, cheersCount, cheersUserIDs))
 
-        // Sync to cloud
+        // Sync to cloud with conflict resolution
+        let userToToggle = currentID
         do {
             let predicate = NSPredicate(format: "activityID == %@", activity.id.uuidString)
             let records = try await cloudKitManager.fetchFromPublic(
@@ -352,7 +370,18 @@ class ActivityFeedService: ObservableObject {
             if let existingRecord = records.first {
                 existingRecord["cheersCount"] = cheersCount
                 existingRecord["cheersUserIDs"] = cheersUserIDs
-                try await cloudKitManager.saveToPublic(existingRecord)
+
+                try await cloudKitManager.saveToPublicWithConflictResolution(existingRecord) { serverRecord, localRecord in
+                    // Merge: re-apply the toggle on top of the server's current state
+                    var serverUserIDs = serverRecord["cheersUserIDs"] as? [String] ?? []
+                    if serverUserIDs.contains(userToToggle) {
+                        serverUserIDs.removeAll { $0 == userToToggle }
+                    } else {
+                        serverUserIDs.append(userToToggle)
+                    }
+                    serverRecord["cheersUserIDs"] = serverUserIDs
+                    serverRecord["cheersCount"] = serverUserIDs.count
+                }
             }
         } catch {
             AppLogger.activity.error("Failed to update cheers: \(error.localizedDescription)")

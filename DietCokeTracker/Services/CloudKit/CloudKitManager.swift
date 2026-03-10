@@ -91,6 +91,130 @@ class CloudKitManager: ObservableObject {
         try await privateDatabase.deleteRecord(withID: recordID)
     }
 
+    // MARK: - Batch Operations (Private)
+
+    /// Save multiple records in a single batch operation (up to 400 per call)
+    func batchSaveToPrivate(_ records: [CKRecord]) async throws {
+        guard !records.isEmpty else { return }
+
+        // CloudKit supports up to 400 records per operation
+        let batchSize = 400
+        for batch in stride(from: 0, to: records.count, by: batchSize) {
+            let end = min(batch + batchSize, records.count)
+            let slice = Array(records[batch..<end])
+
+            let (saveResults, _) = try await privateDatabase.modifyRecords(
+                saving: slice,
+                deleting: [],
+                savePolicy: .allKeys,
+                atomically: false
+            )
+
+            for (_, result) in saveResults {
+                if case .failure(let error) = result {
+                    throw error
+                }
+            }
+        }
+    }
+
+    /// Delete multiple records in a single batch operation
+    func batchDeleteFromPrivate(_ recordIDs: [CKRecord.ID]) async throws {
+        guard !recordIDs.isEmpty else { return }
+
+        let batchSize = 400
+        for batch in stride(from: 0, to: recordIDs.count, by: batchSize) {
+            let end = min(batch + batchSize, recordIDs.count)
+            let slice = Array(recordIDs[batch..<end])
+
+            let (_, deleteResults) = try await privateDatabase.modifyRecords(
+                saving: [],
+                deleting: slice,
+                savePolicy: .allKeys,
+                atomically: false
+            )
+
+            for (_, result) in deleteResults {
+                if case .failure(let error) = result {
+                    // Ignore "not found" errors for already-deleted records
+                    if let ckError = error as? CKError, ckError.code == .unknownItem {
+                        continue
+                    }
+                    throw error
+                }
+            }
+        }
+    }
+
+    // MARK: - Batch Operations (Public)
+
+    /// Save multiple records to the public database in batches
+    func batchSaveToPublic(_ records: [CKRecord]) async throws {
+        guard !records.isEmpty else { return }
+
+        let batchSize = 400
+        for batch in stride(from: 0, to: records.count, by: batchSize) {
+            let end = min(batch + batchSize, records.count)
+            let slice = Array(records[batch..<end])
+
+            let (saveResults, _) = try await publicDatabase.modifyRecords(
+                saving: slice,
+                deleting: [],
+                savePolicy: .allKeys,
+                atomically: false
+            )
+
+            for (_, result) in saveResults {
+                if case .failure(let error) = result {
+                    throw error
+                }
+            }
+        }
+    }
+
+    /// Delete multiple records from the public database in batches
+    func batchDeleteFromPublic(_ recordIDs: [CKRecord.ID]) async throws {
+        guard !recordIDs.isEmpty else { return }
+
+        let batchSize = 400
+        for batch in stride(from: 0, to: recordIDs.count, by: batchSize) {
+            let end = min(batch + batchSize, recordIDs.count)
+            let slice = Array(recordIDs[batch..<end])
+
+            let (_, deleteResults) = try await publicDatabase.modifyRecords(
+                saving: [],
+                deleting: slice,
+                savePolicy: .allKeys,
+                atomically: false
+            )
+
+            for (_, result) in deleteResults {
+                if case .failure(let error) = result {
+                    if let ckError = error as? CKError, ckError.code == .unknownItem {
+                        continue
+                    }
+                    throw error
+                }
+            }
+        }
+    }
+
+    // MARK: - Conflict-Aware Save (Public)
+
+    /// Save a record to the public database, automatically resolving conflicts by re-fetching and retrying
+    func saveToPublicWithConflictResolution(_ record: CKRecord, mergeFields: (CKRecord, CKRecord) -> Void) async throws {
+        do {
+            try await saveToPublic(record)
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            // Conflict: server has a newer version. Fetch it, merge, and retry.
+            guard let serverRecord = error.userInfo[CKRecordChangedErrorServerRecordKey] as? CKRecord else {
+                throw error
+            }
+            mergeFields(serverRecord, record)
+            try await saveToPublic(serverRecord)
+        }
+    }
+
     // MARK: - Public Database (Leaderboard data)
 
     func saveToPublic(_ record: CKRecord) async throws {

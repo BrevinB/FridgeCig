@@ -292,17 +292,45 @@ private struct GlobalFeedCard: View {
                 Spacer()
 
                 VStack(alignment: .leading, spacing: 4) {
-                    // Drink type pill
-                    if let drinkType = item.payload.drinkType {
-                        Text(drinkType.displayName)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
+                    // Info pills row
+                    HStack(spacing: 4) {
+                        if let drinkType = item.payload.drinkType {
+                            Text(drinkType.displayName)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.25))
+                                )
+                        }
+
+                        if item.payload.drinkSpecialEdition != nil {
+                            Image(systemName: "sparkle")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.yellow)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.2))
+                                )
+                        }
+
+                        if let rating = item.payload.drinkRating {
+                            HStack(spacing: 2) {
+                                Image(systemName: rating.icon)
+                                    .font(.system(size: 8))
+                                    .foregroundColor(rating.color)
+                            }
+                            .padding(.horizontal, 4)
                             .padding(.vertical, 2)
                             .background(
                                 Capsule()
-                                    .fill(Color.white.opacity(0.25))
+                                    .fill(Color.white.opacity(0.2))
                             )
+                        }
                     }
 
                     HStack(alignment: .center) {

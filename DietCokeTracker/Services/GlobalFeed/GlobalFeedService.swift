@@ -65,9 +65,10 @@ class GlobalFeedService: ObservableObject {
             cursor = result.cursor
             hasMore = result.cursor != nil
 
+            let existingIDs = Set(items.map { $0.id })
             let newItems = result.records
                 .compactMap { ActivityItem(from: $0) }
-                .filter { !blockedUserIDs.contains($0.userID) }
+                .filter { !blockedUserIDs.contains($0.userID) && !existingIDs.contains($0.id) }
 
             items.append(contentsOf: newItems)
         } catch {

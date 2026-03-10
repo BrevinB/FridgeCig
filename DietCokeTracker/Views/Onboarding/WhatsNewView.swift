@@ -124,6 +124,27 @@ struct WhatsNewFeature: Identifiable {
                     description: "Download your complete drink history anytime."
                 )
             ]
+        case "1.2", "1.2.0":
+            return [
+                WhatsNewFeature(
+                    icon: "globe",
+                    iconColor: .green,
+                    title: "Global Explore Feed",
+                    description: "Share your drink photos with the entire community and see what others are sipping. Opt in during onboarding or from Sharing Settings."
+                ),
+                WhatsNewFeature(
+                    icon: "hand.thumbsup.fill",
+                    iconColor: .orange,
+                    title: "Cheers",
+                    description: "Double-tap photos in the Explore feed to send cheers to fellow fans."
+                ),
+                WhatsNewFeature(
+                    icon: "ant.fill",
+                    iconColor: .dietCokeRed,
+                    title: "Bug Fixes & Improvements",
+                    description: "Squashed bugs and polished the experience for a smoother ride."
+                )
+            ]
         default:
             // Default features for unknown versions
             return [

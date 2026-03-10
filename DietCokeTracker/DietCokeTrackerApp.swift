@@ -117,6 +117,11 @@ struct DietCokeTrackerApp: App {
                             if let userID = identityService.currentProfile?.userIDString {
                                 await friendService.loadFriends(forUserID: userID)
 
+                                // Fetch blocked users and configure filtering across all feeds
+                                let blockedIDs = (try? await friendService.fetchBlockedUserIDs(forUserID: userID)) ?? []
+                                activityService.configure(blockedUserIDs: blockedIDs)
+                                globalFeedService.configure(blockedUserIDs: blockedIDs)
+
                                 // Configure activity service with current user
                                 activityService.configure(
                                     currentUserID: userID,
@@ -183,7 +188,11 @@ struct DietCokeTrackerApp: App {
                             userID: userID,
                             displayName: displayName,
                             entryID: entry.id.uuidString,
-                            isPremium: isPremium
+                            isPremium: isPremium,
+                            rating: entry.rating,
+                            ounces: entry.ounces,
+                            specialEdition: entry.specialEdition,
+                            brand: entry.brand
                         )
                     }
                 }

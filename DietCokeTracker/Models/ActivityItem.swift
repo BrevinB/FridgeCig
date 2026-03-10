@@ -122,6 +122,10 @@ struct ActivityPayload: Codable {
     var hasPhoto: Bool?
     var photoURL: String?  // CloudKit asset URL for shared photos
     var drinkEntryID: String?  // Links activity to drink entry for deletion
+    var drinkRating: DrinkRating?
+    var drinkOunces: Double?
+    var drinkSpecialEdition: String?  // SpecialEdition raw value
+    var drinkBrand: BeverageBrand?
 
     init(
         badgeID: String? = nil,
@@ -134,7 +138,11 @@ struct ActivityPayload: Codable {
         drinkNote: String? = nil,
         hasPhoto: Bool? = nil,
         photoURL: String? = nil,
-        drinkEntryID: String? = nil
+        drinkEntryID: String? = nil,
+        drinkRating: DrinkRating? = nil,
+        drinkOunces: Double? = nil,
+        drinkSpecialEdition: String? = nil,
+        drinkBrand: BeverageBrand? = nil
     ) {
         self.badgeID = badgeID
         self.badgeTitle = badgeTitle
@@ -147,6 +155,10 @@ struct ActivityPayload: Codable {
         self.hasPhoto = hasPhoto
         self.photoURL = photoURL
         self.drinkEntryID = drinkEntryID
+        self.drinkRating = drinkRating
+        self.drinkOunces = drinkOunces
+        self.drinkSpecialEdition = drinkSpecialEdition
+        self.drinkBrand = drinkBrand
     }
 
     // MARK: - Factory Methods
@@ -176,13 +188,17 @@ struct ActivityPayload: Codable {
         )
     }
 
-    static func forDrink(type: DrinkType, note: String?, hasPhoto: Bool, photoURL: String? = nil, entryID: String? = nil) -> ActivityPayload {
+    static func forDrink(type: DrinkType, note: String?, hasPhoto: Bool, photoURL: String? = nil, entryID: String? = nil, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil) -> ActivityPayload {
         ActivityPayload(
             drinkType: type,
             drinkNote: note,
             hasPhoto: hasPhoto,
             photoURL: photoURL,
-            drinkEntryID: entryID
+            drinkEntryID: entryID,
+            drinkRating: rating,
+            drinkOunces: ounces,
+            drinkSpecialEdition: specialEdition?.rawValue,
+            drinkBrand: brand
         )
     }
 }
@@ -284,6 +300,11 @@ extension ActivityItem {
         }
         record["isPremium"] = isPremium ? 1 : 0
         record["isGlobalPhoto"] = isGlobalPhoto ? 1 : 0
+
+        // Store entryID as a top-level queryable field for efficient deletion lookups
+        if let entryID = payload.drinkEntryID {
+            record["entryID"] = entryID
+        }
 
         // Encode payload to JSON
         if let payloadData = try? JSONEncoder().encode(payload),

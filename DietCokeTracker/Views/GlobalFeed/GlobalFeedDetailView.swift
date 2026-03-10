@@ -164,6 +164,7 @@ struct GlobalFeedDetailView: View {
     private var infoSection: some View {
         VStack(spacing: 16) {
             userInfoRow
+            drinkDetailsView
             noteView
             hintText
         }
@@ -214,9 +215,18 @@ struct GlobalFeedDetailView: View {
 
             HStack(spacing: 6) {
                 if let drinkType = item.payload.drinkType {
-                    Text(drinkType.displayName)
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
+                    if let ounces = item.payload.drinkOunces, ounces != drinkType.ounces {
+                        let ozText = ounces.truncatingRemainder(dividingBy: 1) == 0
+                            ? "\(Int(ounces)) oz"
+                            : String(format: "%.1f oz", ounces)
+                        Text("\(drinkType.displayName) · \(ozText)")
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    } else {
+                        Text(drinkType.displayName)
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
                 }
 
                 Text("·")
@@ -278,6 +288,94 @@ struct GlobalFeedDetailView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var drinkDetailsView: some View {
+        let hasDetails = item.payload.drinkRating != nil
+            || item.payload.drinkOunces != nil
+            || item.payload.drinkSpecialEdition != nil
+            || (item.payload.drinkBrand != nil && item.payload.drinkBrand != .dietCoke)
+
+        if hasDetails {
+            HStack(spacing: 8) {
+                // Rating
+                if let rating = item.payload.drinkRating {
+                    HStack(spacing: 4) {
+                        Image(systemName: rating.icon)
+                            .font(.system(size: 12))
+                            .foregroundColor(rating.color)
+                        Text(rating.displayName)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeCharcoal)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(rating.color.opacity(0.12))
+                    )
+                }
+
+                // Ounces
+                if let ounces = item.payload.drinkOunces {
+                    HStack(spacing: 4) {
+                        Image(systemName: "drop.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.blue)
+                        Text(ounces.truncatingRemainder(dividingBy: 1) == 0
+                             ? "\(Int(ounces)) oz"
+                             : String(format: "%.1f oz", ounces))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeCharcoal)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
+
+                // Special Edition
+                if let edition = item.payload.drinkSpecialEdition {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 10))
+                            .foregroundColor(.yellow)
+                        Text(edition)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeCharcoal)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color.yellow.opacity(0.12))
+                    )
+                }
+
+                // Brand (only show if not default Diet Coke)
+                if let brand = item.payload.drinkBrand, brand != .dietCoke {
+                    Text(brand.rawValue)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.dietCokeCharcoal)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(brand.color.opacity(0.12))
+                        )
+                }
+
+                Spacer()
+            }
+        }
     }
 
     @ViewBuilder

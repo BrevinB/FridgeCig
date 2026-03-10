@@ -4,13 +4,15 @@ struct OnboardingView: View {
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var notificationService: NotificationService
     @EnvironmentObject var identityService: IdentityService
+    @EnvironmentObject var activityService: ActivityFeedService
+    @EnvironmentObject var cloudKitManager: CloudKitManager
     @EnvironmentObject var themeManager: ThemeManager
     @State private var currentPage = 0
     @State private var selectedBrand: BeverageBrand = .dietCoke
     @State private var showingPaywall = false
     @Environment(\.colorScheme) private var colorScheme
 
-    private let totalPages = 5
+    private let totalPages = 6
 
     var body: some View {
         ZStack {
@@ -35,6 +37,9 @@ struct OnboardingView: View {
 
                     LeaderboardPage(identityService: identityService)
                         .tag(4)
+
+                    GlobalFeedPage(activityService: activityService, identityService: identityService, cloudKitManager: cloudKitManager)
+                        .tag(5)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: currentPage)
@@ -580,9 +585,123 @@ private struct LeaderboardPage: View {
     }
 }
 
+// MARK: - Global Feed Page
+
+private struct GlobalFeedPage: View {
+    @ObservedObject var activityService: ActivityFeedService
+    @ObservedObject var identityService: IdentityService
+    @ObservedObject var cloudKitManager: CloudKitManager
+    @State private var hasOptedIn = false
+
+    var body: some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.green.opacity(0.2), Color.green.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 140, height: 140)
+
+                Image(systemName: "globe")
+                    .font(.system(size: 60, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.green, .mint],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+
+            VStack(spacing: 12) {
+                Text("Join the Explore Feed")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                Text("Share your drink photos with the entire community. Photos are screened for safety before appearing.")
+                    .font(.body)
+                    .foregroundColor(.dietCokeDarkSilver)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
+            if hasOptedIn {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("You're sharing globally!")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
+                }
+            } else {
+                VStack(spacing: 12) {
+                    Button {
+                        enableGlobalSharing()
+                    } label: {
+                        HStack {
+                            Image(systemName: "globe")
+                            Text("Join Explore Feed")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                colors: [.green, .mint],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(Capsule())
+                    }
+
+                    Text("You can change this anytime in Sharing Settings")
+                        .font(.caption)
+                        .foregroundColor(.dietCokeDarkSilver)
+                }
+            }
+
+            Spacer()
+            Spacer()
+        }
+        .padding()
+    }
+
+    private func enableGlobalSharing() {
+        var prefs = activityService.sharingPreferences
+        prefs.sharePhotosGlobally = true
+        activityService.updatePreferences(prefs)
+
+        if var profile = identityService.currentProfile {
+            profile.sharePhotosGlobally = true
+            Task {
+                if let record = try? await cloudKitManager.fetchUserProfile(byUserID: profile.userIDString) {
+                    record["sharePhotosGlobally"] = 1
+                    try? await cloudKitManager.saveToPublic(record)
+                }
+            }
+        }
+
+        withAnimation {
+            hasOptedIn = true
+        }
+    }
+}
+
 #Preview {
+    let ckManager = CloudKitManager()
     OnboardingView()
         .environmentObject(UserPreferences())
-        .environmentObject(NotificationService(cloudKitManager: CloudKitManager()))
-        .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
+        .environmentObject(NotificationService(cloudKitManager: ckManager))
+        .environmentObject(IdentityService(cloudKitManager: ckManager))
+        .environmentObject(ActivityFeedService(cloudKitManager: ckManager))
+        .environmentObject(ckManager)
 }

@@ -53,23 +53,12 @@ class DrinkSyncService: ObservableObject {
         // 3. Merge local and cloud entries
         let merged = mergeEntries(local: localEntries, cloud: cloudEntries)
 
-        // 4. Upload new/modified local entries, tracking failures
-        var uploadErrors: [Error] = []
-        for entry in merged.toUpload {
-            do {
-                try await uploadEntry(entry)
-            } catch {
-                AppLogger.sync.error("Failed to upload entry \(entry.id): \(error.localizedDescription)")
-                uploadErrors.append(error)
-            }
-        }
-
-        // 5. Set sync error if any uploads failed
-        if !uploadErrors.isEmpty {
-            syncError = SyncError.partialFailure(
-                successCount: merged.toUpload.count - uploadErrors.count,
-                failureCount: uploadErrors.count
-            )
+        // 4. Batch upload new/modified local entries
+        do {
+            try await batchUploadEntries(merged.toUpload)
+        } catch {
+            AppLogger.sync.error("Batch upload failed: \(error.localizedDescription)")
+            syncError = SyncError.cloudKitError(error)
         }
 
         // 6. Update last sync date
@@ -178,26 +167,38 @@ class DrinkSyncService: ObservableObject {
     }
 
     private func syncDeletionsToCloud() async throws {
+        var recordIDsToDelete: [CKRecord.ID] = []
         for entryID in deletedEntryIDs {
             if let recordName = recordIDs[entryID] {
-                let recordID = CKRecord.ID(recordName: recordName)
-                do {
-                    try await cloudKitManager.deleteFromPrivate(recordID: recordID)
-                } catch {
-                    // Ignore errors for records that may already be deleted
-                }
+                recordIDsToDelete.append(CKRecord.ID(recordName: recordName))
                 recordIDs.removeValue(forKey: entryID)
             }
         }
+
+        try await cloudKitManager.batchDeleteFromPrivate(recordIDsToDelete)
         deletedEntryIDs.removeAll()
         saveDeletedEntryIDs()
         saveRecordIDs()
     }
 
-    private func uploadEntries(_ entries: [DrinkEntry]) async throws {
+    /// Batch upload entries using CloudKit batch operations
+    private func batchUploadEntries(_ entries: [DrinkEntry]) async throws {
+        guard !entries.isEmpty else { return }
+
+        var records: [CKRecord] = []
         for entry in entries {
-            try await uploadEntry(entry)
+            if let recordName = recordIDs[entry.id] {
+                let recordID = CKRecord.ID(recordName: recordName)
+                records.append(entry.toCKRecord(existingRecordID: recordID))
+            } else {
+                let record = entry.toCKRecord()
+                records.append(record)
+                recordIDs[entry.id] = record.recordID.recordName
+            }
         }
+
+        try await cloudKitManager.batchSaveToPrivate(records)
+        saveRecordIDs()
     }
 
     // MARK: - Merge Logic
