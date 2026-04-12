@@ -246,6 +246,7 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var showingAddDrink: Bool
     @State private var showingSettings = false
+    @State private var showingCatalog = false
     @State private var celebrationActive = false
     @State private var showDrinkUpsell = false
     @State private var showingPaywall = false
@@ -332,9 +333,21 @@ struct HomeView: View {
                             .foregroundColor(.dietCokeDarkSilver)
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingCatalog = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 17))
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+                }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingCatalog) {
+                DrinkCatalogView()
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()

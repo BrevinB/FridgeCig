@@ -80,6 +80,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case summerVibes = "Summer Vibes 2025"
     case holidaySeason = "Holiday Season"
     case retroEdition = "Retro Edition"
+    case america250 = "America 250"
 
     // DC Flavors
     case zeroSugarLime = "Zero Sugar Lime"
@@ -110,7 +111,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
 
     var category: SpecialEditionCategory {
         switch self {
-        case .fifa2026, .summerVibes, .holidaySeason, .retroEdition:
+        case .fifa2026, .summerVibes, .holidaySeason, .retroEdition, .america250:
             return .limited
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai,
@@ -132,6 +133,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .summerVibes: return "sun.max.fill"
         case .holidaySeason: return "gift.fill"
         case .retroEdition: return "clock.arrow.circlepath"
+        case .america250: return "flag.fill"
         case .zeroSugarLime: return "leaf.fill"
         case .cherryVanilla: return "heart.fill"
         case .gingerLime: return "leaf.circle.fill"
@@ -166,6 +168,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return "Celebrated with a Holiday Season edition"
         case .retroEdition:
             return "Sipped on a classic Retro Edition"
+        case .america250:
+            return "Celebrated America's 250th birthday with a patriotic edition"
         case .zeroSugarLime:
             return "Tasted the Zero Sugar Lime variant"
         case .cherryVanilla:
@@ -213,7 +217,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
 
     var rarity: BadgeRarity {
         switch self {
-        case .fifa2026, .starlight, .dreamworld, .marshmello, .y3000, .ultimate:
+        case .fifa2026, .america250, .starlight, .dreamworld, .marshmello, .y3000, .ultimate:
             return .legendary
         case .summerVibes, .holidaySeason, .byte, .move, .kWave, .happyTears, .oreo:
             return .epic
