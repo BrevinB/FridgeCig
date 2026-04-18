@@ -20,12 +20,13 @@ struct PaywallView: View {
                 backgroundColor.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Non-scrolling content fills available space
-                    VStack(spacing: 16) {
-                        heroSection
-                        featureCarousel
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            heroSection
+                            featureCarousel
+                        }
                     }
-                    .frame(maxHeight: .infinity)
+                    .scrollBounceBehavior(.basedOnSize)
 
                     purchaseSection
                 }

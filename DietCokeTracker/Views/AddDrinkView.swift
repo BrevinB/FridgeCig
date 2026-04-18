@@ -166,15 +166,18 @@ struct AddDrinkView: View {
                 let prefs = activityService.sharingPreferences
                 if !prefs.shareDrinkLogs {
                     visibility = .onlyMe
-                } else if prefs.sharePhotosGlobally {
+                } else if prefs.sharePhotosGlobally && capturedPhoto != nil {
                     visibility = .public
                 } else {
                     visibility = .friends
                 }
             }
             .onChange(of: capturedPhoto) { _, newPhoto in
+                let prefs = activityService.sharingPreferences
                 if newPhoto == nil && visibility == .public {
                     visibility = .friends
+                } else if newPhoto != nil && prefs.sharePhotosGlobally && prefs.shareDrinkLogs {
+                    visibility = .public
                 }
             }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
