@@ -61,8 +61,17 @@ struct AvatarView: View {
                     .foregroundColor(.dietCokeRed)
             }
         }
+        .onChange(of: profilePhotoID) { _, _ in
+            didAttemptLoad = false
+            image = nil
+        }
         .task(id: profilePhotoID) {
-            guard let photoID = profilePhotoID, !photoID.isEmpty, !didAttemptLoad else { return }
+            guard let photoID = profilePhotoID, !photoID.isEmpty, !didAttemptLoad else {
+                if profilePhotoID == nil || profilePhotoID?.isEmpty == true {
+                    image = nil
+                }
+                return
+            }
             didAttemptLoad = true
             image = await ProfilePhotoCache.shared.photo(for: photoID)
         }

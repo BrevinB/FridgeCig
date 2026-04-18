@@ -225,16 +225,22 @@ class ActivityFeedService: ObservableObject {
     func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil, visibility: PostVisibility = .friends) async {
         AppLogger.activity.debug("postDrinkActivity called for type: \(type.displayName) visibility: \(visibility.rawValue)")
 
+        // Enforce global privacy settings — these override the per-post picker
+        var effectiveVisibility = visibility
+        if !sharingPreferences.shareDrinkLogs && visibility != .onlyMe {
+            effectiveVisibility = .onlyMe
+        }
+
         let hasPhoto = photo != nil
         var photoURL: String? = nil
         var isGlobalPhoto = false
 
-        // Upload photo if visibility allows sharing
-        if let photo = photo {
+        // Only upload photo if sharing prefs allow it AND visibility is beyond Only Me
+        if let photo = photo, sharingPreferences.showPhotosInFeed, effectiveVisibility != .onlyMe {
             photoURL = await uploadPhoto(photo)
 
-            // Mark as global if user chose public visibility and photo is safe
-            if visibility == .public, photoURL != nil {
+            // Mark as global if user chose public visibility, global sharing is enabled, and photo is safe
+            if effectiveVisibility == .public, sharingPreferences.sharePhotosGlobally, photoURL != nil {
                 let verificationService = ImageVerificationService()
                 let safetyResult = await verificationService.classifyForSafety(photo)
                 isGlobalPhoto = safetyResult.isSafe
@@ -251,7 +257,7 @@ class ActivityFeedService: ObservableObject {
             payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID, rating: rating, ounces: ounces, specialEdition: specialEdition, brand: brand),
             isPremium: isPremium,
             isGlobalPhoto: isGlobalPhoto,
-            visibility: visibility,
+            visibility: effectiveVisibility,
             profilePhotoID: currentProfilePhotoID,
             profileEmoji: currentProfileEmoji
         )

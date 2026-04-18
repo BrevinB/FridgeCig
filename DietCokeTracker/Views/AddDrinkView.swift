@@ -215,7 +215,19 @@ struct AddDrinkView: View {
 
 struct VisibilityPicker: View {
     @Binding var visibility: PostVisibility
+    @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.colorScheme) private var colorScheme
+
+    private var availableOptions: [PostVisibility] {
+        let prefs = activityService.sharingPreferences
+        if !prefs.shareDrinkLogs {
+            return [.onlyMe]
+        }
+        if !prefs.sharePhotosGlobally {
+            return [.onlyMe, .friends]
+        }
+        return PostVisibility.allCases
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -225,7 +237,7 @@ struct VisibilityPicker: View {
                 .foregroundColor(.dietCokeCharcoal)
 
             HStack(spacing: 8) {
-                ForEach(PostVisibility.allCases) { option in
+                ForEach(availableOptions) { option in
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             visibility = option

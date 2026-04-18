@@ -54,9 +54,15 @@ struct ActivityFeedView: View {
     }
 
     private func loadActivities() async {
-        guard let userID = identityService.currentProfile?.userIDString else { return }
+        guard let profile = identityService.currentProfile else { return }
         let friendIDs = friendService.friends.map { $0.userIDString }
-        activityService.configure(currentUserID: userID, friendIDs: friendIDs)
+        activityService.configure(
+            currentUserID: profile.userIDString,
+            friendIDs: friendIDs,
+            profilePhotoID: profile.profilePhotoID,
+            profileEmoji: profile.profileEmoji
+        )
+        activityService.updateAvatarMap(from: friendService.friends)
         await activityService.fetchActivities()
     }
 }
