@@ -181,16 +181,12 @@ private struct SearchResultRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Avatar
-            ZStack {
-                Circle()
-                    .fill(Color.dietCokeRed.opacity(0.1))
-                    .frame(width: 48, height: 48)
-
-                Text(user.displayName.prefix(1).uppercased())
-                    .font(.headline)
-                    .foregroundColor(.dietCokeRed)
-            }
+            AvatarView(
+                displayName: user.displayName,
+                profilePhotoID: user.profilePhotoID,
+                profileEmoji: user.profileEmoji,
+                size: 48
+            )
 
             // Info
             VStack(alignment: .leading, spacing: 4) {

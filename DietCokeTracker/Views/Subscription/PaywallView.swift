@@ -3,166 +3,287 @@ import RevenueCat
 
 struct PaywallView: View {
     @EnvironmentObject var purchaseService: PurchaseService
+    @EnvironmentObject var store: DrinkStore
+    @EnvironmentObject var preferences: UserPreferences
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedPackage: Package?
     @State private var errorMessage: String?
+    @State private var animateHero = false
+
+    private var streakDays: Int { store.streakDays }
+    private var totalDrinks: Int { store.allTimeCount }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Scrollable: header + features
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Header
-                        VStack(spacing: 12) {
-                            AppIconView(size: 80)
+            ZStack {
+                backgroundColor.ignoresSafeArea()
 
-                            Text("FridgeCig Pro")
-                                .font(.largeTitle.bold())
-                                .foregroundColor(.dietCokeCharcoal)
-                                .multilineTextAlignment(.center)
-
-                            Text("Widgets, streak protection, and more")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.top, 20)
-
-                        // Features
-                        VStack(spacing: 12) {
-                            FeatureRow(
-                                icon: "rectangle.3.offgrid.fill",
-                                title: "Home Screen Widgets",
-                                description: "Track at a glance from your home screen"
-                            )
-                            FeatureRow(
-                                icon: "applewatch",
-                                title: "Apple Watch App",
-                                description: "Log drinks from your wrist instantly"
-                            )
-                            FeatureRow(
-                                icon: "snowflake",
-                                title: "Streak Freezes",
-                                description: "Protect your streak with 3 freezes per month"
-                            )
-                            FeatureRow(
-                                icon: "paintpalette.fill",
-                                title: "Premium Themes",
-                                description: "Customize your app with exclusive themes"
-                            )
-                            FeatureRow(
-                                icon: "heart.text.square.fill",
-                                title: "Sync to Apple Health",
-                                description: "Auto-log caffeine intake to HealthKit"
-                            )
-                        }
-                        .padding(.horizontal)
+                VStack(spacing: 0) {
+                    // Non-scrolling content fills available space
+                    VStack(spacing: 16) {
+                        heroSection
+                        featureCarousel
                     }
-                    .padding(.bottom, 16)
+                    .frame(maxHeight: .infinity)
+
+                    purchaseSection
                 }
-
-                // Pinned bottom: packages + CTA + restore + terms
-                VStack(spacing: 12) {
-                    Divider()
-
-                    // Packages
-                    VStack(spacing: 8) {
-                        if let offerings = purchaseService.offerings,
-                           let packages = offerings.current?.availablePackages {
-                            ForEach(packages, id: \.identifier) { package in
-                                PackageButton(
-                                    package: package,
-                                    isSelected: selectedPackage?.identifier == package.identifier,
-                                    allPackages: packages
-                                ) {
-                                    selectedPackage = package
-                                }
-                            }
-                        } else {
-                            ProgressView()
-                                .padding(.vertical, 8)
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Purchase button
-                    Button {
-                        Task { await purchase() }
-                    } label: {
-                        if purchaseService.isPurchasing {
-                            ProgressView()
-                                .tint(.white)
-                        } else {
-                            Text(purchaseButtonText)
-                        }
-                    }
-                    .buttonStyle(.dietCokePrimary)
-                    .disabled(selectedPackage == nil || purchaseService.isPurchasing)
-                    .opacity(selectedPackage == nil ? 0.6 : 1)
-                    .padding(.horizontal)
-
-                    // Restore + terms
-                    HStack(spacing: 16) {
-                        Button("Restore Purchases") {
-                            Task {
-                                do {
-                                    try await purchaseService.restorePurchases()
-                                    if purchaseService.isPremium {
-                                        dismiss()
-                                    }
-                                } catch {
-                                    errorMessage = "Restore failed: \(error.localizedDescription)"
-                                }
-                            }
-                        }
-                        .font(.caption2)
-                        .foregroundColor(.dietCokeRed)
-
-                        Text("·")
-                            .foregroundColor(.secondary)
-
-                        Text(selectedPackage?.packageType == .lifetime
-                             ? "One-time purchase"
-                             : "Auto-renews. Cancel anytime.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack(spacing: 4) {
-                        Link("Privacy Policy", destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/privacy.html")!)
-                        Text("·")
-                            .foregroundColor(.secondary)
-                        Link("Terms of Service", destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/terms.html")!)
-                    }
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-
-                    // Error message
-                    if let error = errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                }
-                .padding(.bottom, 8)
             }
-            .navigationTitle("Upgrade")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.secondary, colorScheme == .dark ? Color(white: 0.2) : Color(.systemGray5))
+                    }
                 }
             }
         }
         .onAppear {
             autoSelectPackage()
+            withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
+                animateHero = true
+            }
         }
         .onChange(of: purchaseService.offerings?.current?.availablePackages.count) { _, _ in
             autoSelectPackage()
         }
     }
+
+    private var backgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.06, green: 0.06, blue: 0.08)
+            : Color(red: 0.96, green: 0.96, blue: 0.97)
+    }
+
+    // MARK: - Hero Section
+
+    private var heroSection: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                // Glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.dietCokeRed.opacity(0.3), Color.clear],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 100
+                        )
+                    )
+                    .frame(width: 200, height: 200)
+                    .scaleEffect(animateHero ? 1.0 : 0.6)
+                    .opacity(animateHero ? 1 : 0)
+
+                VStack(spacing: 6) {
+                    if streakDays > 0 {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.orange, .red],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .scaleEffect(animateHero ? 1.0 : 0.5)
+
+                        Text("\(streakDays)")
+                            .font(.system(size: 56, weight: .black, design: .rounded))
+                            .foregroundColor(.dietCokeCharcoal)
+
+                        Text("day streak")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    } else {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 52))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.84, blue: 0), Color(red: 0.9, green: 0.7, blue: 0)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .scaleEffect(animateHero ? 1.0 : 0.5)
+
+                        Text("Go Pro")
+                            .font(.system(size: 36, weight: .black, design: .rounded))
+                            .foregroundColor(.dietCokeCharcoal)
+                    }
+                }
+            }
+
+            // Personal hook
+            Text(heroMessage)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .foregroundColor(.dietCokeCharcoal)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+        }
+        .padding(.top, 16)
+    }
+
+    private var heroMessage: String {
+        if streakDays >= 7 {
+            return "Your \(streakDays)-day streak deserves protection."
+        } else if streakDays > 0 {
+            return "Don't let your streak slip away."
+        } else if totalDrinks >= 10 {
+            return "You've logged \(totalDrinks) drinks. Level up your experience."
+        } else {
+            return "Unlock the full FridgeCig experience."
+        }
+    }
+
+    // MARK: - Feature Carousel
+
+    private let features: [(icon: String, title: String, subtitle: String, gradient: [Color])] = [
+        ("snowflake", "Streak Freezes", "3 per month. Auto-activates\nwhen you miss a day.", [.cyan, .blue]),
+        ("rectangle.3.offgrid.fill", "Home Widgets", "Track your DCs at a glance\nright from your home screen.", [.red, .orange]),
+        ("applewatch", "Apple Watch", "Log drinks from your wrist.\nInstant, effortless tracking.", [.green, .mint]),
+        ("paintpalette.fill", "Premium Themes", "Customize your app with\nexclusive color themes.", [.purple, .pink]),
+        ("heart.text.square.fill", "Health Sync", "Auto-log caffeine intake\nto Apple Health.", [.pink, .red]),
+    ]
+
+    @State private var currentFeature = 0
+
+    private var featureCarousel: some View {
+        VStack(spacing: 10) {
+            TabView(selection: $currentFeature) {
+                ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
+                    CarouselCard(
+                        icon: feature.icon,
+                        title: feature.title,
+                        subtitle: feature.subtitle,
+                        gradient: feature.gradient,
+                        colorScheme: colorScheme
+                    )
+                    .tag(index)
+                    .padding(.horizontal, 24)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 130)
+
+            // Page dots
+            HStack(spacing: 6) {
+                ForEach(0..<features.count, id: \.self) { index in
+                    Circle()
+                        .fill(index == currentFeature ? Color.dietCokeRed : Color.dietCokeSilver.opacity(0.4))
+                        .frame(width: index == currentFeature ? 8 : 6, height: index == currentFeature ? 8 : 6)
+                        .animation(.easeInOut(duration: 0.2), value: currentFeature)
+                }
+            }
+        }
+    }
+
+    // MARK: - Purchase Section
+
+    private var purchaseSection: some View {
+        VStack(spacing: 10) {
+            Divider()
+
+            // Packages
+            VStack(spacing: 8) {
+                if let offerings = purchaseService.offerings,
+                   let packages = offerings.current?.availablePackages {
+                    ForEach(packages, id: \.identifier) { package in
+                        PackageButton(
+                            package: package,
+                            isSelected: selectedPackage?.identifier == package.identifier,
+                            allPackages: packages
+                        ) {
+                            selectedPackage = package
+                        }
+                    }
+                } else {
+                    ProgressView()
+                        .padding(.vertical, 8)
+                }
+            }
+            .padding(.horizontal)
+
+            // CTA
+            Button {
+                Task { await purchase() }
+            } label: {
+                if purchaseService.isPurchasing {
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                } else {
+                    Text(purchaseButtonText)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+            }
+            .foregroundColor(.white)
+            .background(
+                LinearGradient(
+                    colors: selectedPackage != nil ? [Color.dietCokeRed, Color.dietCokeDeepRed] : [.gray, .gray],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(Capsule())
+            .shadow(color: selectedPackage != nil ? Color.dietCokeRed.opacity(0.3) : .clear, radius: 8, y: 4)
+            .disabled(selectedPackage == nil || purchaseService.isPurchasing)
+            .padding(.horizontal)
+
+            // Restore + terms
+            HStack(spacing: 16) {
+                Button("Restore Purchases") {
+                    Task {
+                        do {
+                            try await purchaseService.restorePurchases()
+                            if purchaseService.isPremium { dismiss() }
+                        } catch {
+                            errorMessage = "Restore failed: \(error.localizedDescription)"
+                        }
+                    }
+                }
+                .font(.caption2)
+                .foregroundColor(.dietCokeRed)
+
+                Text("·").foregroundColor(.secondary)
+
+                Text(selectedPackage?.packageType == .lifetime
+                     ? "One-time purchase"
+                     : "Auto-renews. Cancel anytime.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 4) {
+                Link("Privacy Policy", destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/privacy.html")!)
+                Text("·").foregroundColor(.secondary)
+                Link("Terms of Service", destination: URL(string: "https://brevinb.github.io/FridgeCig-Legal/terms.html")!)
+            }
+            .font(.caption2)
+            .foregroundColor(.secondary)
+
+            if let error = errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Logic
 
     private func autoSelectPackage() {
         guard selectedPackage == nil,
@@ -173,71 +294,91 @@ struct PaywallView: View {
     private var purchaseButtonText: String {
         guard let package = selectedPackage else { return "Continue" }
 
-        // Check for free trial
         if let intro = package.storeProduct.introductoryDiscount,
            intro.paymentMode == .freeTrial {
             return "Start Free Trial"
         }
 
-        // Check for intro offer
         if let intro = package.storeProduct.introductoryDiscount,
            intro.paymentMode == .payUpFront || intro.paymentMode == .payAsYouGo {
             return "Start with \(intro.localizedPriceString)"
         }
 
-        if package.packageType == .lifetime {
-            return "Purchase for \(package.storeProduct.localizedPriceString)"
-        } else {
-            return "Subscribe for \(package.storeProduct.localizedPriceString)"
+        if streakDays > 0 {
+            return "Protect My Streak"
         }
+
+        if package.packageType == .lifetime {
+            return "Unlock Pro Forever"
+        }
+
+        return "Go Pro - \(package.storeProduct.localizedPriceString)"
     }
 
     private func purchase() async {
         guard let package = selectedPackage else { return }
         do {
             try await purchaseService.purchase(package)
-            if purchaseService.isPremium {
-                dismiss()
-            }
+            if purchaseService.isPremium { dismiss() }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 }
 
-// MARK: - Feature Row
+// MARK: - Carousel Card
 
-private struct FeatureRow: View {
+private struct CarouselCard: View {
     let icon: String
     let title: String
-    let description: String
+    let subtitle: String
+    let gradient: [Color]
+    let colorScheme: ColorScheme
 
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.dietCokeRed)
-                .frame(width: 44, height: 44)
-                .background(Color.dietCokeRed.opacity(0.1))
-                .clipShape(Circle())
+        HStack(spacing: 18) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(
+                        LinearGradient(
+                            colors: gradient.map { $0.opacity(0.15) },
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
 
-            VStack(alignment: .leading, spacing: 2) {
+                Image(systemName: icon)
+                    .font(.system(size: 28))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: gradient,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.headline)
                     .foregroundColor(.dietCokeCharcoal)
-                Text(description)
+
+                Text(subtitle)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                    .lineLimit(3)
             }
 
             Spacer()
-
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
         }
-        .padding()
-        .background(Color.dietCokeCardBackground)
-        .cornerRadius(12)
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 10, y: 4)
+        )
     }
 }
 
@@ -249,15 +390,9 @@ private struct PackageButton: View {
     let allPackages: [Package]
     let action: () -> Void
 
-    private var isYearly: Bool {
-        package.packageType == .annual
-    }
+    private var isYearly: Bool { package.packageType == .annual }
+    private var isLifetime: Bool { package.packageType == .lifetime }
 
-    private var isLifetime: Bool {
-        package.packageType == .lifetime
-    }
-
-    // Check for intro offer (trial or discount)
     private var introOffer: StoreProductDiscount? {
         package.storeProduct.introductoryDiscount
     }
@@ -279,74 +414,37 @@ private struct PackageButton: View {
         }
     }
 
-    private var introDiscountPercentage: Int? {
-        guard let offer = introOffer,
-              offer.paymentMode == .payUpFront || offer.paymentMode == .payAsYouGo,
-              let regularPrice = package.storeProduct.pricePerMonth?.doubleValue,
-              regularPrice > 0 else { return nil }
-
-        let discountPrice = offer.price as Decimal
-        let regular = regularPrice
-        let discount = NSDecimalNumber(decimal: discountPrice).doubleValue
-        let percentage = Int(((regular - discount) / regular) * 100)
-        return percentage > 0 ? percentage : nil
-    }
-
-    /// Calculate savings vs monthly plan (for annual packages)
     private var annualSavingsPercentage: Int? {
         guard isYearly else { return nil }
-
-        // Find monthly package to compare
         guard let monthlyPackage = allPackages.first(where: { $0.packageType == .monthly }) else { return nil }
 
         let monthlyPrice = monthlyPackage.storeProduct.price as Decimal
         let annualPrice = package.storeProduct.price as Decimal
-
-        // Calculate what 12 months would cost
         let yearlyAtMonthlyRate = monthlyPrice * 12
         guard yearlyAtMonthlyRate > 0 else { return nil }
 
         let savings = yearlyAtMonthlyRate - annualPrice
         let percentage = Int((NSDecimalNumber(decimal: savings / yearlyAtMonthlyRate).doubleValue) * 100)
-
         return percentage > 0 ? percentage : nil
     }
 
-    private var badgeInfo: (text: String, color: Color)? {
-        // Priority: Free Trial > Intro Discount > Annual Savings > Lifetime
+    private var badgeText: String? {
         if hasFreeTrial, let duration = trialDuration {
-            return ("\(duration) Free Trial", .blue)
-        }
-        if let discount = introDiscountPercentage {
-            return ("\(discount)% Off", .green)
+            return "\(duration) Free"
         }
         if let savings = annualSavingsPercentage {
-            return ("Save \(savings)%", .green)
+            return "Save \(savings)%"
         }
         if isLifetime {
-            return ("Best Value", .purple)
+            return "Best Value"
         }
         return nil
     }
 
-    private var priceSubtitle: String {
-        // Show trial info
-        if hasFreeTrial {
-            return "then \(package.storeProduct.localizedPriceString)/\(periodName)"
-        }
-
-        // Show intro offer price info
-        if let offer = introOffer, offer.paymentMode == .payUpFront || offer.paymentMode == .payAsYouGo {
-            let introPrice = offer.localizedPriceString
-            let introPeriod = formatPeriod(offer.subscriptionPeriod)
-            return "\(introPrice) for \(introPeriod), then \(package.storeProduct.localizedPriceString)/\(periodName)"
-        }
-
-        // Standard subtitles
-        if isLifetime {
-            return "One-time purchase"
-        }
-        return "per \(periodName)"
+    private var badgeColor: Color {
+        if hasFreeTrial { return .blue }
+        if isLifetime { return .purple }
+        return .green
     }
 
     private var periodName: String {
@@ -360,95 +458,76 @@ private struct PackageButton: View {
         }
     }
 
-    private func formatPeriod(_ period: SubscriptionPeriod) -> String {
-        switch period.unit {
-        case .day: return period.value == 1 ? "1 day" : "\(period.value) days"
-        case .week: return period.value == 1 ? "1 week" : "\(period.value) weeks"
-        case .month: return period.value == 1 ? "1 month" : "\(period.value) months"
-        case .year: return period.value == 1 ? "1 year" : "\(period.value) years"
-        @unknown default: return "\(period.value) periods"
+    private var priceSubtitle: String {
+        if hasFreeTrial {
+            return "then \(package.storeProduct.localizedPriceString)/\(periodName)"
         }
+        if isLifetime { return "One-time purchase" }
+        return "per \(periodName)"
     }
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 0) {
-                // Free trial banner
-                if hasFreeTrial, let duration = trialDuration {
-                    HStack {
-                        Image(systemName: "gift.fill")
-                            .font(.caption)
-                        Text("\(duration) Free Trial")
-                            .font(.caption.bold())
+            HStack {
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color.dietCokeRed : Color.dietCokeSilver, lineWidth: 2)
+                        .frame(width: 22, height: 22)
+
+                    if isSelected {
+                        Circle()
+                            .fill(Color.dietCokeRed)
+                            .frame(width: 14, height: 14)
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
                 }
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Text(package.storeProduct.localizedTitle)
-                                .font(.headline)
-                                .foregroundColor(.dietCokeCharcoal)
-
-                            if !hasFreeTrial, let badge = badgeInfo {
-                                Text(badge.text)
-                                    .font(.caption.bold())
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(badge.color)
-                                    .cornerRadius(4)
-                            }
-                        }
-
-                        Text(priceSubtitle)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(package.storeProduct.localizedTitle)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                    }
+                            .fontWeight(.semibold)
+                            .foregroundColor(.dietCokeCharcoal)
 
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 2) {
-                        if hasFreeTrial {
-                            Text("FREE")
-                                .font(.title3.bold())
-                                .foregroundColor(.blue)
-                        } else {
-                            Text(package.storeProduct.localizedPriceString)
-                                .font(.title3.bold())
-                                .foregroundColor(.dietCokeRed)
-                        }
-
-                        if isLifetime {
-                            Text("forever")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        if let badge = badgeText {
+                            Text(badge)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(badgeColor)
+                                .cornerRadius(4)
                         }
                     }
+
+                    Text(priceSubtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding()
+
+                Spacer()
+
+                if hasFreeTrial {
+                    Text("FREE")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                } else {
+                    Text(package.storeProduct.localizedPriceString)
+                        .font(.headline)
+                        .foregroundColor(.dietCokeRed)
+                }
             }
+            .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(hasFreeTrial ? Color.blue.opacity(0.05) : (isLifetime ? Color.dietCokeRed.opacity(0.05) : Color.dietCokeCardBackground))
+                    .fill(isSelected
+                          ? Color.dietCokeRed.opacity(0.06)
+                          : Color.dietCokeCardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? (hasFreeTrial ? Color.blue : Color.dietCokeRed) : Color.dietCokeSilver, lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.dietCokeRed : Color.dietCokeSilver.opacity(0.5), lineWidth: isSelected ? 2 : 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
@@ -468,7 +547,6 @@ private struct AppIconView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } else {
-                // Fallback
                 Image(systemName: "app.fill")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -481,7 +559,6 @@ private struct AppIconView: View {
     }
 
     private func loadAppIcon() -> UIImage? {
-        // Modern single-size icon: Xcode generates files like "AppIcon60x60@3x.png" in the bundle
         let candidates = [
             "AppIcon60x60@3x.png",
             "AppIcon60x60@2x.png",
@@ -496,7 +573,6 @@ private struct AppIconView: View {
                 return image
             }
         }
-        // Fallback: try UIImage(named:) for older icon formats
         if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
            let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
            let files = primary["CFBundleIconFiles"] as? [String],
@@ -511,4 +587,6 @@ private struct AppIconView: View {
 #Preview {
     PaywallView()
         .environmentObject(PurchaseService.shared)
+        .environmentObject(DrinkStore())
+        .environmentObject(UserPreferences())
 }

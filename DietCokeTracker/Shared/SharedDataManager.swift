@@ -86,6 +86,10 @@ struct SharedDataManager {
         let entries = getEntries()
         guard !entries.isEmpty else { return 0 }
 
+        let frozenDates = Set(sharedDefaults?.stringArray(forKey: "usedFreezeDates") ?? [])
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         var streak = 0
@@ -95,8 +99,9 @@ struct SharedDataManager {
             let hasEntry = entries.contains { entry in
                 calendar.isDate(entry.timestamp, inSameDayAs: checkDate)
             }
+            let isFrozen = frozenDates.contains(formatter.string(from: checkDate))
 
-            if hasEntry {
+            if hasEntry || isFrozen {
                 streak += 1
                 guard let previousDay = calendar.date(byAdding: .day, value: -1, to: checkDate) else {
                     break
@@ -194,6 +199,41 @@ struct SharedDataManager {
         } else {
             return "\(daysToGo) days to go"
         }
+    }
+
+    // MARK: - Social Data (for widgets)
+
+    private static let friendStatsKey = "WidgetFriendStats"
+
+    struct FriendStat: Codable {
+        let name: String
+        let streak: Int
+        let allTimeDrinks: Int
+    }
+
+    static func saveFriendStats(_ stats: [FriendStat]) {
+        guard let defaults = sharedDefaults,
+              let data = try? JSONEncoder().encode(stats) else { return }
+        defaults.set(data, forKey: friendStatsKey)
+    }
+
+    static func getFriendStats() -> [FriendStat] {
+        guard let defaults = sharedDefaults,
+              let data = defaults.data(forKey: friendStatsKey),
+              let stats = try? JSONDecoder().decode([FriendStat].self, from: data) else {
+            return []
+        }
+        return stats
+    }
+
+    static func getFriendCount() -> Int {
+        getFriendStats().count
+    }
+
+    static func getTopFriendStreak() -> (name: String, streak: Int)? {
+        guard let top = getFriendStats().max(by: { $0.streak < $1.streak }),
+              top.streak > 0 else { return nil }
+        return (top.name, top.streak)
     }
 
     // MARK: - Average Calculations

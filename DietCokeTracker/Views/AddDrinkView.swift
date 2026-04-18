@@ -5,6 +5,7 @@ struct AddDrinkView: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var badgeStore: BadgeStore
     @EnvironmentObject var preferences: UserPreferences
+    @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedType: DrinkType = .regularCan
@@ -18,6 +19,7 @@ struct AddDrinkView: View {
     @State private var selectedRating: DrinkRating? = nil
     @State private var capturedPhoto: UIImage? = nil
     @State private var showingCamera = false
+    @State private var visibility: PostVisibility = .friends
 
     // Validation state
     @State private var showingValidationAlert = false
@@ -88,6 +90,9 @@ struct AddDrinkView: View {
                             showingCamera: $showingCamera
                         )
 
+                        // Visibility picker
+                        VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil)
+
                         // Rating selector
                         RatingSection(selectedRating: $selectedRating)
 
@@ -157,6 +162,21 @@ struct AddDrinkView: View {
                     .foregroundColor(effectiveBrand.color)
                 }
             }
+            .onAppear {
+                let prefs = activityService.sharingPreferences
+                if !prefs.shareDrinkLogs {
+                    visibility = .onlyMe
+                } else if prefs.sharePhotosGlobally {
+                    visibility = .public
+                } else {
+                    visibility = .friends
+                }
+            }
+            .onChange(of: capturedPhoto) { _, newPhoto in
+                if newPhoto == nil && visibility == .public {
+                    visibility = .friends
+                }
+            }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -188,10 +208,74 @@ struct AddDrinkView: View {
             specialEdition: selectedSpecialEdition,
             customOunces: customOz,
             rating: selectedRating,
-            photo: capturedPhoto
+            photo: capturedPhoto,
+            visibility: visibility
         )
         store.checkBadges(with: badgeStore)
         dismiss()
+    }
+}
+
+// MARK: - Visibility Picker
+
+struct VisibilityPicker: View {
+    @Binding var visibility: PostVisibility
+    var hasPhoto: Bool = false
+    @EnvironmentObject var activityService: ActivityFeedService
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var availableOptions: [PostVisibility] {
+        let prefs = activityService.sharingPreferences
+        if !prefs.shareDrinkLogs {
+            return [.onlyMe]
+        }
+        if !prefs.sharePhotosGlobally || !hasPhoto {
+            return [.onlyMe, .friends]
+        }
+        return PostVisibility.allCases
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Who can see this?")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.dietCokeCharcoal)
+
+            HStack(spacing: 8) {
+                ForEach(availableOptions) { option in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            visibility = option
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(option.rawValue)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(visibility == option ? .white : .dietCokeCharcoal)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(visibility == option
+                                      ? Color.dietCokeRed
+                                      : (colorScheme == .dark ? Color(white: 0.15) : Color(.systemGray6)))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
     }
 }
 

@@ -21,7 +21,10 @@ class ActivityFeedService: ObservableObject {
     private let preferencesKey = "UserSharingPreferences"
     private var friendIDs: [String] = []
     private var currentUserID: String?
+    private var currentProfilePhotoID: String?
+    private var currentProfileEmoji: String?
     private var blockedUserIDs: Set<String> = []
+    private var photoCache: [String: UIImage] = [:]
 
     init(cloudKitManager: CloudKitManager) {
         self.cloudKitManager = cloudKitManager
@@ -30,9 +33,20 @@ class ActivityFeedService: ObservableObject {
 
     // MARK: - Configure
 
-    func configure(currentUserID: String, friendIDs: [String]) {
+    private var avatarMap: [String: (photoID: String?, emoji: String?)] = [:]
+
+    func configure(currentUserID: String, friendIDs: [String], profilePhotoID: String? = nil, profileEmoji: String? = nil) {
         self.currentUserID = currentUserID
         self.friendIDs = friendIDs
+        self.currentProfilePhotoID = profilePhotoID
+        self.currentProfileEmoji = profileEmoji
+        avatarMap[currentUserID] = (profilePhotoID, profileEmoji)
+    }
+
+    func updateAvatarMap(from profiles: [UserProfile]) {
+        for profile in profiles {
+            avatarMap[profile.userIDString] = (profile.profilePhotoID, profile.profileEmoji)
+        }
     }
 
     func configure(blockedUserIDs: Set<String>) {
@@ -44,9 +58,17 @@ class ActivityFeedService: ObservableObject {
     // MARK: - Fetch Activities
 
     private var isCurrentlyFetching = false
+    private var lastFetchDate: Date?
+    private var lastFetchKey: String?
+    private let freshnessWindow: TimeInterval = 30
 
-    func fetchActivities() async {
-        AppLogger.activity.debug("fetchActivities called")
+    private func makeFetchKey() -> String {
+        let sortedFriends = friendIDs.sorted().joined(separator: ",")
+        return "\(currentUserID ?? "")|\(sortedFriends)"
+    }
+
+    func fetchActivities(force: Bool = false) async {
+        AppLogger.activity.debug("fetchActivities called (force: \(force))")
         AppLogger.activity.debug("currentUserID: \(self.currentUserID ?? "nil")")
         AppLogger.activity.debug("friendIDs: \(self.friendIDs)")
 
@@ -65,6 +87,15 @@ class ActivityFeedService: ObservableObject {
             return
         }
 
+        // Freshness gate: skip if same config was fetched recently
+        let fetchKey = makeFetchKey()
+        if !force, let lastKey = lastFetchKey, lastKey == fetchKey,
+           let lastDate = lastFetchDate,
+           Date().timeIntervalSince(lastDate) < freshnessWindow {
+            AppLogger.activity.debug("Skipping fetch - data is fresh (\(Int(Date().timeIntervalSince(lastDate)))s old)")
+            return
+        }
+
         // Prevent redundant concurrent fetches
         guard !isCurrentlyFetching else { return }
         isCurrentlyFetching = true
@@ -75,11 +106,20 @@ class ActivityFeedService: ObservableObject {
         }
 
         do {
-            let records = try await fetchActivityRecords()
-            AppLogger.activity.info("Fetched \(records.count) records from CloudKit")
+            // Fetch public activities (friends + own public/friends posts)
+            let publicRecords = try await fetchActivityRecords()
+            AppLogger.activity.info("Fetched \(publicRecords.count) public records from CloudKit")
 
-            let fetchedActivities = records.compactMap { ActivityItem(from: $0) }
+            // Fetch private activities (Only Me posts)
+            let privateRecords = (try? await cloudKitManager.fetchFromPrivate(
+                recordType: ActivityItem.recordType
+            )) ?? []
+            AppLogger.activity.info("Fetched \(privateRecords.count) private records from CloudKit")
+
+            let allRecords = publicRecords + privateRecords
+            let fetchedActivities = allRecords.compactMap { ActivityItem(from: $0) }
                 .filter { !blockedUserIDs.contains($0.userID) }
+                .filter { $0.visibility != .onlyMe || $0.userID == currentUserID }
             AppLogger.activity.debug("Parsed \(fetchedActivities.count) activities")
 
             // Merge fetched activities with local ones (keep local activities that aren't in CloudKit yet)
@@ -87,10 +127,22 @@ class ActivityFeedService: ObservableObject {
             let localOnlyActivities = activities.filter { !fetchedIDs.contains($0.id) }
             AppLogger.activity.debug("Local-only activities: \(localOnlyActivities.count)")
 
+            // Refresh stale avatars from known profiles
+            let refreshed = (fetchedActivities + localOnlyActivities).map { item -> ActivityItem in
+                guard let avatar = avatarMap[item.userID] else { return item }
+                var updated = item
+                if updated.profilePhotoID != avatar.photoID { updated.profilePhotoID = avatar.photoID }
+                if updated.profileEmoji != avatar.emoji { updated.profileEmoji = avatar.emoji }
+                return updated
+            }
+
             // Combine and sort by timestamp
-            activities = (fetchedActivities + localOnlyActivities)
+            activities = refreshed
                 .sorted { $0.timestamp > $1.timestamp }
             AppLogger.activity.info("Total activities after merge: \(self.activities.count)")
+
+            lastFetchKey = fetchKey
+            lastFetchDate = Date()
         } catch {
             AppLogger.activity.error("Failed to fetch activities: \(error.localizedDescription)")
             // Keep existing activities on error
@@ -142,7 +194,9 @@ class ActivityFeedService: ObservableObject {
             displayName: displayName,
             type: .badgeUnlock,
             payload: .forBadge(badge),
-            isPremium: isPremium
+            isPremium: isPremium,
+            profilePhotoID: currentProfilePhotoID,
+            profileEmoji: currentProfileEmoji
         )
 
         await postActivity(activity)
@@ -168,29 +222,33 @@ class ActivityFeedService: ObservableObject {
             displayName: displayName,
             type: .streakMilestone,
             payload: .forStreak(days),
-            isPremium: isPremium
+            isPremium: isPremium,
+            profilePhotoID: currentProfilePhotoID,
+            profileEmoji: currentProfileEmoji
         )
 
         await postActivity(activity)
     }
 
-    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil) async {
-        AppLogger.activity.debug("postDrinkActivity called for type: \(type.displayName)")
-        guard sharingPreferences.shareDrinkLogs else {
-            AppLogger.activity.debug("Drink sharing disabled, skipping")
-            return
+    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil, visibility: PostVisibility = .friends) async {
+        AppLogger.activity.debug("postDrinkActivity called for type: \(type.displayName) visibility: \(visibility.rawValue)")
+
+        // Enforce global privacy settings — these override the per-post picker
+        var effectiveVisibility = visibility
+        if !sharingPreferences.shareDrinkLogs && visibility != .onlyMe {
+            effectiveVisibility = .onlyMe
         }
 
         let hasPhoto = photo != nil
         var photoURL: String? = nil
         var isGlobalPhoto = false
 
-        // Upload photo if user enabled photo sharing and has a photo
-        if let photo = photo, sharingPreferences.showPhotosInFeed {
+        // Only upload photo if sharing prefs allow it AND visibility is beyond Only Me
+        if let photo = photo, sharingPreferences.showPhotosInFeed, effectiveVisibility != .onlyMe {
             photoURL = await uploadPhoto(photo)
 
-            // Check if user opted into global sharing and photo is safe
-            if sharingPreferences.sharePhotosGlobally, photoURL != nil {
+            // Mark as global if user chose public visibility, global sharing is enabled, and photo is safe
+            if effectiveVisibility == .public, sharingPreferences.sharePhotosGlobally, photoURL != nil {
                 let verificationService = ImageVerificationService()
                 let safetyResult = await verificationService.classifyForSafety(photo)
                 isGlobalPhoto = safetyResult.isSafe
@@ -206,7 +264,10 @@ class ActivityFeedService: ObservableObject {
             type: .drinkLog,
             payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID, rating: rating, ounces: ounces, specialEdition: specialEdition, brand: brand),
             isPremium: isPremium,
-            isGlobalPhoto: isGlobalPhoto
+            isGlobalPhoto: isGlobalPhoto,
+            visibility: effectiveVisibility,
+            profilePhotoID: currentProfilePhotoID,
+            profileEmoji: currentProfileEmoji
         )
 
         await postActivity(activity)
@@ -221,7 +282,7 @@ class ActivityFeedService: ObservableObject {
             activity.type == .drinkLog && activity.payload.drinkEntryID == entryID
         }
 
-        // Delete from CloudKit using the top-level entryID field for efficient lookup
+        // Try public DB first
         do {
             let predicate = NSPredicate(format: "entryID == %@ AND userID == %@", entryID, userID)
             let records = try await cloudKitManager.fetchFromPublic(
@@ -232,29 +293,47 @@ class ActivityFeedService: ObservableObject {
 
             if let record = records.first {
                 try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
-                AppLogger.activity.info("Deleted activity from CloudKit for entryID: \(entryID)")
-            } else {
-                // Fallback: query by userID and check payload JSON (for older records without entryID field)
-                let fallbackPredicate = NSPredicate(format: "userID == %@ AND type == %@", userID, ActivityType.drinkLog.rawValue)
-                let fallbackRecords = try await cloudKitManager.fetchFromPublic(
-                    recordType: ActivityItem.recordType,
-                    predicate: fallbackPredicate,
-                    limit: 100
-                )
+                AppLogger.activity.info("Deleted activity from public DB for entryID: \(entryID)")
+                return
+            }
 
-                for record in fallbackRecords {
-                    if let payloadJSON = record["payloadJSON"] as? String,
-                       let payloadData = payloadJSON.data(using: .utf8),
-                       let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
-                       payload.drinkEntryID == entryID {
-                        try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
-                        AppLogger.activity.info("Deleted activity via fallback for entryID: \(entryID)")
-                        break
-                    }
+            // Fallback: query by userID and check payload JSON (for older records without entryID field)
+            let fallbackPredicate = NSPredicate(format: "userID == %@ AND type == %@", userID, ActivityType.drinkLog.rawValue)
+            let fallbackRecords = try await cloudKitManager.fetchFromPublic(
+                recordType: ActivityItem.recordType,
+                predicate: fallbackPredicate,
+                limit: 100
+            )
+
+            for record in fallbackRecords {
+                if let payloadJSON = record["payloadJSON"] as? String,
+                   let payloadData = payloadJSON.data(using: .utf8),
+                   let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
+                   payload.drinkEntryID == entryID {
+                    try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+                    AppLogger.activity.info("Deleted activity via fallback for entryID: \(entryID)")
+                    return
                 }
             }
         } catch {
-            AppLogger.activity.error("Failed to delete activity from CloudKit: \(error.localizedDescription)")
+            AppLogger.activity.error("Failed to delete from public DB: \(error.localizedDescription)")
+        }
+
+        // Try private DB (Only Me posts)
+        do {
+            let privateRecords = try await cloudKitManager.fetchFromPrivate(recordType: ActivityItem.recordType)
+            for record in privateRecords {
+                if let payloadJSON = record["payloadJSON"] as? String,
+                   let payloadData = payloadJSON.data(using: .utf8),
+                   let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
+                   payload.drinkEntryID == entryID {
+                    try await cloudKitManager.deleteFromPrivate(recordID: record.recordID)
+                    AppLogger.activity.info("Deleted private activity for entryID: \(entryID)")
+                    return
+                }
+            }
+        } catch {
+            AppLogger.activity.error("Failed to delete from private DB: \(error.localizedDescription)")
         }
     }
 
@@ -294,15 +373,21 @@ class ActivityFeedService: ObservableObject {
     }
 
     func fetchPhoto(recordName: String) async -> UIImage? {
+        if let cached = photoCache[recordName] {
+            return cached
+        }
+
         do {
             let recordID = CKRecord.ID(recordName: recordName)
             guard let record = try await cloudKitManager.fetchFromPublic(recordID: recordID),
                   let asset = record["photo"] as? CKAsset,
                   let fileURL = asset.fileURL,
-                  let data = try? Data(contentsOf: fileURL) else {
+                  let data = try? Data(contentsOf: fileURL),
+                  let image = UIImage(data: data) else {
                 return nil
             }
-            return UIImage(data: data)
+            photoCache[recordName] = image
+            return image
         } catch {
             AppLogger.activity.error("Failed to fetch photo: \(error.localizedDescription)")
             return nil
@@ -310,19 +395,22 @@ class ActivityFeedService: ObservableObject {
     }
 
     private func postActivity(_ activity: ActivityItem) async {
-        AppLogger.activity.debug("Posting activity: \(activity.type.rawValue) by \(activity.displayName)")
+        AppLogger.activity.debug("Posting activity: \(activity.type.rawValue) by \(activity.displayName) visibility: \(activity.visibility.rawValue)")
 
-        // Add to local list immediately (optimistic update)
+        // Add to local list immediately
         activities.insert(activity, at: 0)
 
-        // Try to save to CloudKit
         do {
             let record = activity.toCKRecord()
-            try await cloudKitManager.saveToPublic(record)
-            AppLogger.activity.info("Activity posted to CloudKit successfully")
+            if activity.visibility == .onlyMe {
+                try await cloudKitManager.saveToPrivate(record)
+                AppLogger.activity.info("Private activity saved to private DB")
+            } else {
+                try await cloudKitManager.saveToPublic(record)
+                AppLogger.activity.info("Activity posted to public DB")
+            }
         } catch {
-            AppLogger.activity.error("Failed to post activity to CloudKit: \(error.localizedDescription)")
-            // Activity still shows locally even if CloudKit fails
+            AppLogger.activity.error("Failed to save activity: \(error.localizedDescription)")
         }
 
         // Notify global feed if this is a global photo
@@ -413,7 +501,7 @@ class ActivityFeedService: ObservableObject {
             try await cloudKitManager.saveToPublic(record)
             AppLogger.activity.info("Content report submitted for activity: \(activityID)")
 
-            // Auto-hide: set isGlobalPhoto = 0 so it disappears from everyone's Explore feed
+            // Auto-hide: set isGlobalPhoto = 0 so it disappears from everyone's Global feed
             let predicate = NSPredicate(format: "activityID == %@", activityID)
             let records = try await cloudKitManager.fetchFromPublic(
                 recordType: ActivityItem.recordType,

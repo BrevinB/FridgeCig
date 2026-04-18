@@ -6,7 +6,6 @@ struct ActivityFeedView: View {
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var themeManager: ThemeManager
-    @State private var showingPreferences = false
     @Environment(\.colorScheme) private var colorScheme
 
     private var backgroundColor: Color {
@@ -15,10 +14,16 @@ struct ActivityFeedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if activityService.isLoading {
-                ProgressView()
-                    .tint(themeManager.primaryColor)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if activityService.isLoading && activityService.activities.isEmpty {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            ActivityShimmerCard()
+                        }
+                    }
+                    .padding()
+                }
+                .scrollDisabled(true)
             } else if activityService.activities.isEmpty {
                 EmptyActivityView()
             } else {
@@ -33,21 +38,8 @@ struct ActivityFeedView: View {
             }
         }
         .background(backgroundColor)
-        .navigationTitle("Activity")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showingPreferences = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-            }
-        }
         .refreshable {
-            await activityService.fetchActivities()
-        }
-        .sheet(isPresented: $showingPreferences) {
-            SharingPreferencesView()
+            await activityService.fetchActivities(force: true)
         }
         .task {
             // Fetch every time the view appears (tab switch recreates the view)
@@ -62,9 +54,15 @@ struct ActivityFeedView: View {
     }
 
     private func loadActivities() async {
-        guard let userID = identityService.currentProfile?.userIDString else { return }
+        guard let profile = identityService.currentProfile else { return }
         let friendIDs = friendService.friends.map { $0.userIDString }
-        activityService.configure(currentUserID: userID, friendIDs: friendIDs)
+        activityService.configure(
+            currentUserID: profile.userIDString,
+            friendIDs: friendIDs,
+            profilePhotoID: profile.profilePhotoID,
+            profileEmoji: profile.profileEmoji
+        )
+        activityService.updateAvatarMap(from: friendService.friends)
         await activityService.fetchActivities()
     }
 }
@@ -114,14 +112,78 @@ struct EmptyActivityView: View {
     }
 }
 
+// MARK: - Shimmer Card
+
+private struct ActivityShimmerCard: View {
+    @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(Color.gray.opacity(0.15))
+                    .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 120, height: 14)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(width: 80, height: 10)
+                }
+
+                Spacer()
+            }
+
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 60)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(
+                    LinearGradient(
+                        colors: [.clear, .white.opacity(0.15), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .offset(x: isAnimating ? 300 : -300)
+        )
+        .clipped()
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
 // MARK: - Activity Item Row
 
 struct ActivityItemRow: View {
     let activity: ActivityItem
     @EnvironmentObject var activityService: ActivityFeedService
+    @EnvironmentObject var friendService: FriendConnectionService
+    @EnvironmentObject var identityService: IdentityService
     @Environment(\.colorScheme) private var colorScheme
 
     /// Gold gradient for Pro badge
+    private var profileForUser: UserProfile? {
+        if activity.userID == identityService.currentProfile?.userIDString {
+            return identityService.currentProfile
+        }
+        return friendService.friends.first { $0.userIDString == activity.userID }
+    }
+
     private var goldGradient: LinearGradient {
         LinearGradient(
             colors: [
@@ -173,10 +235,20 @@ struct ActivityItemRow: View {
                 // Title and time
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(activity.title)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.dietCokeCharcoal)
+                        if let profile = profileForUser {
+                            NavigationLink(value: profile) {
+                                Text(activity.title)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.dietCokeCharcoal)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Text(activity.title)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.dietCokeCharcoal)
+                        }
 
                         // Pro badge
                         if activity.isPremium {
@@ -194,9 +266,17 @@ struct ActivityItemRow: View {
                         }
                     }
 
-                    Text(activity.formattedTime)
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
+                    HStack(spacing: 4) {
+                        if activity.isLocalOnly {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(.dietCokeDarkSilver)
+                        }
+
+                        Text(activity.formattedTime)
+                            .font(.caption)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
                 }
 
                 Spacer()
@@ -207,7 +287,9 @@ struct ActivityItemRow: View {
 
             // Actions
             HStack {
-                CheersButton(activity: activity)
+                if !activity.isLocalOnly {
+                    CheersButton(activity: activity)
+                }
 
                 Spacer()
 
@@ -360,16 +442,18 @@ struct ActivityPhotoView: View {
     var body: some View {
         Group {
             if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 200)
-                    .clipped()
-                    .cornerRadius(8)
-                    .onTapGesture {
-                        showingFullScreen = true
-                    }
+                Button {
+                    showingFullScreen = true
+                } label: {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .clipped()
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
             } else if isLoading {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(0.2))

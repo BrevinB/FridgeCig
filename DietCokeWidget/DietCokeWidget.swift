@@ -11,36 +11,39 @@ struct DietCokeEntry: TimelineEntry {
     let streak: Int
     let weekCount: Int
     let isPremium: Bool
+    var friendCount: Int = 0
+    var topFriendName: String? = nil
+    var topFriendStreak: Int? = nil
 }
 
 // MARK: - Timeline Provider
 
 struct DietCokeProvider: TimelineProvider {
     func placeholder(in context: Context) -> DietCokeEntry {
-        DietCokeEntry(date: Date(), todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true)
+        DietCokeEntry(date: Date(), todayCount: 3, todayOunces: 36, streak: 5, weekCount: 15, isPremium: true, friendCount: 3, topFriendName: "Alex", topFriendStreak: 12)
+    }
+
+    private func makeEntry() -> DietCokeEntry {
+        let topFriend = SharedDataManager.getTopFriendStreak()
+        return DietCokeEntry(
+            date: Date(),
+            todayCount: SharedDataManager.getTodayCount(),
+            todayOunces: SharedDataManager.getTodayOunces(),
+            streak: SharedDataManager.getStreak(),
+            weekCount: SharedDataManager.getThisWeekCount(),
+            isPremium: SubscriptionStatusManager.isPremium(),
+            friendCount: SharedDataManager.getFriendCount(),
+            topFriendName: topFriend?.name,
+            topFriendStreak: topFriend?.streak
+        )
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DietCokeEntry) -> ()) {
-        let entry = DietCokeEntry(
-            date: Date(),
-            todayCount: SharedDataManager.getTodayCount(),
-            todayOunces: SharedDataManager.getTodayOunces(),
-            streak: SharedDataManager.getStreak(),
-            weekCount: SharedDataManager.getThisWeekCount(),
-            isPremium: SubscriptionStatusManager.isPremium()
-        )
-        completion(entry)
+        completion(makeEntry())
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<DietCokeEntry>) -> ()) {
-        let entry = DietCokeEntry(
-            date: Date(),
-            todayCount: SharedDataManager.getTodayCount(),
-            todayOunces: SharedDataManager.getTodayOunces(),
-            streak: SharedDataManager.getStreak(),
-            weekCount: SharedDataManager.getThisWeekCount(),
-            isPremium: SubscriptionStatusManager.isPremium()
-        )
+        let entry = makeEntry()
 
         // Refresh at the start of next hour or in 15 minutes, whichever is sooner
         let calendar = Calendar.current
@@ -217,7 +220,7 @@ struct MediumWidgetView: View {
                 Divider()
 
                 // Right side - Stats
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Image(systemName: "flame.fill")
                             .foregroundStyle(.orange)
@@ -232,6 +235,16 @@ struct MediumWidgetView: View {
                         Text("\(entry.weekCount) this week")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                    }
+
+                    if let friendName = entry.topFriendName, let friendStreak = entry.topFriendStreak {
+                        HStack {
+                            Image(systemName: "person.2.fill")
+                                .foregroundStyle(.purple)
+                            Text("\(friendName): \(friendStreak)🔥")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -301,9 +314,23 @@ struct LargeWidgetView: View {
 
                     Spacer()
 
-                    Text("Tap to log")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    if entry.friendCount > 0 {
+                        Label("\(entry.friendCount) friends", systemImage: "person.2.fill")
+                            .font(.caption)
+                            .foregroundStyle(.purple)
+                    }
+                }
+
+                if let friendName = entry.topFriendName, let friendStreak = entry.topFriendStreak {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trophy.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                        Text("Top friend: \(friendName) with a \(friendStreak)-day streak")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
                 }
             }
             .padding()

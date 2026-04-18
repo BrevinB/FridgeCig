@@ -30,6 +30,13 @@ struct UserProfile: Codable, Identifiable, Equatable, Hashable {
     // Global feed opt-in
     var sharePhotosGlobally: Bool
 
+    // Public badge showcase
+    var earnedBadgeIDs: [String]
+
+    // Profile avatar
+    var profilePhotoID: String?
+    var profileEmoji: String?
+
     var userIDString: String {
         id.uuidString
     }
@@ -56,6 +63,9 @@ struct UserProfile: Codable, Identifiable, Equatable, Hashable {
         self.suspiciousFlags = []
         self.isPremium = false
         self.sharePhotosGlobally = false
+        self.earnedBadgeIDs = []
+        self.profilePhotoID = nil
+        self.profileEmoji = nil
     }
 }
 
@@ -94,6 +104,9 @@ extension UserProfile {
         self.suspiciousFlags = record["suspiciousFlags"] as? [String] ?? []
         self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
         self.sharePhotosGlobally = (record["sharePhotosGlobally"] as? Int64 ?? 0) == 1
+        self.earnedBadgeIDs = record["earnedBadgeIDs"] as? [String] ?? []
+        self.profilePhotoID = record["profilePhotoID"] as? String
+        self.profileEmoji = record["profileEmoji"] as? String
     }
 
     func toCKRecord() -> CKRecord {
@@ -132,6 +145,9 @@ extension UserProfile {
         record["suspiciousFlags"] = suspiciousFlags.isEmpty ? nil : suspiciousFlags
         record["isPremium"] = isPremium ? 1 : 0
         record["sharePhotosGlobally"] = sharePhotosGlobally ? 1 : 0
+        record["earnedBadgeIDs"] = earnedBadgeIDs.isEmpty ? nil : earnedBadgeIDs
+        record["profilePhotoID"] = profilePhotoID
+        record["profileEmoji"] = profileEmoji
     }
 }
 

@@ -380,6 +380,17 @@ struct TodaySummaryCard: View {
     @State private var showFizz = false
     @State private var showingStreakInfo = false
 
+    private var streakIncludesFreeze: Bool {
+        guard store.streakDays > 0 else { return false }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        for offset in 0..<store.streakDays {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            if preferences.isFrozenDay(date) { return true }
+        }
+        return false
+    }
+
     var body: some View {
         ZStack {
             // Background - metallic for classic, themed gradient for premium themes
@@ -422,7 +433,7 @@ struct TodaySummaryCard: View {
                                     .font(.caption)
                                 Text("\(store.streakDays)")
                                     .font(.caption.weight(.bold))
-                                if preferences.streakFreezeCount > 0 {
+                                if streakIncludesFreeze {
                                     Image(systemName: "snowflake")
                                         .font(.caption2)
                                         .foregroundColor(.cyan)

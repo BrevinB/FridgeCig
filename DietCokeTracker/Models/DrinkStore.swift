@@ -15,7 +15,7 @@ class DrinkStore: ObservableObject {
     let entriesDidChange = PassthroughSubject<Void, Never>()
 
     /// Publisher that emits when a new drink is added (for activity feed)
-    let drinkAdded = PassthroughSubject<(entry: DrinkEntry, photo: UIImage?), Never>()
+    let drinkAdded = PassthroughSubject<(entry: DrinkEntry, photo: UIImage?, visibility: PostVisibility), Never>()
 
     /// Publisher that emits when a drink is deleted (for activity feed cleanup)
     let drinkDeleted = PassthroughSubject<DrinkEntry, Never>()
@@ -87,7 +87,7 @@ class DrinkStore: ObservableObject {
         SharedDataManager.recordEntryAdded()
 
         // Notify for activity feed posting
-        drinkAdded.send((entry: entry, photo: nil))
+        drinkAdded.send((entry: entry, photo: nil, visibility: .onlyMe))
 
         // Sync to cloud
         Task {
@@ -230,7 +230,7 @@ class DrinkStore: ObservableObject {
         }
     }
 
-    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photo: UIImage? = nil) {
+    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photo: UIImage? = nil, visibility: PostVisibility = .friends) {
         var photoFilename: String? = nil
 
         // Save photo if provided
@@ -246,7 +246,7 @@ class DrinkStore: ObservableObject {
 
         // Notify for activity feed posting
         AppLogger.store.debug("Sending drinkAdded notification for: \(entry.type.displayName)")
-        drinkAdded.send((entry: entry, photo: photo))
+        drinkAdded.send((entry: entry, photo: photo, visibility: visibility))
 
         // Log to HealthKit if enabled (non-critical)
         Task {
@@ -431,6 +431,11 @@ class DrinkStore: ObservableObject {
     }
 
     var streakDays: Int {
+        let frozen = Set(SharedDataManager.sharedDefaults?.stringArray(forKey: "usedFreezeDates") ?? [])
+        return streakDays(frozenDates: frozen)
+    }
+
+    func streakDays(frozenDates: Set<String>) -> Int {
         guard !entries.isEmpty else { return 0 }
 
         let calendar = Calendar.current
@@ -438,13 +443,22 @@ class DrinkStore: ObservableObject {
         var streak = 0
         var checkDate = today
         let daysWithEntries = Set(entries.map { calendar.startOfDay(for: $0.timestamp) })
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
 
-        while daysWithEntries.contains(checkDate) {
-            streak += 1
-            guard let previousDay = calendar.date(byAdding: .day, value: -1, to: checkDate) else {
+        while true {
+            let hasEntry = daysWithEntries.contains(checkDate)
+            let isFrozen = frozenDates.contains(formatter.string(from: checkDate))
+
+            if hasEntry || isFrozen {
+                streak += 1
+                guard let previousDay = calendar.date(byAdding: .day, value: -1, to: checkDate) else {
+                    break
+                }
+                checkDate = previousDay
+            } else {
                 break
             }
-            checkDate = previousDay
         }
 
         return streak

@@ -46,6 +46,13 @@ struct ActivityItem: Identifiable, Codable {
     var cheersUserIDs: [String]
     var isPremium: Bool
     var isGlobalPhoto: Bool
+    var visibility: PostVisibility
+    var profilePhotoID: String?
+    var profileEmoji: String?
+
+    var isLocalOnly: Bool {
+        visibility == .onlyMe
+    }
 
     init(
         id: UUID = UUID(),
@@ -57,7 +64,10 @@ struct ActivityItem: Identifiable, Codable {
         cheersCount: Int = 0,
         cheersUserIDs: [String] = [],
         isPremium: Bool = false,
-        isGlobalPhoto: Bool = false
+        isGlobalPhoto: Bool = false,
+        visibility: PostVisibility = .friends,
+        profilePhotoID: String? = nil,
+        profileEmoji: String? = nil
     ) {
         self.id = id
         self.userID = userID
@@ -69,6 +79,9 @@ struct ActivityItem: Identifiable, Codable {
         self.cheersUserIDs = cheersUserIDs
         self.isPremium = isPremium
         self.isGlobalPhoto = isGlobalPhoto
+        self.visibility = visibility
+        self.profilePhotoID = profilePhotoID
+        self.profileEmoji = profileEmoji
     }
 
     var formattedTime: String {
@@ -205,6 +218,22 @@ struct ActivityPayload: Codable {
 
 // MARK: - User Sharing Preferences
 
+enum PostVisibility: String, CaseIterable, Identifiable, Codable {
+    case onlyMe = "Only Me"
+    case friends = "Friends"
+    case `public` = "Public"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .onlyMe: return "lock.fill"
+        case .friends: return "person.2.fill"
+        case .public: return "globe"
+        }
+    }
+}
+
 struct UserSharingPreferences: Codable {
     var shareBadges: Bool
     var shareStreakMilestones: Bool
@@ -264,6 +293,9 @@ extension ActivityItem {
         self.cheersUserIDs = record["cheersUserIDs"] as? [String] ?? []
         self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
         self.isGlobalPhoto = (record["isGlobalPhoto"] as? Int64 ?? 0) == 1
+        self.visibility = PostVisibility(rawValue: record["visibility"] as? String ?? "") ?? .friends
+        self.profilePhotoID = record["profilePhotoID"] as? String
+        self.profileEmoji = record["profileEmoji"] as? String
 
         // Decode payload from JSON
         if let payloadJSON = record["payloadJSON"] as? String,
@@ -300,6 +332,9 @@ extension ActivityItem {
         }
         record["isPremium"] = isPremium ? 1 : 0
         record["isGlobalPhoto"] = isGlobalPhoto ? 1 : 0
+        record["visibility"] = visibility.rawValue
+        record["profilePhotoID"] = profilePhotoID
+        record["profileEmoji"] = profileEmoji
 
         // Store entryID as a top-level queryable field for efficient deletion lookups
         if let entryID = payload.drinkEntryID {

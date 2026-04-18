@@ -52,8 +52,18 @@ class FriendConnectionService: ObservableObject {
     // MARK: - Load Data
 
     private var isCurrentlyLoading = false
+    private var lastLoadDate: Date?
+    private var lastLoadUserID: String?
+    private let freshnessWindow: TimeInterval = 30
 
-    func loadFriends(forUserID userID: String) async {
+    func loadFriends(forUserID userID: String, force: Bool = false) async {
+        // Freshness gate
+        if !force, let lastID = lastLoadUserID, lastID == userID,
+           let lastDate = lastLoadDate,
+           Date().timeIntervalSince(lastDate) < freshnessWindow {
+            return
+        }
+
         // Prevent redundant concurrent loads
         guard !isCurrentlyLoading else { return }
         isCurrentlyLoading = true
@@ -87,19 +97,39 @@ class FriendConnectionService: ObservableObject {
             // Get friend user IDs
             let friendUserIDs = connections.map { $0.otherUserID(currentUserID: userID) }
 
-            // Fetch friend profiles
-            var loadedFriends: [UserProfile] = []
-            for friendID in friendUserIDs {
-                if let record = try await cloudKitManager.fetchUserProfile(byUserID: friendID),
-                   let profile = UserProfile(from: record) {
-                    loadedFriends.append(profile)
+            // Fetch friend profiles in parallel with pending + sent request queries
+            let ckManager = cloudKitManager
+            async let loadedFriendsTask: [UserProfile] = withTaskGroup(of: UserProfile?.self) { group in
+                for friendID in friendUserIDs {
+                    group.addTask {
+                        do {
+                            if let record = try await ckManager.fetchUserProfile(byUserID: friendID) {
+                                return UserProfile(from: record)
+                            }
+                        } catch {
+                            AppLogger.friends.error("Failed to fetch profile for \(friendID): \(error.localizedDescription)")
+                        }
+                        return nil
+                    }
                 }
+                var results: [UserProfile] = []
+                for await profile in group {
+                    if let profile = profile {
+                        results.append(profile)
+                    }
+                }
+                return results
             }
+            async let pendingRecordsTask = cloudKitManager.fetchPendingRequests(forUserID: userID)
+            async let sentRecordsTask = cloudKitManager.fetchSentRequests(forUserID: userID)
+
+            let loadedFriends = await loadedFriendsTask
+            let pendingRecords = try await pendingRecordsTask
+            let sentRecords = try await sentRecordsTask
 
             friends = loadedFriends.sorted { $0.displayName < $1.displayName }
 
-            // Fetch pending requests (requests TO this user)
-            let pendingRecords = try await cloudKitManager.fetchPendingRequests(forUserID: userID)
+            // Pending requests (requests TO this user)
             AppLogger.friends.debug("Fetched \(pendingRecords.count) pending requests (to this user)")
             pendingRequests = pendingRecords.compactMap { record in
                 if let connection = FriendConnection(from: record) {
@@ -119,8 +149,7 @@ class FriendConnectionService: ObservableObject {
                 return nil
             }
 
-            // Fetch sent requests (requests FROM this user)
-            let sentRecords = try await cloudKitManager.fetchSentRequests(forUserID: userID)
+            // Sent requests (requests FROM this user)
             AppLogger.friends.debug("Fetched \(sentRecords.count) sent requests (from this user)")
             sentRequests = sentRecords.compactMap { record in
                 if let connection = FriendConnection(from: record) {
@@ -132,6 +161,8 @@ class FriendConnectionService: ObservableObject {
 
             AppLogger.friends.info("Load complete - Friends: \(self.friends.count), Pending: \(self.pendingRequests.count), Sent: \(self.sentRequests.count)")
 
+            lastLoadDate = Date()
+            lastLoadUserID = userID
         } catch {
             AppLogger.friends.error("Loading friends failed: \(error.localizedDescription)")
             self.error = .fetchFailed(error)

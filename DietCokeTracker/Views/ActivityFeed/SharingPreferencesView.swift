@@ -103,7 +103,7 @@ struct SharingPreferencesView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Share Photos Globally")
                                         .foregroundColor(.dietCokeCharcoal)
-                                    Text("Your drink photos will appear in the Explore feed for all users")
+                                    Text("Your drink photos will appear in the Global feed for all users")
                                         .font(.caption)
                                         .foregroundColor(.dietCokeDarkSilver)
                                 }
@@ -120,7 +120,7 @@ struct SharingPreferencesView: View {
                     } header: {
                         Text("Global Feed")
                     } footer: {
-                        Text("Photos shared globally are screened for safety before appearing in the Explore tab. You can turn this off at any time.")
+                        Text("Photos shared globally are screened for safety before appearing in the Global tab. You can turn this off at any time.")
                     }
                 }
 
@@ -168,7 +168,7 @@ struct SharingPreferencesView: View {
                     shareGlobally = false
                 }
             } message: {
-                Text("Your drink photos will be visible to all users in the Explore tab. Photos are automatically screened for safety before appearing. You can disable this at any time.")
+                Text("Your drink photos will be visible to all users in the Global tab. Photos are automatically screened for safety before appearing. You can disable this at any time.")
             }
         }
     }

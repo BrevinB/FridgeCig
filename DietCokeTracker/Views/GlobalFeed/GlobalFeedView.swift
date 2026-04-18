@@ -95,7 +95,7 @@ struct GlobalFeedView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Join the Explore feed")
+                    Text("Join the Global feed")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.dietCokeCharcoal)
@@ -227,7 +227,7 @@ struct GlobalFeedView: View {
             }
         }
         .refreshable {
-            await globalFeedService.refresh()
+            await globalFeedService.refresh(force: true)
         }
     }
 }
