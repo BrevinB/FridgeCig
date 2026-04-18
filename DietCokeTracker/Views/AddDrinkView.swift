@@ -91,7 +91,7 @@ struct AddDrinkView: View {
                         )
 
                         // Visibility picker
-                        VisibilityPicker(visibility: $visibility)
+                        VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil)
 
                         // Rating selector
                         RatingSection(selectedRating: $selectedRating)
@@ -172,6 +172,11 @@ struct AddDrinkView: View {
                     visibility = .friends
                 }
             }
+            .onChange(of: capturedPhoto) { _, newPhoto in
+                if newPhoto == nil && visibility == .public {
+                    visibility = .friends
+                }
+            }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -215,6 +220,7 @@ struct AddDrinkView: View {
 
 struct VisibilityPicker: View {
     @Binding var visibility: PostVisibility
+    var hasPhoto: Bool = false
     @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.colorScheme) private var colorScheme
 
@@ -223,7 +229,7 @@ struct VisibilityPicker: View {
         if !prefs.shareDrinkLogs {
             return [.onlyMe]
         }
-        if !prefs.sharePhotosGlobally {
+        if !prefs.sharePhotosGlobally || !hasPhoto {
             return [.onlyMe, .friends]
         }
         return PostVisibility.allCases
