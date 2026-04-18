@@ -118,10 +118,16 @@ class IdentityService: ObservableObject {
         saveLocalIdentity(identity)
 
         if cloudKitManager.isAvailable {
-            try await saveIdentityToCloud(identity)
-            await fetchOrCreateProfile()
+            do {
+                try await saveIdentityToCloud(identity)
+                await fetchOrCreateProfile()
+            } catch {
+                if currentProfile == nil {
+                    currentProfile = UserProfile(from: identity)
+                }
+                AppLogger.identity.error("Cloud sync failed during creation, continuing with local: \(error.localizedDescription)")
+            }
         } else {
-            // Create local-only profile
             currentProfile = UserProfile(from: identity)
         }
 
@@ -188,9 +194,17 @@ class IdentityService: ObservableObject {
         }
     }
 
+    func saveProfile() async throws {
+        guard let profile = currentProfile, let recordID = profileRecordID else { return }
+        if cloudKitManager.isAvailable {
+            let record = profile.toCKRecord(existingRecordID: recordID)
+            try await cloudKitManager.saveToPublic(record)
+        }
+    }
+
     // MARK: - Stats Sync
 
-    func syncStats(from drinkStore: DrinkStore) async throws {
+    func syncStats(from drinkStore: DrinkStore, badgeStore: BadgeStore? = nil) async throws {
         guard var profile = currentProfile else { return }
 
         // Run pattern detection on entries
@@ -207,6 +221,10 @@ class IdentityService: ObservableObject {
             entryCount: drinkStore.entries.count,
             patternResult: patternResult
         )
+
+        if let badgeStore {
+            profile.earnedBadgeIDs = Array(badgeStore.unlockedBadges.keys)
+        }
 
         currentProfile = profile
 

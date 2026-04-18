@@ -120,21 +120,19 @@ struct SocialMainView: View {
     @EnvironmentObject var globalFeedService: GlobalFeedService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
-    @State private var selectedSection: SocialSection = .leaderboard
+    @State private var selectedSection: SocialSection = .feed
     @State private var showingAddFriendFromDeepLink = false
 
     enum SocialSection: String, CaseIterable {
-        case activity = "Activity"
+        case feed = "Feed"
         case leaderboard = "Leaderboard"
-        case explore = "Explore"
         case friends = "Friends"
         case profile = "Profile"
 
         var icon: String {
             switch self {
-            case .activity: return "bell.fill"
+            case .feed: return "rectangle.stack.fill"
             case .leaderboard: return "trophy.fill"
-            case .explore: return "globe"
             case .friends: return "person.2.fill"
             case .profile: return "person.crop.circle.fill"
             }
@@ -176,12 +174,10 @@ struct SocialMainView: View {
 
                 // Content
                 switch selectedSection {
-                case .activity:
-                    ActivityFeedView()
+                case .feed:
+                    FeedView()
                 case .leaderboard:
                     LeaderboardView()
-                case .explore:
-                    GlobalFeedView()
                 case .friends:
                     FriendsListView()
                 case .profile:

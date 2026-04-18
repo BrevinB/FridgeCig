@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import CloudKit
 
 struct OnboardingView: View {
     @EnvironmentObject var preferences: UserPreferences
@@ -451,40 +453,87 @@ private struct BrandOptionRow: View {
 
 private struct LeaderboardPage: View {
     @ObservedObject var identityService: IdentityService
+    @EnvironmentObject var cloudKitManager: CloudKitManager
     @State private var displayName = ""
     @State private var isCreating = false
     @State private var hasJoined = false
     @State private var showError = false
     @FocusState private var isNameFocused: Bool
 
+    @State private var selectedEmoji: String?
+    @State private var selectedImage: UIImage?
+    @State private var showingAvatarOptions = false
+    @State private var showingPhotoPicker = false
+    @State private var showingCamera = false
+    @State private var showingEmojiPicker = false
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var cameraImage: UIImage?
+
     private var canJoin: Bool {
         !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 24) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 140, height: 140)
+            // Avatar picker
+            Button {
+                showingAvatarOptions = true
+            } label: {
+                VStack(spacing: 8) {
+                    ZStack(alignment: .bottomTrailing) {
+                        onboardingAvatarPreview
 
-                Image(systemName: "globe.americas.fill")
-                    .font(.system(size: 60, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: 4, y: 4)
+                    }
+
+                    Text("Add Profile Photo")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                }
+            }
+            .disabled(hasJoined)
+            .confirmationDialog("Profile Picture", isPresented: $showingAvatarOptions) {
+                Button("Choose Photo") { showingPhotoPicker = true }
+                Button("Take Photo") { showingCamera = true }
+                Button("Pick Emoji") { showingEmojiPicker = true }
+                Button("Cancel", role: .cancel) {}
+            }
+            .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhoto, matching: .images)
+            .onChange(of: selectedPhoto) { _, newItem in
+                guard let newItem else { return }
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        selectedImage = image
+                        selectedEmoji = nil
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showingCamera) {
+                CameraView(capturedImage: $cameraImage)
+            }
+            .onChange(of: cameraImage) { _, newImage in
+                guard let newImage else { return }
+                selectedImage = newImage
+                selectedEmoji = nil
+                cameraImage = nil
+            }
+            .sheet(isPresented: $showingEmojiPicker) {
+                EmojiPickerSheet { emoji in
+                    selectedEmoji = emoji
+                    selectedImage = nil
+                }
             }
 
             VStack(spacing: 12) {
@@ -570,17 +619,125 @@ private struct LeaderboardPage: View {
         }
     }
 
+    @ViewBuilder
+    private var onboardingAvatarPreview: some View {
+        ZStack {
+            if let image = selectedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
+            } else if let emoji = selectedEmoji {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                Text(emoji)
+                    .font(.system(size: 50))
+            } else if let initial = displayName.trimmingCharacters(in: .whitespacesAndNewlines).first {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                Text(String(initial).uppercased())
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            } else {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                Image(systemName: "person.crop.circle.badge.plus")
+                    .font(.system(size: 40))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+        }
+    }
+
     private func joinLeaderboard() {
         guard canJoin else { return }
         isCreating = true
         Task {
             do {
-                try await identityService.createIdentity(displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines))
+                let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                try await identityService.createIdentity(displayName: name)
+
+                if let image = selectedImage {
+                    await uploadOnboardingPhoto(image)
+                } else if let emoji = selectedEmoji {
+                    await setOnboardingEmoji(emoji)
+                }
+
                 hasJoined = true
             } catch {
                 showError = true
             }
             isCreating = false
+        }
+    }
+
+    private func uploadOnboardingPhoto(_ image: UIImage) async {
+        guard let compressed = image.jpegData(compressionQuality: 0.7) else { return }
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+
+        do {
+            try compressed.write(to: tempURL)
+            let asset = CKAsset(fileURL: tempURL)
+            let record = CKRecord(recordType: "ProfilePhoto")
+            record["photo"] = asset
+            record["userID"] = identityService.currentIdentity?.userIDString
+
+            let saved = try await cloudKitManager.saveToPublicAndReturn(record)
+            try? FileManager.default.removeItem(at: tempURL)
+
+            let photoID = saved.recordID.recordName
+            ProfilePhotoCache.shared.setPhoto(image, for: photoID)
+
+            if var profile = identityService.currentProfile {
+                profile.profilePhotoID = photoID
+                identityService.currentProfile = profile
+                try await identityService.saveProfile()
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+    }
+
+    private func setOnboardingEmoji(_ emoji: String) async {
+        if var profile = identityService.currentProfile {
+            profile.profileEmoji = emoji
+            identityService.currentProfile = profile
+            try? await identityService.saveProfile()
         }
     }
 }
@@ -620,7 +777,7 @@ private struct GlobalFeedPage: View {
             }
 
             VStack(spacing: 12) {
-                Text("Join the Explore Feed")
+                Text("Join the Global Feed")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(.dietCokeCharcoal)
@@ -647,7 +804,7 @@ private struct GlobalFeedPage: View {
                     } label: {
                         HStack {
                             Image(systemName: "globe")
-                            Text("Join Explore Feed")
+                            Text("Join Global Feed")
                         }
                         .font(.headline)
                         .foregroundColor(.white)

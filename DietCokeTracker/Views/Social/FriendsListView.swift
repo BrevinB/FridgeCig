@@ -21,7 +21,7 @@ struct FriendsListView: View {
             .padding()
         }
         .refreshable {
-            await loadFriends()
+            await loadFriends(force: true)
         }
         .task {
             await loadFriends()
@@ -42,9 +42,9 @@ struct FriendsListView: View {
         }
     }
 
-    private func loadFriends() async {
+    private func loadFriends(force: Bool = false) async {
         guard let userID = identityService.currentIdentity?.userIDString else { return }
-        await friendService.loadFriends(forUserID: userID)
+        await friendService.loadFriends(forUserID: userID, force: force)
     }
 }
 
@@ -115,18 +115,20 @@ private struct PendingRequestRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
-            ZStack {
-                Circle()
-                    .fill(Color.dietCokeRed.opacity(0.1))
-                    .frame(width: 44, height: 44)
-
-                if isLoading {
+            if isLoading {
+                ZStack {
+                    Circle()
+                        .fill(Color.dietCokeRed.opacity(0.1))
+                        .frame(width: 44, height: 44)
                     ProgressView()
-                } else {
-                    Text(displayInitial)
-                        .font(.headline)
-                        .foregroundColor(.dietCokeRed)
                 }
+            } else {
+                AvatarView(
+                    displayName: displayName,
+                    profilePhotoID: requesterProfile?.profilePhotoID,
+                    profileEmoji: requesterProfile?.profileEmoji,
+                    size: 44
+                )
             }
 
             // Name
@@ -372,16 +374,12 @@ private struct FriendRow: View {
     var body: some View {
         NavigationLink(value: friend) {
             HStack(spacing: 14) {
-                // Avatar
-                ZStack {
-                    Circle()
-                        .fill(Color.dietCokeRed.opacity(0.1))
-                        .frame(width: 48, height: 48)
-
-                    Text(friend.displayName.prefix(1).uppercased())
-                        .font(.headline)
-                        .foregroundColor(.dietCokeRed)
-                }
+                AvatarView(
+                    displayName: friend.displayName,
+                    profilePhotoID: friend.profilePhotoID,
+                    profileEmoji: friend.profileEmoji,
+                    size: 48
+                )
 
                 // Info
                 VStack(alignment: .leading, spacing: 4) {

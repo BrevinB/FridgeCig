@@ -15,6 +15,8 @@ class GlobalFeedService: ObservableObject {
     private var blockedUserIDs: Set<String> = []
     private let pageSize = 20
     private var cancellables = Set<AnyCancellable>()
+    private var lastRefreshDate: Date?
+    private let freshnessWindow: TimeInterval = 30
 
     init(cloudKitManager: CloudKitManager) {
         self.cloudKitManager = cloudKitManager
@@ -38,11 +40,17 @@ class GlobalFeedService: ObservableObject {
         self.blockedUserIDs = blockedUserIDs
     }
 
-    func refresh() async {
+    func refresh(force: Bool = false) async {
+        if !force, !items.isEmpty,
+           let lastDate = lastRefreshDate,
+           Date().timeIntervalSince(lastDate) < freshnessWindow {
+            return
+        }
         cursor = nil
         items = []
         hasMore = true
         await loadMore()
+        lastRefreshDate = Date()
     }
 
     func loadMore() async {

@@ -856,8 +856,20 @@ struct SettingsView: View {
                 // Delete all friend connections
                 try await deleteAllFriendConnections(userID: userID)
 
-                // Delete all activity items
-                try await deleteAllActivityItems(userID: userID)
+                // Delete all activity items and their photos
+                try await deleteAllActivityItemsAndPhotos(userID: userID)
+
+                // Delete profile photos
+                try await deleteAllProfilePhotos(userID: userID)
+
+                // Delete content reports submitted by this user
+                try await deleteAllContentReports(userID: userID)
+
+                // Delete private CloudKit data (identity, badges)
+                try await deletePrivateCloudData()
+
+                // Clear photo cache
+                ProfilePhotoCache.shared.clearAll()
 
                 // Clear local data
                 await MainActor.run {
@@ -926,15 +938,67 @@ struct SettingsView: View {
         }
     }
 
-    private func deleteAllActivityItems(userID: String) async throws {
+    private func deleteAllActivityItemsAndPhotos(userID: String) async throws {
         let records = try await cloudKitManager.fetchFromPublic(
             recordType: "ActivityItem",
             predicate: NSPredicate(format: "userID == %@", userID),
             limit: 1000
         )
 
+        // Collect photo record names before deleting items
+        var photoRecordNames: [String] = []
+        for record in records {
+            if let payloadJSON = record["payloadJSON"] as? String,
+               let data = payloadJSON.data(using: .utf8),
+               let payload = try? JSONDecoder().decode(ActivityPayload.self, from: data),
+               let photoURL = payload.photoURL {
+                photoRecordNames.append(photoURL)
+            }
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+
+        // Delete orphaned activity photos
+        for recordName in photoRecordNames {
+            let recordID = CKRecord.ID(recordName: recordName)
+            try? await cloudKitManager.deleteFromPublic(recordID: recordID)
+        }
+    }
+
+    private func deleteAllProfilePhotos(userID: String) async throws {
+        let records = try await cloudKitManager.fetchFromPublic(
+            recordType: "ProfilePhoto",
+            predicate: NSPredicate(format: "userID == %@", userID),
+            limit: 100
+        )
+
         for record in records {
             try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+    }
+
+    private func deleteAllContentReports(userID: String) async throws {
+        let records = try await cloudKitManager.fetchFromPublic(
+            recordType: "ContentReport",
+            predicate: NSPredicate(format: "reporterUserID == %@", userID),
+            limit: 500
+        )
+
+        for record in records {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+    }
+
+    private func deletePrivateCloudData() async throws {
+        // Delete identity record from private DB
+        let identityRecords = try await cloudKitManager.fetchFromPrivate(recordType: "UserIdentity")
+        for record in identityRecords {
+            try await cloudKitManager.deleteFromPrivate(recordID: record.recordID)
+        }
+
+        // Delete badge data from private DB
+        let badgeRecords = try await cloudKitManager.fetchFromPrivate(recordType: "BadgeData")
+        for record in badgeRecords {
+            try await cloudKitManager.deleteFromPrivate(recordID: record.recordID)
         }
     }
 

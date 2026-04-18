@@ -104,6 +104,12 @@ struct DietCokeTrackerApp: App {
                     // Configure theme manager with purchase service
                     themeManager.configure(purchaseService: purchaseService)
 
+                    // Grant monthly streak freezes for Pro users
+                    preferences.grantMonthlyFreezesIfNeeded(isPremium: purchaseService.isPremium)
+
+                    // Auto-use freeze for yesterday if streak would break
+                    preferences.autoUseFreezesIfNeeded(entries: store.entries)
+
                     // Update notification authorization status
                     await notificationService.updateAuthorizationStatus()
                 }
@@ -111,7 +117,7 @@ struct DietCokeTrackerApp: App {
                     // Sync stats when identity becomes ready (e.g., after profile creation)
                     if newState == .ready {
                         Task {
-                            try? await identityService.syncStats(from: store)
+                            try? await identityService.syncStats(from: store, badgeStore: badgeStore)
 
                             // Load friends first so downstream services have the data
                             if let userID = identityService.currentProfile?.userIDString {
@@ -125,8 +131,11 @@ struct DietCokeTrackerApp: App {
                                 // Configure activity service with current user
                                 activityService.configure(
                                     currentUserID: userID,
-                                    friendIDs: Array(friendService.friendIDs)
+                                    friendIDs: Array(friendService.friendIDs),
+                                    profilePhotoID: identityService.currentProfile?.profilePhotoID,
+                                    profileEmoji: identityService.currentProfile?.profileEmoji
                                 )
+                                activityService.updateAvatarMap(from: friendService.friends)
 
                                 // Configure notification service with current user
                                 await notificationService.configure(
@@ -142,8 +151,21 @@ struct DietCokeTrackerApp: App {
                     if let userID = identityService.currentProfile?.userIDString {
                         activityService.configure(
                             currentUserID: userID,
-                            friendIDs: Array(friendService.friendIDs)
+                            friendIDs: Array(friendService.friendIDs),
+                            profilePhotoID: identityService.currentProfile?.profilePhotoID,
+                            profileEmoji: identityService.currentProfile?.profileEmoji
                         )
+                        activityService.updateAvatarMap(from: friendService.friends)
+
+                        // Sync friend stats to widget
+                        let friendStats = friendService.friends.map {
+                            SharedDataManager.FriendStat(
+                                name: $0.displayName,
+                                streak: $0.currentStreak,
+                                allTimeDrinks: $0.allTimeDrinks
+                            )
+                        }
+                        SharedDataManager.saveFriendStats(friendStats)
 
                         // Update notification service when friends list changes
                         Task {
@@ -153,7 +175,7 @@ struct DietCokeTrackerApp: App {
                 }
                 .onReceive(store.entriesDidChange.debounce(for: .seconds(2), scheduler: RunLoop.main)) { _ in
                     Task {
-                        try? await identityService.syncStats(from: store)
+                        try? await identityService.syncStats(from: store, badgeStore: badgeStore)
                     }
                 }
                 .onReceive(store.entriesDidChange) { _ in
@@ -165,13 +187,12 @@ struct DietCokeTrackerApp: App {
                         username: username
                     )
                 }
-                .onReceive(store.drinkAdded) { entry, photo in
-                    AppLogger.general.debug("Received drinkAdded notification for: \(entry.type.displayName)")
+                .onReceive(store.drinkAdded) { entry, photo, visibility in
+                    AppLogger.general.debug("Received drinkAdded notification for: \(entry.type.displayName) visibility: \(visibility.rawValue)")
 
                     // Cancel streak reminder since user logged a drink today
                     notificationService.cancelStreakReminderIfNeeded(hasLoggedToday: true)
 
-                    // Post to activity feed if user has sharing enabled
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else {
                         AppLogger.general.debug("No identity found, skipping activity post")
@@ -192,7 +213,8 @@ struct DietCokeTrackerApp: App {
                             rating: entry.rating,
                             ounces: entry.ounces,
                             specialEdition: entry.specialEdition,
-                            brand: entry.brand
+                            brand: entry.brand,
+                            visibility: visibility
                         )
                     }
                 }

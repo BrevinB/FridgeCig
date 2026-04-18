@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import CloudKit
 
 struct ProfileView: View {
     @EnvironmentObject var identityService: IdentityService
@@ -42,7 +44,16 @@ struct ProfileView: View {
 
 struct ProfileCardView: View {
     let identity: UserIdentity
+    @EnvironmentObject var identityService: IdentityService
+    @EnvironmentObject var cloudKitManager: CloudKitManager
     @Environment(\.colorScheme) private var colorScheme
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isUploading = false
+    @State private var showingAvatarOptions = false
+    @State private var showingPhotoPicker = false
+    @State private var showingCamera = false
+    @State private var showingEmojiPicker = false
+    @State private var cameraImage: UIImage?
 
     var body: some View {
         ZStack {
@@ -55,33 +66,61 @@ struct ProfileCardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20))
 
             VStack(spacing: 16) {
-                // Avatar with gradient ring
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.9))
-                        .frame(width: 88, height: 88)
-                        .shadow(color: Color.dietCokeRed.opacity(0.3), radius: 8, y: 2)
-
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 3
+                // Avatar with edit button
+                Button {
+                    showingAvatarOptions = true
+                } label: {
+                    ZStack(alignment: .bottomTrailing) {
+                        AvatarView(
+                            displayName: identity.displayName,
+                            profilePhotoID: identityService.currentProfile?.profilePhotoID,
+                            profileEmoji: identityService.currentProfile?.profileEmoji,
+                            size: 82,
+                            showGradientRing: true
                         )
-                        .frame(width: 88, height: 88)
 
-                    Text(identity.displayName.prefix(1).uppercased())
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                        ZStack {
+                            Circle()
+                                .fill(Color.dietCokeRed)
+                                .frame(width: 26, height: 26)
+                            if isUploading {
+                                ProgressView()
+                                    .scaleEffect(0.5)
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .offset(x: 4, y: 4)
+                    }
+                }
+                .disabled(isUploading)
+                .confirmationDialog("Profile Picture", isPresented: $showingAvatarOptions) {
+                    Button("Choose Photo") { showingPhotoPicker = true }
+                    Button("Take Photo") { showingCamera = true }
+                    Button("Pick Emoji") { showingEmojiPicker = true }
+                    Button("Use Initial") { Task { await resetToInitial() } }
+                    Button("Cancel", role: .cancel) {}
+                }
+                .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhoto, matching: .images)
+                .onChange(of: selectedPhoto) { _, newItem in
+                    guard let newItem else { return }
+                    Task { await uploadProfilePhoto(item: newItem) }
+                }
+                .fullScreenCover(isPresented: $showingCamera) {
+                    CameraView(capturedImage: $cameraImage)
+                }
+                .onChange(of: cameraImage) { _, newImage in
+                    guard let newImage else { return }
+                    Task { await uploadCameraPhoto(newImage) }
+                    cameraImage = nil
+                }
+                .sheet(isPresented: $showingEmojiPicker) {
+                    EmojiPickerSheet { emoji in
+                        Task { await setEmoji(emoji) }
+                    }
                 }
 
                 // Name
@@ -122,6 +161,71 @@ struct ProfileCardView: View {
             radius: 10,
             y: 4
         )
+    }
+
+    private func uploadCameraPhoto(_ image: UIImage) async {
+        isUploading = true
+        defer { isUploading = false }
+
+        guard let compressed = image.jpegData(compressionQuality: 0.7) else { return }
+        await uploadImageData(compressed, originalImage: image)
+    }
+
+    private func setEmoji(_ emoji: String) async {
+        guard var profile = identityService.currentProfile else { return }
+        profile.profileEmoji = emoji
+        profile.profilePhotoID = nil
+        identityService.currentProfile = profile
+        try? await identityService.saveProfile()
+    }
+
+    private func resetToInitial() async {
+        guard var profile = identityService.currentProfile else { return }
+        profile.profileEmoji = nil
+        profile.profilePhotoID = nil
+        identityService.currentProfile = profile
+        try? await identityService.saveProfile()
+    }
+
+    private func uploadProfilePhoto(item: PhotosPickerItem) async {
+        isUploading = true
+        defer { isUploading = false }
+
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let compressed = image.jpegData(compressionQuality: 0.7) else { return }
+
+        await uploadImageData(compressed, originalImage: image)
+    }
+
+    private func uploadImageData(_ compressed: Data, originalImage: UIImage) async {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+
+        do {
+            try compressed.write(to: tempURL)
+            let asset = CKAsset(fileURL: tempURL)
+            let record = CKRecord(recordType: "ProfilePhoto")
+            record["photo"] = asset
+            record["userID"] = identity.userIDString
+
+            let saved = try await cloudKitManager.saveToPublicAndReturn(record)
+            try? FileManager.default.removeItem(at: tempURL)
+
+            let photoID = saved.recordID.recordName
+            ProfilePhotoCache.shared.setPhoto(originalImage, for: photoID)
+
+            if var profile = identityService.currentProfile {
+                profile.profilePhotoID = photoID
+                profile.profileEmoji = nil
+                identityService.currentProfile = profile
+                try await identityService.saveProfile()
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: tempURL)
+            AppLogger.identity.error("Failed to upload profile photo: \(error.localizedDescription)")
+        }
     }
 }
 

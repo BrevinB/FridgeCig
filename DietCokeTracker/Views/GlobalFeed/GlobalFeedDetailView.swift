@@ -15,6 +15,9 @@ struct GlobalFeedDetailView: View {
     @State private var showingBlockAlert = false
     @State private var hasBlocked = false
     @State private var showCheersAnimation = false
+    @State private var isLoadingProfile = false
+    @State private var navigationPath = NavigationPath()
+    @State private var userProfile: UserProfile?
 
     private var hasCheered: Bool {
         activityService.hasUserCheered(item)
@@ -42,7 +45,7 @@ struct GlobalFeedDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(spacing: 0) {
                     photoSection
@@ -102,7 +105,10 @@ struct GlobalFeedDetailView: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("Block \(item.displayName)? Their photos will no longer appear in your Explore feed.")
+                Text("Block \(item.displayName)? Their photos will no longer appear in your Global feed.")
+            }
+            .navigationDestination(for: UserProfile.self) { profile in
+                FriendDetailView(friend: profile)
             }
         }
     }
@@ -175,28 +181,32 @@ struct GlobalFeedDetailView: View {
 
     private var userInfoRow: some View {
         HStack(alignment: .center, spacing: 12) {
-            avatarView
-            userDetails
+            Button {
+                navigateToProfile()
+            } label: {
+                HStack(spacing: 12) {
+                    avatarView
+                    userDetails
+                }
+            }
+            .buttonStyle(.plain)
+
             Spacer()
             cheersButton
         }
     }
 
     private var avatarView: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.dietCokeRed.opacity(0.2), Color.dietCokeRed.opacity(0.08)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 44, height: 44)
-
-            Text(String(item.displayName.prefix(1)).uppercased())
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(.dietCokeRed)
+        AvatarView(
+            displayName: item.displayName,
+            profilePhotoID: userProfile?.profilePhotoID ?? item.profilePhotoID,
+            profileEmoji: userProfile?.profileEmoji ?? item.profileEmoji,
+            size: 44
+        )
+        .task {
+            if userProfile == nil {
+                userProfile = try? await friendService.lookupUserByID(item.userID)
+            }
         }
     }
 
@@ -210,6 +220,11 @@ struct GlobalFeedDetailView: View {
 
                 if item.isPremium {
                     proBadge
+                }
+
+                if isLoadingProfile {
+                    ProgressView()
+                        .scaleEffect(0.6)
                 }
             }
 
@@ -419,6 +434,26 @@ struct GlobalFeedDetailView: View {
             withAnimation(.easeOut(duration: 0.25)) {
                 showCheersAnimation = false
             }
+        }
+    }
+
+    private func navigateToProfile() {
+        guard !isLoadingProfile else { return }
+        if let profile = userProfile {
+            navigationPath.append(profile)
+            return
+        }
+        isLoadingProfile = true
+        Task {
+            do {
+                if let profile = try await friendService.lookupUserByID(item.userID) {
+                    userProfile = profile
+                    navigationPath.append(profile)
+                }
+            } catch {
+                AppLogger.friends.error("Failed to load profile: \(error.localizedDescription)")
+            }
+            isLoadingProfile = false
         }
     }
 

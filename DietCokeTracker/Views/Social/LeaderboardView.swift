@@ -75,7 +75,14 @@ struct LeaderboardView: View {
                             if !remainingEntries.isEmpty {
                                 LazyVStack(spacing: 8) {
                                     ForEach(remainingEntries) { entry in
-                                        LeaderboardRowView(entry: entry)
+                                        if entry.isCurrentUser {
+                                            LeaderboardRowView(entry: entry)
+                                        } else {
+                                            NavigationLink(value: entry.profile) {
+                                                LeaderboardRowView(entry: entry)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
                                     }
                                 }
                                 .padding(.horizontal)
@@ -84,7 +91,14 @@ struct LeaderboardView: View {
                             // Less than 3 entries - show all as regular rows
                             LazyVStack(spacing: 8) {
                                 ForEach(entries) { entry in
-                                    LeaderboardRowView(entry: entry)
+                                    if entry.isCurrentUser {
+                                        LeaderboardRowView(entry: entry)
+                                    } else {
+                                        NavigationLink(value: entry.profile) {
+                                            LeaderboardRowView(entry: entry)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
                                 }
                             }
                             .padding(.horizontal)
@@ -237,19 +251,12 @@ private struct PodiumEntry: View {
         VStack(spacing: 8) {
             // Avatar with medal
             ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: medalColor,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: rank == 1 ? 48 : 40, height: rank == 1 ? 48 : 40)
-
-                Text(entry.displayName.prefix(1).uppercased())
-                    .font(.system(size: rank == 1 ? 20 : 16, weight: .bold))
-                    .foregroundColor(.white)
+                AvatarView(
+                    displayName: entry.displayName,
+                    profilePhotoID: entry.profile.profilePhotoID,
+                    profileEmoji: entry.profile.profileEmoji,
+                    size: rank == 1 ? 48 : 40
+                )
 
                 // Medal badge
                 Image(systemName: medalIcon)
@@ -387,26 +394,18 @@ struct LeaderboardRowView: View {
 
             // Avatar with Pro ring
             ZStack {
-                // Pro gold ring
                 if entry.isPremium {
                     Circle()
                         .stroke(goldGradient, lineWidth: 2)
                         .frame(width: 48, height: 48)
                 }
 
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.dietCokeRed.opacity(0.15), Color.dietCokeRed.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 44, height: 44)
-
-                Text(entry.displayName.prefix(1).uppercased())
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.dietCokeRed)
+                AvatarView(
+                    displayName: entry.displayName,
+                    profilePhotoID: entry.profile.profilePhotoID,
+                    profileEmoji: entry.profile.profileEmoji,
+                    size: 44
+                )
             }
 
             // Name and badges

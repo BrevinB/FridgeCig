@@ -268,17 +268,12 @@ private struct FoundUserCard: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
-                // Avatar
-                ZStack {
-                    Circle()
-                        .fill(Color.dietCokeRed.opacity(0.1))
-                        .frame(width: 56, height: 56)
-
-                    Text(user.displayName.prefix(1).uppercased())
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.dietCokeRed)
-                }
+                AvatarView(
+                    displayName: user.displayName,
+                    profilePhotoID: user.profilePhotoID,
+                    profileEmoji: user.profileEmoji,
+                    size: 56
+                )
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(user.displayName)

@@ -136,7 +136,7 @@ struct WhatsNewFeature: Identifiable {
                     icon: "hand.thumbsup.fill",
                     iconColor: .orange,
                     title: "Cheers",
-                    description: "Double-tap photos in the Explore feed to send cheers to fellow fans."
+                    description: "Double-tap photos in the Global feed to send cheers to fellow fans."
                 ),
                 WhatsNewFeature(
                     icon: "ant.fill",
@@ -145,8 +145,58 @@ struct WhatsNewFeature: Identifiable {
                     description: "Squashed bugs and polished the experience for a smoother ride."
                 )
             ]
+        case "2.0", "2.0.0":
+            return [
+                WhatsNewFeature(
+                    icon: "rectangle.stack.fill",
+                    iconColor: .dietCokeRed,
+                    title: "Unified Feed",
+                    description: "Friends and Global feeds combined into one tab with a simple toggle. Less tabs, less confusion."
+                ),
+                WhatsNewFeature(
+                    icon: "eye.fill",
+                    iconColor: .blue,
+                    title: "Post Visibility",
+                    description: "Choose who sees each drink: Only Me, Friends, or Public. Your privacy, your choice."
+                ),
+                WhatsNewFeature(
+                    icon: "person.crop.circle.fill",
+                    iconColor: .purple,
+                    title: "Profile Photos & Emoji",
+                    description: "Set a profile photo, take a selfie, or pick an emoji avatar. Show up in feeds and leaderboards with personality."
+                ),
+                WhatsNewFeature(
+                    icon: "person.badge.plus",
+                    iconColor: .green,
+                    title: "Tap to Add Friends",
+                    description: "Tap any username in the feed or leaderboard to view their profile and send a friend request."
+                ),
+                WhatsNewFeature(
+                    icon: "medal.fill",
+                    iconColor: .yellow,
+                    title: "Friend Badges",
+                    description: "View your friends' earned badges on their profile. See who's the biggest collector."
+                ),
+                WhatsNewFeature(
+                    icon: "snowflake",
+                    iconColor: .cyan,
+                    title: "Streak Freezes Fixed",
+                    description: "Pro subscribers now receive 3 freezes monthly. Freezes auto-activate when you miss a day to protect your streak."
+                ),
+                WhatsNewFeature(
+                    icon: "bolt.fill",
+                    iconColor: .orange,
+                    title: "Faster Everything",
+                    description: "Parallel friend loading, smart caching, and freshness gates mean the feed loads instantly."
+                ),
+                WhatsNewFeature(
+                    icon: "widget.small.badge.plus",
+                    iconColor: .pink,
+                    title: "Social Widgets",
+                    description: "Medium and large widgets now show your top friend's streak alongside your stats."
+                )
+            ]
         default:
-            // Default features for unknown versions
             return [
                 WhatsNewFeature(
                     icon: "arrow.up.circle.fill",

@@ -12,6 +12,8 @@ class UserPreferences: ObservableObject {
     private let hasRequestedReviewKey = "hasRequestedReview"
     private let streakFreezeCountKey = "streakFreezeCount"
     private let lastStreakFreezeDateKey = "lastStreakFreezeDate"
+    private let usedFreezeDatesKey = "usedFreezeDates"
+    private let lastFreezeGrantMonthKey = "lastFreezeGrantMonth"
     private let lastUpsellDateKey = "lastUpsellDate"
     private let upsellDrinkTriggerShownKey = "upsellDrinkTriggerShown"
     private let upsellBadgeTriggerShownKey = "upsellBadgeTriggerShown"
@@ -49,6 +51,17 @@ class UserPreferences: ObservableObject {
                 sharedDefaults?.removeObject(forKey: lastStreakFreezeDateKey)
             }
         }
+    }
+
+    @Published var usedFreezeDates: Set<String> {
+        didSet {
+            sharedDefaults?.set(Array(usedFreezeDates), forKey: usedFreezeDatesKey)
+        }
+    }
+
+    private var lastFreezeGrantMonth: String {
+        get { sharedDefaults?.string(forKey: lastFreezeGrantMonthKey) ?? "" }
+        set { sharedDefaults?.set(newValue, forKey: lastFreezeGrantMonthKey) }
     }
 
     // Upsell trigger tracking
@@ -104,6 +117,7 @@ class UserPreferences: ObservableObject {
         self.hasRequestedReview = defaults?.bool(forKey: hasRequestedReviewKey) ?? false
         self.streakFreezeCount = defaults?.integer(forKey: streakFreezeCountKey) ?? 0
         self.lastStreakFreezeDate = defaults?.object(forKey: lastStreakFreezeDateKey) as? Date
+        self.usedFreezeDates = Set(defaults?.stringArray(forKey: usedFreezeDatesKey) ?? [])
         self.lastUpsellDate = defaults?.object(forKey: lastUpsellDateKey) as? Date
         self.upsellDrinkTriggerShown = defaults?.bool(forKey: upsellDrinkTriggerShownKey) ?? false
         self.upsellBadgeTriggerShown = defaults?.bool(forKey: upsellBadgeTriggerShownKey) ?? false
@@ -141,22 +155,63 @@ class UserPreferences: ObservableObject {
         lastSeenVersion = currentAppVersion
     }
 
-    func useStreakFreeze() -> Bool {
+    func useStreakFreeze(for date: Date? = nil) -> Bool {
         guard streakFreezeCount > 0 else { return false }
 
-        // Check if already used today
-        if let lastFreeze = lastStreakFreezeDate,
-           Calendar.current.isDateInToday(lastFreeze) {
-            return false
-        }
+        let freezeDate = date ?? Date()
+        let dateKey = Self.dateKey(for: freezeDate)
+
+        guard !usedFreezeDates.contains(dateKey) else { return false }
 
         streakFreezeCount -= 1
         lastStreakFreezeDate = Date()
+        usedFreezeDates.insert(dateKey)
         return true
     }
 
+    func isFrozenDay(_ date: Date) -> Bool {
+        usedFreezeDates.contains(Self.dateKey(for: date))
+    }
+
     func addStreakFreezes(_ count: Int) {
-        streakFreezeCount += count
+        streakFreezeCount = min(streakFreezeCount + count, 6)
+    }
+
+    func grantMonthlyFreezesIfNeeded(isPremium: Bool) {
+        guard isPremium else { return }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+        let currentMonth = formatter.string(from: Date())
+        guard lastFreezeGrantMonth != currentMonth else { return }
+        addStreakFreezes(3)
+        lastFreezeGrantMonth = currentMonth
+    }
+
+    func autoUseFreezesIfNeeded(entries: [DrinkEntry]) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return }
+
+        let hasEntryYesterday = entries.contains {
+            calendar.isDate($0.timestamp, inSameDayAs: yesterday)
+        }
+
+        if !hasEntryYesterday && !isFrozenDay(yesterday) && streakFreezeCount > 0 {
+            let hadStreakBeforeYesterday = entries.contains {
+                guard let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: today) else { return false }
+                return $0.timestamp < yesterday && $0.timestamp >= twoDaysAgo
+            } || isFrozenDay(calendar.date(byAdding: .day, value: -2, to: today) ?? today)
+
+            if hadStreakBeforeYesterday {
+                _ = useStreakFreeze(for: yesterday)
+            }
+        }
+    }
+
+    private static func dateKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     // MARK: - Upsell Triggers
@@ -226,6 +281,8 @@ class UserPreferences: ObservableObject {
             hasRequestedReviewKey,
             streakFreezeCountKey,
             lastStreakFreezeDateKey,
+            usedFreezeDatesKey,
+            lastFreezeGrantMonthKey,
             lastUpsellDateKey,
             upsellDrinkTriggerShownKey,
             upsellBadgeTriggerShownKey,
