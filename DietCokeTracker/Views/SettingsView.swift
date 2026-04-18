@@ -957,6 +957,12 @@ struct SettingsView: View {
             try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
         }
 
+        // Delete private activity items (Only Me posts)
+        let privateRecords = (try? await cloudKitManager.fetchFromPrivate(recordType: "ActivityItem")) ?? []
+        for record in privateRecords {
+            try? await cloudKitManager.deleteFromPrivate(recordID: record.recordID)
+        }
+
         // Delete orphaned activity photos
         for recordName in photoRecordNames {
             let recordID = CKRecord.ID(recordName: recordName)

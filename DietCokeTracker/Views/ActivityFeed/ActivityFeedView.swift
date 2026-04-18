@@ -287,7 +287,9 @@ struct ActivityItemRow: View {
 
             // Actions
             HStack {
-                CheersButton(activity: activity)
+                if !activity.isLocalOnly {
+                    CheersButton(activity: activity)
+                }
 
                 Spacer()
 

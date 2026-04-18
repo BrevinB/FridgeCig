@@ -146,6 +146,26 @@ struct DietCokeTrackerApp: App {
                         }
                     }
                 }
+                .onChange(of: identityService.currentProfile?.profilePhotoID) { _, _ in
+                    if let profile = identityService.currentProfile {
+                        activityService.configure(
+                            currentUserID: profile.userIDString,
+                            friendIDs: Array(friendService.friendIDs),
+                            profilePhotoID: profile.profilePhotoID,
+                            profileEmoji: profile.profileEmoji
+                        )
+                    }
+                }
+                .onChange(of: identityService.currentProfile?.profileEmoji) { _, _ in
+                    if let profile = identityService.currentProfile {
+                        activityService.configure(
+                            currentUserID: profile.userIDString,
+                            friendIDs: Array(friendService.friendIDs),
+                            profilePhotoID: profile.profilePhotoID,
+                            profileEmoji: profile.profileEmoji
+                        )
+                    }
+                }
                 .onChange(of: friendService.friends) { _, _ in
                     // Update activity service when friends list changes
                     if let userID = identityService.currentProfile?.userIDString {

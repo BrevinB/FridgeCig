@@ -106,10 +106,18 @@ class ActivityFeedService: ObservableObject {
         }
 
         do {
-            let records = try await fetchActivityRecords()
-            AppLogger.activity.info("Fetched \(records.count) records from CloudKit")
+            // Fetch public activities (friends + own public/friends posts)
+            let publicRecords = try await fetchActivityRecords()
+            AppLogger.activity.info("Fetched \(publicRecords.count) public records from CloudKit")
 
-            let fetchedActivities = records.compactMap { ActivityItem(from: $0) }
+            // Fetch private activities (Only Me posts)
+            let privateRecords = (try? await cloudKitManager.fetchFromPrivate(
+                recordType: ActivityItem.recordType
+            )) ?? []
+            AppLogger.activity.info("Fetched \(privateRecords.count) private records from CloudKit")
+
+            let allRecords = publicRecords + privateRecords
+            let fetchedActivities = allRecords.compactMap { ActivityItem(from: $0) }
                 .filter { !blockedUserIDs.contains($0.userID) }
                 .filter { $0.visibility != .onlyMe || $0.userID == currentUserID }
             AppLogger.activity.debug("Parsed \(fetchedActivities.count) activities")
@@ -274,7 +282,7 @@ class ActivityFeedService: ObservableObject {
             activity.type == .drinkLog && activity.payload.drinkEntryID == entryID
         }
 
-        // Delete from CloudKit using the top-level entryID field for efficient lookup
+        // Try public DB first
         do {
             let predicate = NSPredicate(format: "entryID == %@ AND userID == %@", entryID, userID)
             let records = try await cloudKitManager.fetchFromPublic(
@@ -285,29 +293,47 @@ class ActivityFeedService: ObservableObject {
 
             if let record = records.first {
                 try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
-                AppLogger.activity.info("Deleted activity from CloudKit for entryID: \(entryID)")
-            } else {
-                // Fallback: query by userID and check payload JSON (for older records without entryID field)
-                let fallbackPredicate = NSPredicate(format: "userID == %@ AND type == %@", userID, ActivityType.drinkLog.rawValue)
-                let fallbackRecords = try await cloudKitManager.fetchFromPublic(
-                    recordType: ActivityItem.recordType,
-                    predicate: fallbackPredicate,
-                    limit: 100
-                )
+                AppLogger.activity.info("Deleted activity from public DB for entryID: \(entryID)")
+                return
+            }
 
-                for record in fallbackRecords {
-                    if let payloadJSON = record["payloadJSON"] as? String,
-                       let payloadData = payloadJSON.data(using: .utf8),
-                       let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
-                       payload.drinkEntryID == entryID {
-                        try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
-                        AppLogger.activity.info("Deleted activity via fallback for entryID: \(entryID)")
-                        break
-                    }
+            // Fallback: query by userID and check payload JSON (for older records without entryID field)
+            let fallbackPredicate = NSPredicate(format: "userID == %@ AND type == %@", userID, ActivityType.drinkLog.rawValue)
+            let fallbackRecords = try await cloudKitManager.fetchFromPublic(
+                recordType: ActivityItem.recordType,
+                predicate: fallbackPredicate,
+                limit: 100
+            )
+
+            for record in fallbackRecords {
+                if let payloadJSON = record["payloadJSON"] as? String,
+                   let payloadData = payloadJSON.data(using: .utf8),
+                   let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
+                   payload.drinkEntryID == entryID {
+                    try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+                    AppLogger.activity.info("Deleted activity via fallback for entryID: \(entryID)")
+                    return
                 }
             }
         } catch {
-            AppLogger.activity.error("Failed to delete activity from CloudKit: \(error.localizedDescription)")
+            AppLogger.activity.error("Failed to delete from public DB: \(error.localizedDescription)")
+        }
+
+        // Try private DB (Only Me posts)
+        do {
+            let privateRecords = try await cloudKitManager.fetchFromPrivate(recordType: ActivityItem.recordType)
+            for record in privateRecords {
+                if let payloadJSON = record["payloadJSON"] as? String,
+                   let payloadData = payloadJSON.data(using: .utf8),
+                   let payload = try? JSONDecoder().decode(ActivityPayload.self, from: payloadData),
+                   payload.drinkEntryID == entryID {
+                    try await cloudKitManager.deleteFromPrivate(recordID: record.recordID)
+                    AppLogger.activity.info("Deleted private activity for entryID: \(entryID)")
+                    return
+                }
+            }
+        } catch {
+            AppLogger.activity.error("Failed to delete from private DB: \(error.localizedDescription)")
         }
     }
 
@@ -369,18 +395,22 @@ class ActivityFeedService: ObservableObject {
     }
 
     private func postActivity(_ activity: ActivityItem) async {
-        AppLogger.activity.debug("Posting activity: \(activity.type.rawValue) by \(activity.displayName)")
+        AppLogger.activity.debug("Posting activity: \(activity.type.rawValue) by \(activity.displayName) visibility: \(activity.visibility.rawValue)")
 
         // Add to local list immediately
         activities.insert(activity, at: 0)
 
-        // Try to save to CloudKit
         do {
             let record = activity.toCKRecord()
-            try await cloudKitManager.saveToPublic(record)
-            AppLogger.activity.info("Activity posted to CloudKit successfully")
+            if activity.visibility == .onlyMe {
+                try await cloudKitManager.saveToPrivate(record)
+                AppLogger.activity.info("Private activity saved to private DB")
+            } else {
+                try await cloudKitManager.saveToPublic(record)
+                AppLogger.activity.info("Activity posted to public DB")
+            }
         } catch {
-            AppLogger.activity.error("Failed to post activity to CloudKit: \(error.localizedDescription)")
+            AppLogger.activity.error("Failed to save activity: \(error.localizedDescription)")
         }
 
         // Notify global feed if this is a global photo
