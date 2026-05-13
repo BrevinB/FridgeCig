@@ -97,6 +97,17 @@ class BadgeStore: ObservableObject {
         unlock(badge.id)
     }
 
+    /// Check America-250 state can collection milestones.
+    /// Call this when a state is collected; pass the new total collected count.
+    func checkStateCanBadges(collectedCount: Int) {
+        if collectedCount >= 26 {
+            unlock("state_cans_half")
+        }
+        if collectedCount >= 52 {
+            unlock("state_cans_all")
+        }
+    }
+
     func dismissRecentBadge() {
         if !pendingBadges.isEmpty {
             recentlyUnlocked = pendingBadges.removeFirst()

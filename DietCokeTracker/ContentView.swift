@@ -13,7 +13,7 @@ struct ContentView: View {
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddDrink = false
-    enum RootTab { case today, history, social, badges, stats }
+    enum RootTab { case today, history, social, badges, cans, stats }
     @State private var selectedTab: RootTab = .today
     @State private var showingBadgeToast = false
     @State private var showingShareSheet = false
@@ -69,17 +69,20 @@ struct ContentView: View {
                         Tab("Today", systemImage: "house.fill", value: .today) {
                             HomeView(showingAddDrink: $showingAddDrink)
                         }
-                        Tab("History", systemImage: "clock.fill", value: .history) {
-                            HistoryView()
-                        }
                         Tab("Social", systemImage: "person.2.fill", value: .social) {
                             SocialTabView()
                         }
                         Tab("Badges", systemImage: "trophy.fill", value: .badges) {
                             BadgesView()
                         }
+                        Tab("Cans", systemImage: "flag.checkered", value: .cans) {
+                            StateCansView()
+                        }
                         Tab("Stats", systemImage: "chart.bar.fill", value: .stats) {
                             StatsView()
+                        }
+                        Tab("History", systemImage: "clock.fill", value: .history) {
+                            HistoryView()
                         }
                     }
                     .tint(themeManager.primaryColor)
@@ -740,6 +743,7 @@ struct QuickAddSection: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var badgeStore: BadgeStore
     @EnvironmentObject var preferences: UserPreferences
+    @EnvironmentObject var activityService: ActivityFeedService
     @Binding var showingAddDrink: Bool
     @Environment(\.colorScheme) private var colorScheme
 
@@ -918,8 +922,22 @@ struct QuickAddSection: View {
     }
 
     private func addDrinkWithPhoto(type: DrinkType, photo: UIImage) {
+        // Respect the user's sharing preferences for the quick-add path:
+        //   - Drink sharing off → onlyMe
+        //   - Global photo sharing on → public
+        //   - Otherwise → friends (the store default)
+        let prefs = activityService.sharingPreferences
+        let visibility: PostVisibility
+        if !prefs.shareDrinkLogs {
+            visibility = .onlyMe
+        } else if prefs.sharePhotosGlobally {
+            visibility = .public
+        } else {
+            visibility = .friends
+        }
+
         withAnimation(.spring(response: 0.3)) {
-            store.addDrink(type: type, brand: selectedBrand, photo: photo)
+            store.addDrink(type: type, brand: selectedBrand, photo: photo, visibility: visibility)
             store.checkBadges(with: badgeStore)
         }
     }
@@ -1088,6 +1106,7 @@ struct HomeActivityFeedSection: View {
     ContentView()
         .environmentObject(DrinkStore())
         .environmentObject(BadgeStore())
+        .environmentObject(StateCanStore())
         .environmentObject(MilestoneCardService())
         .environmentObject(UserPreferences())
         .environmentObject(PurchaseService.shared)

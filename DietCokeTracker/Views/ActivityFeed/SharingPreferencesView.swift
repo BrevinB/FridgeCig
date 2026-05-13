@@ -98,7 +98,17 @@ struct SharingPreferencesView: View {
 
                 if shareDrinks && showPhotos {
                     Section {
-                        Toggle(isOn: $shareGlobally) {
+                        Toggle(isOn: Binding(
+                            get: { shareGlobally },
+                            set: { newValue in
+                                shareGlobally = newValue
+                                // Only prompt when the *user* flips the toggle on,
+                                // not when state is hydrated from saved prefs.
+                                if newValue {
+                                    showingGlobalExplanation = true
+                                }
+                            }
+                        )) {
                             Label {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Share Photos Globally")
@@ -110,11 +120,6 @@ struct SharingPreferencesView: View {
                             } icon: {
                                 Image(systemName: "globe")
                                     .foregroundColor(.green)
-                            }
-                        }
-                        .onChange(of: shareGlobally) { _, newValue in
-                            if newValue {
-                                showingGlobalExplanation = true
                             }
                         }
                     } header: {

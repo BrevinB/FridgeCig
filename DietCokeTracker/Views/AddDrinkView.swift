@@ -4,6 +4,7 @@ import UIKit
 struct AddDrinkView: View {
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var badgeStore: BadgeStore
+    @EnvironmentObject var stateCanStore: StateCanStore
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +14,7 @@ struct AddDrinkView: View {
     @State private var note: String = ""
     @State private var selectedCategory: DrinkCategory? = .cans
     @State private var selectedSpecialEdition: SpecialEdition? = nil
+    @State private var selectedStateCanCode: String? = nil
     @State private var showSpecialEditions = false
     @State private var useCustomOunces = false
     @State private var customOuncesText: String = ""
@@ -108,6 +110,12 @@ struct AddDrinkView: View {
                             selectedSpecialEdition: $selectedSpecialEdition
                         )
 
+                        // State can picker — only for America 250 mini cans (the
+                        // 52-can series is mini-can-only).
+                        if selectedSpecialEdition == .america250 && selectedType == .miniCan {
+                            StateCanPickerSection(selectedCode: $selectedStateCanCode)
+                        }
+
                         // Custom ounces input
                         CustomOuncesSection(
                             useCustomOunces: $useCustomOunces,
@@ -173,8 +181,18 @@ struct AddDrinkView: View {
                 }
             }
             .onChange(of: capturedPhoto) { _, newPhoto in
+                let prefs = activityService.sharingPreferences
                 if newPhoto == nil && visibility == .public {
+                    // Photo removed — public visibility is no longer meaningful.
                     visibility = .friends
+                } else if newPhoto != nil,
+                          prefs.shareDrinkLogs,
+                          prefs.sharePhotosGlobally,
+                          visibility != .public {
+                    // User just attached a photo and has opted into global sharing —
+                    // promote visibility to public by default. They can still drop it
+                    // back via the visibility picker.
+                    visibility = .public
                 }
             }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
@@ -200,6 +218,11 @@ struct AddDrinkView: View {
             return
         }
 
+        // Only attach a state code if this is the qualifying America-250 mini-can.
+        let entryStateCode: String? = (selectedSpecialEdition == .america250 && selectedType == .miniCan)
+            ? selectedStateCanCode
+            : nil
+
         // Validation passed, add the drink
         store.addDrink(
             type: selectedType,
@@ -209,10 +232,105 @@ struct AddDrinkView: View {
             customOunces: customOz,
             rating: selectedRating,
             photo: capturedPhoto,
+            stateCode: entryStateCode,
             visibility: visibility
         )
         store.checkBadges(with: badgeStore)
+
+        // The 52-state America 250 series is mini-can-only, so only auto-collect
+        // when the logged drink is a mini can with that special edition. A photo
+        // attached to the entry upgrades the collection to "verified" and is
+        // stored as an independent copy so it survives drink-entry deletion.
+        if selectedSpecialEdition == .america250,
+           selectedType == .miniCan,
+           let code = selectedStateCanCode {
+            var stateCanFilename: String? = nil
+            if let photo = capturedPhoto {
+                let filename = PhotoStorage.generateFilename()
+                if PhotoStorage.savePhoto(photo, filename: filename) {
+                    stateCanFilename = filename
+                }
+            }
+            stateCanStore.collect(code, photoFilename: stateCanFilename)
+        }
+
         dismiss()
+    }
+}
+
+// MARK: - State Can Picker Section
+
+struct StateCanPickerSection: View {
+    @Binding var selectedCode: String?
+    @EnvironmentObject var stateCanStore: StateCanStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var selectedCan: StateCan? {
+        selectedCode.flatMap { StateCan.byCode[$0] }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "flag.checkered")
+                    .font(.subheadline)
+                    .foregroundColor(.dietCokeRed)
+                Text("WHICH STATE CAN?")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundColor(.dietCokeDarkSilver)
+                Spacer()
+            }
+
+            Menu {
+                Button("None") { selectedCode = nil }
+                Divider()
+                ForEach(StateCan.all) { can in
+                    Button {
+                        selectedCode = can.code
+                    } label: {
+                        if stateCanStore.isCollected(can.code) {
+                            Label("\(can.name) — already collected", systemImage: "checkmark.seal.fill")
+                        } else {
+                            Text(can.name)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    if let can = selectedCan {
+                        Image(systemName: can.icon)
+                            .font(.title3)
+                            .foregroundColor(.dietCokeRed)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(can.name)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.dietCokeCharcoal)
+                            Text(can.symbol)
+                                .font(.caption)
+                                .foregroundColor(.dietCokeDarkSilver)
+                        }
+                    } else {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.title3)
+                            .foregroundColor(.dietCokeDarkSilver)
+                        Text("Pick a state")
+                            .font(.subheadline)
+                            .foregroundColor(.dietCokeDarkSilver)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(.dietCokeDarkSilver)
+                }
+                .padding(14)
+                .background(Color.dietCokeCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        }
     }
 }
 
@@ -1301,4 +1419,5 @@ struct PhotoSection: View {
     AddDrinkView()
         .environmentObject(DrinkStore())
         .environmentObject(BadgeStore())
+        .environmentObject(StateCanStore())
 }

@@ -62,6 +62,20 @@ struct EditEntrySheet: View {
                                         .background(edition.toBadge().rarity.color.opacity(0.15))
                                         .clipShape(Capsule())
                                 }
+
+                                if let code = entry.stateCode, let can = StateCan.byCode[code] {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: can.icon)
+                                            .font(.system(size: 9, weight: .semibold))
+                                        Text(can.name)
+                                            .font(.caption2.weight(.semibold))
+                                    }
+                                    .foregroundColor(.dietCokeRed)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.dietCokeRed.opacity(0.12))
+                                    .clipShape(Capsule())
+                                }
                             }
 
                             HStack(spacing: 4) {

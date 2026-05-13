@@ -230,7 +230,7 @@ class ActivityFeedService: ObservableObject {
         await postActivity(activity)
     }
 
-    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil, visibility: PostVisibility = .friends) async {
+    func postDrinkActivity(type: DrinkType, note: String?, photo: UIImage?, userID: String, displayName: String, entryID: String, isPremium: Bool = false, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil, stateCode: String? = nil, visibility: PostVisibility = .friends) async {
         AppLogger.activity.debug("postDrinkActivity called for type: \(type.displayName) visibility: \(visibility.rawValue)")
 
         // Enforce global privacy settings — these override the per-post picker
@@ -262,7 +262,7 @@ class ActivityFeedService: ObservableObject {
             userID: userID,
             displayName: displayName,
             type: .drinkLog,
-            payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID, rating: rating, ounces: ounces, specialEdition: specialEdition, brand: brand),
+            payload: .forDrink(type: type, note: note, hasPhoto: hasPhoto, photoURL: photoURL, entryID: entryID, rating: rating, ounces: ounces, specialEdition: specialEdition, brand: brand, stateCode: stateCode),
             isPremium: isPremium,
             isGlobalPhoto: isGlobalPhoto,
             visibility: effectiveVisibility,

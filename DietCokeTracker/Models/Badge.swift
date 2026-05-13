@@ -81,6 +81,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case holidaySeason = "Holiday Season"
     case retroEdition = "Retro Edition"
     case america250 = "America 250"
+    case devilWearsPrada2 = "Devil Wears Prada 2"
 
     // DC Flavors
     case zeroSugarLime = "Zero Sugar Lime"
@@ -111,7 +112,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
 
     var category: SpecialEditionCategory {
         switch self {
-        case .fifa2026, .summerVibes, .holidaySeason, .retroEdition, .america250:
+        case .fifa2026, .summerVibes, .holidaySeason, .retroEdition, .america250, .devilWearsPrada2:
             return .limited
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai,
@@ -134,6 +135,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .holidaySeason: return "gift.fill"
         case .retroEdition: return "clock.arrow.circlepath"
         case .america250: return "flag.fill"
+        case .devilWearsPrada2: return "handbag.fill"
         case .zeroSugarLime: return "leaf.fill"
         case .cherryVanilla: return "heart.fill"
         case .gingerLime: return "leaf.circle.fill"
@@ -170,6 +172,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return "Sipped on a classic Retro Edition"
         case .america250:
             return "Celebrated America's 250th birthday with a patriotic edition"
+        case .devilWearsPrada2:
+            return "Sipped the Devil Wears Prada 2 promo edition. That's all."
         case .zeroSugarLime:
             return "Tasted the Zero Sugar Lime variant"
         case .cherryVanilla:
@@ -217,7 +221,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
 
     var rarity: BadgeRarity {
         switch self {
-        case .fifa2026, .america250, .starlight, .dreamworld, .marshmello, .y3000, .ultimate:
+        case .fifa2026, .america250, .devilWearsPrada2, .starlight, .dreamworld, .marshmello, .y3000, .ultimate:
             return .legendary
         case .summerVibes, .holidaySeason, .byte, .move, .kWave, .happyTears, .oreo:
             return .epic
@@ -456,6 +460,12 @@ struct BadgeDefinitions {
               description: "Log a caffeine-free {drink}. Chaotic neutral energy.", icon: "arrow.triangle.swap", rarity: .uncommon),
         Badge(id: "sleeping_well", type: .lifestyle, title: "Actually Sleeping Well",
               description: "Log 5 caffeine-free {drinks}. Look at you being responsible.", icon: "bed.double.fill", rarity: .rare),
+
+        // America 250 state can collection
+        Badge(id: "state_cans_half", type: .lifestyle, title: "Coast to Coast",
+              description: "Collect 26 of the 52 America 250 state cans.", icon: "map.fill", rarity: .epic),
+        Badge(id: "state_cans_all", type: .lifestyle, title: "Sea to Shining Sea",
+              description: "Collect all 52 America 250 state cans.", icon: "flag.checkered", rarity: .legendary),
     ]
 
     // MARK: - All Badges

@@ -395,6 +395,35 @@ struct ActivityContent: View {
                                     .fontWeight(.medium)
                                     .foregroundColor(.dietCokeCharcoal)
 
+                                if activity.payload.drinkSpecialEdition != nil || activity.payload.drinkStateCode != nil {
+                                    HStack(spacing: 4) {
+                                        if let editionRaw = activity.payload.drinkSpecialEdition,
+                                           let edition = SpecialEdition(rawValue: editionRaw) {
+                                            Text(edition.rawValue)
+                                                .font(.caption2.weight(.semibold))
+                                                .foregroundColor(edition.toBadge().rarity.color)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(edition.toBadge().rarity.color.opacity(0.15))
+                                                .clipShape(Capsule())
+                                        }
+                                        if let code = activity.payload.drinkStateCode,
+                                           let can = StateCan.byCode[code] {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: can.icon)
+                                                    .font(.system(size: 9, weight: .semibold))
+                                                Text(can.name)
+                                                    .font(.caption2.weight(.semibold))
+                                            }
+                                            .foregroundColor(.dietCokeRed)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.dietCokeRed.opacity(0.12))
+                                            .clipShape(Capsule())
+                                        }
+                                    }
+                                }
+
                                 if let note = activity.payload.drinkNote {
                                     Text("\"\(note)\"")
                                         .font(.caption)

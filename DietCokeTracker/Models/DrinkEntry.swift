@@ -12,11 +12,13 @@ struct DrinkEntry: Identifiable, Equatable {
     var customOunces: Double?
     var rating: DrinkRating?
     var photoFilename: String?
+    /// 2-letter state code, only meaningful for the America 250 mini-can series.
+    var stateCode: String?
 
     /// Immutable timestamp of when the entry was actually created (for audit trail)
     let createdAt: Date
 
-    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photoFilename: String? = nil, createdAt: Date = Date()) {
+    init(id: UUID = UUID(), type: DrinkType, brand: BeverageBrand = .dietCoke, timestamp: Date = Date(), note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photoFilename: String? = nil, stateCode: String? = nil, createdAt: Date = Date()) {
         self.id = id
         self.type = type
         self.brand = brand
@@ -26,6 +28,7 @@ struct DrinkEntry: Identifiable, Equatable {
         self.customOunces = customOunces
         self.rating = rating
         self.photoFilename = photoFilename
+        self.stateCode = stateCode
         self.createdAt = createdAt
     }
 
@@ -38,7 +41,7 @@ struct DrinkEntry: Identifiable, Equatable {
 
 extension DrinkEntry: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, type, brand, timestamp, note, specialEdition, customOunces, rating, photoFilename, createdAt
+        case id, type, brand, timestamp, note, specialEdition, customOunces, rating, photoFilename, stateCode, createdAt
     }
 
     init(from decoder: Decoder) throws {
@@ -53,6 +56,7 @@ extension DrinkEntry: Codable {
         customOunces = try container.decodeIfPresent(Double.self, forKey: .customOunces)
         rating = try container.decodeIfPresent(DrinkRating.self, forKey: .rating)
         photoFilename = try container.decodeIfPresent(String.self, forKey: .photoFilename)
+        stateCode = try container.decodeIfPresent(String.self, forKey: .stateCode)
         // Default createdAt to timestamp for existing entries (backwards compatibility)
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? timestamp
     }
@@ -68,6 +72,7 @@ extension DrinkEntry: Codable {
         try container.encodeIfPresent(customOunces, forKey: .customOunces)
         try container.encodeIfPresent(rating, forKey: .rating)
         try container.encodeIfPresent(photoFilename, forKey: .photoFilename)
+        try container.encodeIfPresent(stateCode, forKey: .stateCode)
         try container.encode(createdAt, forKey: .createdAt)
     }
 
@@ -190,6 +195,7 @@ extension DrinkEntry {
         }
 
         self.photoFilename = record["photoFilename"] as? String
+        self.stateCode = record["stateCode"] as? String
 
         // Default createdAt to timestamp for older records
         self.createdAt = record["createdAt"] as? Date ?? timestamp
@@ -219,6 +225,7 @@ extension DrinkEntry {
         record["customOunces"] = customOunces
         record["rating"] = rating?.rawValue
         record["photoFilename"] = photoFilename
+        record["stateCode"] = stateCode
         record["createdAt"] = createdAt
     }
 }

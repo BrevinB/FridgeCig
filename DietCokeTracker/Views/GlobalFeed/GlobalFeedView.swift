@@ -318,6 +318,18 @@ private struct GlobalFeedCard: View {
                                 )
                         }
 
+                        if let code = item.payload.drinkStateCode, StateCan.byCode[code] != nil {
+                            Text(code)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.dietCokeRed.opacity(0.7))
+                                )
+                        }
+
                         if let rating = item.payload.drinkRating {
                             HStack(spacing: 2) {
                                 Image(systemName: rating.icon)

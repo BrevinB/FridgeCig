@@ -230,7 +230,7 @@ class DrinkStore: ObservableObject {
         }
     }
 
-    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photo: UIImage? = nil, visibility: PostVisibility = .friends) {
+    func addDrink(type: DrinkType, brand: BeverageBrand = .dietCoke, note: String? = nil, specialEdition: SpecialEdition? = nil, customOunces: Double? = nil, rating: DrinkRating? = nil, photo: UIImage? = nil, stateCode: String? = nil, visibility: PostVisibility = .friends) {
         var photoFilename: String? = nil
 
         // Save photo if provided
@@ -241,7 +241,7 @@ class DrinkStore: ObservableObject {
             }
         }
 
-        let entry = DrinkEntry(type: type, brand: brand, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating, photoFilename: photoFilename)
+        let entry = DrinkEntry(type: type, brand: brand, note: note, specialEdition: specialEdition, customOunces: customOunces, rating: rating, photoFilename: photoFilename, stateCode: stateCode)
         addEntry(entry)
 
         // Notify for activity feed posting
@@ -368,6 +368,16 @@ class DrinkStore: ObservableObject {
         if let index = entries.firstIndex(where: { $0.id == entry.id }) {
             var updated = entries[index]
             updated.customOunces = customOunces
+            entries[index] = updated
+            saveEntries()
+            syncEntry(updated)
+        }
+    }
+
+    func updateStateCode(for entry: DrinkEntry, stateCode: String?) {
+        if let index = entries.firstIndex(where: { $0.id == entry.id }) {
+            var updated = entries[index]
+            updated.stateCode = stateCode
             entries[index] = updated
             saveEntries()
             syncEntry(updated)

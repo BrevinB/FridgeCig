@@ -9,6 +9,7 @@ struct DietCokeTrackerApp: App {
 
     @StateObject private var store = DrinkStore()
     @StateObject private var badgeStore = BadgeStore()
+    @StateObject private var stateCanStore = StateCanStore()
     @StateObject private var preferences = UserPreferences()
     @StateObject private var milestoneService = MilestoneCardService()
     @StateObject private var recapService = WeeklyRecapService()
@@ -59,6 +60,7 @@ struct DietCokeTrackerApp: App {
             ContentView()
                 .environmentObject(store)
                 .environmentObject(badgeStore)
+                .environmentObject(stateCanStore)
                 .environmentObject(preferences)
                 .environmentObject(cloudKitManager)
                 .environmentObject(identityService)
@@ -84,6 +86,7 @@ struct DietCokeTrackerApp: App {
                     // Set up sync services
                     store.syncService = drinkSyncService
                     badgeStore.cloudKitManager = cloudKitManager
+                    stateCanStore.cloudKitManager = cloudKitManager
 
                     // Connect notification service to app delegate
                     appDelegate.notificationService = notificationService
@@ -92,6 +95,8 @@ struct DietCokeTrackerApp: App {
                     await identityService.initialize()
                     await store.performSync()
                     await badgeStore.performSync()
+                    await stateCanStore.performSync()
+                    badgeStore.checkStateCanBadges(collectedCount: stateCanStore.collectedCount)
 
                     // Load subscription offerings and check status
                     await purchaseService.loadOfferings()
@@ -234,9 +239,14 @@ struct DietCokeTrackerApp: App {
                             ounces: entry.ounces,
                             specialEdition: entry.specialEdition,
                             brand: entry.brand,
+                            stateCode: entry.stateCode,
                             visibility: visibility
                         )
                     }
+                }
+                .onReceive(stateCanStore.stateCollected) { _ in
+                    // Check for state-can collection milestone badges (half / all 52).
+                    badgeStore.checkStateCanBadges(collectedCount: stateCanStore.collectedCount)
                 }
                 .onReceive(badgeStore.badgeUnlocked) { badge in
                     // Post badge unlock to activity feed
@@ -285,6 +295,10 @@ struct DietCokeTrackerApp: App {
                         AppLogger.sync.info("Network became available, syncing...")
                         await store.performSync()
                         await badgeStore.performSync()
+                        await stateCanStore.performSync()
+                        // Re-check state-can milestone badges in case sync brought
+                        // in collections from another device that crossed a threshold.
+                        badgeStore.checkStateCanBadges(collectedCount: stateCanStore.collectedCount)
 
                         // Process any queued offline operations
                         await offlineQueue.processQueue(networkMonitor: networkMonitor) { operation in

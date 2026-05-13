@@ -139,6 +139,7 @@ struct ActivityPayload: Codable {
     var drinkOunces: Double?
     var drinkSpecialEdition: String?  // SpecialEdition raw value
     var drinkBrand: BeverageBrand?
+    var drinkStateCode: String?  // 2-letter code for America 250 mini cans
 
     init(
         badgeID: String? = nil,
@@ -155,7 +156,8 @@ struct ActivityPayload: Codable {
         drinkRating: DrinkRating? = nil,
         drinkOunces: Double? = nil,
         drinkSpecialEdition: String? = nil,
-        drinkBrand: BeverageBrand? = nil
+        drinkBrand: BeverageBrand? = nil,
+        drinkStateCode: String? = nil
     ) {
         self.badgeID = badgeID
         self.badgeTitle = badgeTitle
@@ -172,6 +174,7 @@ struct ActivityPayload: Codable {
         self.drinkOunces = drinkOunces
         self.drinkSpecialEdition = drinkSpecialEdition
         self.drinkBrand = drinkBrand
+        self.drinkStateCode = drinkStateCode
     }
 
     // MARK: - Factory Methods
@@ -201,7 +204,7 @@ struct ActivityPayload: Codable {
         )
     }
 
-    static func forDrink(type: DrinkType, note: String?, hasPhoto: Bool, photoURL: String? = nil, entryID: String? = nil, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil) -> ActivityPayload {
+    static func forDrink(type: DrinkType, note: String?, hasPhoto: Bool, photoURL: String? = nil, entryID: String? = nil, rating: DrinkRating? = nil, ounces: Double? = nil, specialEdition: SpecialEdition? = nil, brand: BeverageBrand? = nil, stateCode: String? = nil) -> ActivityPayload {
         ActivityPayload(
             drinkType: type,
             drinkNote: note,
@@ -211,7 +214,8 @@ struct ActivityPayload: Codable {
             drinkRating: rating,
             drinkOunces: ounces,
             drinkSpecialEdition: specialEdition?.rawValue,
-            drinkBrand: brand
+            drinkBrand: brand,
+            drinkStateCode: stateCode
         )
     }
 }

@@ -310,6 +310,7 @@ struct GlobalFeedDetailView: View {
         let hasDetails = item.payload.drinkRating != nil
             || item.payload.drinkOunces != nil
             || item.payload.drinkSpecialEdition != nil
+            || item.payload.drinkStateCode != nil
             || (item.payload.drinkBrand != nil && item.payload.drinkBrand != .dietCoke)
 
         if hasDetails {
@@ -371,6 +372,26 @@ struct GlobalFeedDetailView: View {
                     .background(
                         Capsule()
                             .fill(Color.yellow.opacity(0.12))
+                    )
+                }
+
+                // State (America 250 mini cans)
+                if let code = item.payload.drinkStateCode, let can = StateCan.byCode[code] {
+                    HStack(spacing: 4) {
+                        Image(systemName: can.icon)
+                            .font(.system(size: 10))
+                            .foregroundColor(.dietCokeRed)
+                        Text(can.name)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeCharcoal)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color.dietCokeRed.opacity(0.12))
                     )
                 }
 
