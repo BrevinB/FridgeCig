@@ -1,0 +1,50 @@
+name: Detect new special editions
+
+on:
+  schedule:
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install "anthropic>=0.40"
+
+      - name: Run detection
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/detect_special_editions.py
+
+      - name: Read PR title
+        id: pr_meta
+        if: hashFiles('.detected_editions_pr_title.txt') != ''
+        run: |
+          echo "title=$(cat .detected_editions_pr_title.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Open draft pull request
+        if: steps.pr_meta.outputs.title != ''
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: detect/special-editions-${{ github.run_id }}
+          base: main
+          draft: true
+          title: ${{ steps.pr_meta.outputs.title }}
+          body-path: .detected_editions_pr_body.md
+          labels: edition-detection
+          add-paths: DietCokeTracker/Models/Badge.swift
+          commit-message: "Add detected special edition(s) to enum"
+          delete-branch: true
