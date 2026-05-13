@@ -108,6 +108,12 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case happyTears = "Happy Tears"
     case oreo = "Oreo"
 
+    case cocaColasCherryFloat = "Coca-Cola Cherry Float"
+
+    case cocaColaZeroSugarCherryFloat = "Coca-Cola Zero Sugar Cherry Float"
+
+    case dietCokeCherry = "Diet Coke Cherry"
+
     var id: String { rawValue }
 
     var category: SpecialEditionCategory {
@@ -121,6 +127,12 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .starlight, .dreamworld, .marshmello, .byte, .move,
              .ultimate, .y3000, .kWave, .happyTears, .oreo:
             return .cokeCreations
+        case .cocaColasCherryFloat:
+            return .limited
+        case .cocaColaZeroSugarCherryFloat:
+            return .limited
+        case .dietCokeCherry:
+            return .dietCokeFlavors
         }
     }
 
@@ -157,6 +169,9 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .kWave: return "waveform.circle.fill"
         case .happyTears: return "face.smiling.fill"
         case .oreo: return "circle.circle.fill"
+        case .cocaColasCherryFloat: return "waterbottle.fill"
+        case .cocaColaZeroSugarCherryFloat: return "bubbles.and.sparkles.fill"
+        case .dietCokeCherry: return "cherry.fill"
         }
     }
 
@@ -216,6 +231,12 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return "Tasted happy tears with peach and minerals"
         case .oreo:
             return "Enjoyed the cookie-inspired Oreo collab"
+        case .cocaColasCherryFloat:
+            return "Sipped the Cherry Float and tasted a soda fountain classic in a can."
+        case .cocaColaZeroSugarCherryFloat:
+            return "Guilt-free float vibes — you cracked open a Zero Sugar Cherry Float."
+        case .dietCokeCherry:
+            return "Celebrated the nationwide return of Diet Coke Cherry, bold and nostalgia-packed."
         }
     }
 
@@ -229,6 +250,12 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return .rare
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai, .dietCherry:
+            return .uncommon
+        case .cocaColasCherryFloat:
+            return .epic
+        case .cocaColaZeroSugarCherryFloat:
+            return .epic
+        case .dietCokeCherry:
             return .uncommon
         }
     }
