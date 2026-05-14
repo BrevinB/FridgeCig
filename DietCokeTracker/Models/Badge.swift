@@ -108,6 +108,10 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case happyTears = "Happy Tears"
     case oreo = "Oreo"
 
+    case mandalorianBeskarBrew = "Mandalorian Beskar Brew"
+
+    case groguGalacticGreenLemonade = "Grogu Galactic Green Lemonade"
+
     var id: String { rawValue }
 
     var category: SpecialEditionCategory {
@@ -121,6 +125,10 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .starlight, .dreamworld, .marshmello, .byte, .move,
              .ultimate, .y3000, .kWave, .happyTears, .oreo:
             return .cokeCreations
+        case .mandalorianBeskarBrew:
+            return .limited
+        case .groguGalacticGreenLemonade:
+            return .limited
         }
     }
 
@@ -157,6 +165,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .kWave: return "waveform.circle.fill"
         case .happyTears: return "face.smiling.fill"
         case .oreo: return "circle.circle.fill"
+        case .mandalorianBeskarBrew: return "theatermasks.fill"
+        case .groguGalacticGreenLemonade: return "star.fill"
         }
     }
 
@@ -216,6 +226,10 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return "Tasted happy tears with peach and minerals"
         case .oreo:
             return "Enjoyed the cookie-inspired Oreo collab"
+        case .mandalorianBeskarBrew:
+            return "Sipped the Beskar Brew at AMC — bold as Beskar armor itself."
+        case .groguGalacticGreenLemonade:
+            return "Tasted the Galactic Green Lemonade and felt the Force of lime and pineapple."
         }
     }
 
@@ -230,6 +244,10 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai, .dietCherry:
             return .uncommon
+        case .mandalorianBeskarBrew:
+            return .legendary
+        case .groguGalacticGreenLemonade:
+            return .legendary
         }
     }
 
