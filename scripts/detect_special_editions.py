@@ -33,6 +33,17 @@ ALLOWED_CATEGORIES = {"limited", "dietCokeFlavors", "cokeCreations"}
 ALLOWED_RARITIES = {"common", "uncommon", "rare", "epic", "legendary"}
 MODEL = "claude-sonnet-4-6"
 
+# Brands owned by The Coca-Cola Company that are NOT Diet Coke or Coke Zero.
+# Any candidate whose rawValue contains one of these names is rejected as
+# out-of-scope, regardless of what Claude returns. Matched case-insensitively
+# as whole-word fragments.
+EXCLUDED_BRAND_TOKENS = (
+    "minute maid", "sprite", "fanta", "barq", "mello yello", "pibb",
+    "powerade", "bodyarmor", "smartwater", "topo chico", "dasani",
+    "vitaminwater", "costa coffee", "honest tea", "gold peak", "peace tea",
+    "simply ",
+)
+
 
 def parse_known_editions(badge_swift: str) -> list[dict]:
     enum_match = re.search(
@@ -127,6 +138,11 @@ def validate_candidates(
             continue
         if not isinstance(c["sources"], list) or not c["sources"]:
             print(f"skip: empty sources for {c['rawValue']!r}", file=sys.stderr)
+            continue
+        haystack = (c["rawValue"] + " " + c["description"]).lower()
+        excluded = next((tok for tok in EXCLUDED_BRAND_TOKENS if tok in haystack), None)
+        if excluded:
+            print(f"skip: out-of-scope brand {excluded!r} in {c['rawValue']!r}", file=sys.stderr)
             continue
         if c["rawValue"] in known_raw_values:
             print(f"skip: already in enum: {c['rawValue']!r}", file=sys.stderr)
