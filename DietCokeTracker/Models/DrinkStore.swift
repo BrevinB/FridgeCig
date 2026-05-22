@@ -72,6 +72,7 @@ class DrinkStore: ObservableObject {
         entries.append(entry)
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
+        WatchConnectivityManager.shared.syncNewEntryToWatch(entry)
 
         // Update rate limiting state
         lastEntryTime = Date()
@@ -190,6 +191,7 @@ class DrinkStore: ObservableObject {
             let merged = try await syncService.performFullSync(localEntries: entries)
             entries = merged
             saveEntries(triggerCloudSync: false)
+            WatchConnectivityManager.shared.syncEntriesToWatch(entries)
         } catch {
             AppLogger.sync.error("Sync failed: \(error.localizedDescription)")
             syncError = error
@@ -205,6 +207,7 @@ class DrinkStore: ObservableObject {
         entries.append(entry)
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
+        WatchConnectivityManager.shared.syncNewEntryToWatch(entry)
 
         // Update rate limiting state
         lastEntryTime = Date()
@@ -271,6 +274,7 @@ class DrinkStore: ObservableObject {
         }
         entries.removeAll { $0.id == entry.id }
         saveEntries()
+        WatchConnectivityManager.shared.syncDeletedEntryToWatch(id: entry.id)
 
         // Update rate limiting state (clears cooldown if deleted entry was most recent)
         updateRateLimitState()
@@ -306,6 +310,9 @@ class DrinkStore: ObservableObject {
         }
         entries.remove(atOffsets: offsets)
         saveEntries()
+        for entry in entriesToDelete {
+            WatchConnectivityManager.shared.syncDeletedEntryToWatch(id: entry.id)
+        }
 
         // Update rate limiting state (clears cooldown if deleted entries included most recent)
         updateRateLimitState()
@@ -385,6 +392,7 @@ class DrinkStore: ObservableObject {
     }
 
     private func syncEntry(_ entry: DrinkEntry) {
+        WatchConnectivityManager.shared.syncUpdatedEntryToWatch(entry)
         Task {
             do {
                 try await syncService?.updateEntry(entry)
@@ -503,22 +511,25 @@ class DrinkStore: ObservableObject {
     }
 
     private func saveEntries(triggerCloudSync: Bool = true) {
-        do {
-            let data = try JSONEncoder().encode(entries)
-            sharedDefaults?.set(data, forKey: saveKey)
+        // Snapshot value-type array for off-main encoding.
+        let snapshot = entries
+        let key = saveKey
+        let defaults = sharedDefaults
 
-            // Refresh widgets
-            WidgetCenter.shared.reloadAllTimelines()
+        if triggerCloudSync {
+            entriesDidChange.send()
+        }
 
-            // Sync to Apple Watch
-            WatchConnectivityManager.shared.syncEntriesToWatch(entries)
-
-            // Notify listeners for stats sync
-            if triggerCloudSync {
-                entriesDidChange.send()
+        Task.detached(priority: .utility) {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                defaults?.set(data, forKey: key)
+                WidgetCenter.shared.reloadAllTimelines()
+            } catch {
+                await MainActor.run {
+                    AppLogger.store.error("Failed to save entries: \(error.localizedDescription)")
+                }
             }
-        } catch {
-            AppLogger.store.error("Failed to save entries: \(error.localizedDescription)")
         }
     }
 
@@ -564,6 +575,7 @@ class DrinkStore: ObservableObject {
 
         entries.sort { $0.timestamp > $1.timestamp }
         saveEntries()
+        WatchConnectivityManager.shared.syncEntriesToWatch(entries)
     }
     #endif
 
@@ -573,5 +585,6 @@ class DrinkStore: ObservableObject {
     func clearAllData() {
         entries.removeAll()
         saveEntries()
+        WatchConnectivityManager.shared.syncEntriesToWatch(entries)
     }
 }

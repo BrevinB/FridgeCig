@@ -80,6 +80,44 @@ class WatchConnectivityManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Delta Sync (single entry mutations)
+
+    func syncNewEntryToWatch(_ entry: DrinkEntry) {
+        sendEntryDelta(payload: try? JSONEncoder().encode(entry), key: "newEntryFromPhone")
+    }
+
+    func syncUpdatedEntryToWatch(_ entry: DrinkEntry) {
+        sendEntryDelta(payload: try? JSONEncoder().encode(entry), key: "updatedEntryFromPhone")
+    }
+
+    func syncDeletedEntryToWatch(id: UUID) {
+        guard let session = session, session.activationState == .activated else { return }
+        let userInfo: [String: Any] = [
+            "deletedEntryIDFromPhone": id.uuidString,
+            "syncTimestamp": Date().timeIntervalSince1970
+        ]
+        session.transferUserInfo(userInfo)
+        if session.isReachable {
+            session.sendMessage(userInfo, replyHandler: nil) { _ in }
+        }
+    }
+
+    private func sendEntryDelta(payload: Data?, key: String) {
+        guard let session = session, session.activationState == .activated else { return }
+        guard let data = payload else {
+            AppLogger.watch.error("Failed to encode entry delta for \(key)")
+            return
+        }
+        let userInfo: [String: Any] = [
+            key: data,
+            "syncTimestamp": Date().timeIntervalSince1970
+        ]
+        session.transferUserInfo(userInfo)
+        if session.isReachable {
+            session.sendMessage(userInfo, replyHandler: nil) { _ in }
+        }
+    }
+
     func requestSubscriptionStatusFromPhone() {
         // This is for the Watch to request status - not used on iPhone side
     }

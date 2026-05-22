@@ -96,6 +96,20 @@ class ReviewPromptService: ObservableObject {
         promptCount += 1
     }
 
+    /// Generic post-delight prompt — call after the user dismisses a positive
+    /// surface (milestone card, weekly recap, today's recap). Respects the
+    /// same global cooldown + cap as the specific triggers.
+    func checkForReviewAfterPositiveMoment() {
+        guard promptCount < 3 else { return }
+        if let lastPrompt = lastPromptDate {
+            let daysSinceLastPrompt = Calendar.current.dateComponents([.day], from: lastPrompt, to: Date()).day ?? 0
+            guard daysSinceLastPrompt >= minimumDaysSinceLastPrompt else { return }
+        }
+        requestReview()
+        lastPromptDate = Date()
+        promptCount += 1
+    }
+
     /// Check if we should prompt after a streak milestone
     func checkForReviewAfterStreak(streakDays: Int) {
         // Prompt at milestone streaks: 7, 30, 100 days

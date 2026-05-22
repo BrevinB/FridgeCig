@@ -104,3 +104,10 @@ struct ReportContentSheet: View {
         dismiss()
     }
 }
+
+#if DEBUG
+#Preview {
+    ReportContentSheet(activityID: "preview-activity-id", reportedUserID: "preview-user-id")
+        .withPreviewEnvironment()
+}
+#endif

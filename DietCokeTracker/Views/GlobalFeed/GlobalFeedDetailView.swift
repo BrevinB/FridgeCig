@@ -490,3 +490,10 @@ struct GlobalFeedDetailView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    GlobalFeedDetailView(item: PreviewSamples.sampleActivity(), photo: nil)
+        .withPreviewEnvironment()
+}
+#endif

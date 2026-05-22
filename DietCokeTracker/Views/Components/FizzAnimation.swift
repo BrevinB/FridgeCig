@@ -1,14 +1,17 @@
 import SwiftUI
 
-// MARK: - Bubble Model
+// MARK: - Bubble Seed
 
-struct Bubble: Identifiable {
+/// Immutable seed for a fizz bubble. Position is computed each frame as a
+/// pure function of elapsed time, so the Canvas renderer never mutates state.
+struct BubbleSeed: Identifiable {
     let id = UUID()
-    var x: CGFloat
-    var y: CGFloat
-    var size: CGFloat
-    var opacity: Double
-    var speed: Double
+    let xBase: CGFloat
+    let yStart: CGFloat
+    let size: CGFloat
+    let opacity: Double
+    let speed: Double      // pixels per timer tick (legacy units)
+    let wobblePhase: Double
 }
 
 // MARK: - Fizz Bubbles View
@@ -17,8 +20,8 @@ struct FizzBubblesView: View {
     let bubbleCount: Int
     let isAnimating: Bool
 
-    @State private var bubbles: [Bubble] = []
-    @State private var animationTimer: Timer?
+    @State private var bubbles: [BubbleSeed] = []
+    @State private var startDate = Date()
 
     init(bubbleCount: Int = 20, isAnimating: Bool = true) {
         self.bubbleCount = bubbleCount
@@ -27,71 +30,65 @@ struct FizzBubblesView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                ForEach(bubbles) { bubble in
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    Color.white.opacity(0.8),
-                                    Color.dietCokeFizzBlue.opacity(0.3),
-                                    Color.clear
-                                ],
-                                center: .center,
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isAnimating)) { context in
+                Canvas { canvasContext, size in
+                    let elapsed = context.date.timeIntervalSince(startDate)
+                    for bubble in bubbles {
+                        let position = computePosition(bubble: bubble, elapsed: elapsed, in: size)
+                        let rect = CGRect(
+                            x: position.x - bubble.size / 2,
+                            y: position.y - bubble.size / 2,
+                            width: bubble.size,
+                            height: bubble.size
+                        )
+                        let gradient = Gradient(colors: [
+                            Color.white.opacity(0.8 * bubble.opacity),
+                            Color.dietCokeFizzBlue.opacity(0.3 * bubble.opacity),
+                            Color.clear
+                        ])
+                        canvasContext.fill(
+                            Path(ellipseIn: rect),
+                            with: .radialGradient(
+                                gradient,
+                                center: CGPoint(x: rect.midX, y: rect.midY),
                                 startRadius: 0,
                                 endRadius: bubble.size / 2
                             )
                         )
-                        .frame(width: bubble.size, height: bubble.size)
-                        .position(x: bubble.x, y: bubble.y)
-                        .opacity(bubble.opacity)
+                    }
                 }
             }
             .onAppear {
-                initializeBubbles(in: geometry.size)
-                if isAnimating {
-                    animationTimer = startAnimation(in: geometry.size)
+                if bubbles.isEmpty {
+                    bubbles = (0..<bubbleCount).map { _ in
+                        BubbleSeed(
+                            xBase: CGFloat.random(in: 0...geometry.size.width),
+                            yStart: CGFloat.random(in: 0...geometry.size.height),
+                            size: CGFloat.random(in: 3...12),
+                            opacity: Double.random(in: 0.2...0.6),
+                            speed: Double.random(in: 1.5...4.0),
+                            wobblePhase: Double.random(in: 0...(2 * .pi))
+                        )
+                    }
+                    startDate = Date()
                 }
-            }
-            .onDisappear {
-                animationTimer?.invalidate()
-                animationTimer = nil
             }
         }
         .allowsHitTesting(false)
     }
 
-    private func initializeBubbles(in size: CGSize) {
-        bubbles = (0..<bubbleCount).map { _ in
-            Bubble(
-                x: CGFloat.random(in: 0...size.width),
-                y: CGFloat.random(in: 0...size.height),
-                size: CGFloat.random(in: 3...12),
-                opacity: Double.random(in: 0.2...0.6),
-                speed: Double.random(in: 1.5...4.0)
-            )
-        }
-    }
-
-    private func startAnimation(in size: CGSize) -> Timer {
-        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
-            withAnimation(.linear(duration: 0.05)) {
-                for i in bubbles.indices {
-                    bubbles[i].y -= bubbles[i].speed
-
-                    // Add slight horizontal wobble
-                    bubbles[i].x += CGFloat.random(in: -0.5...0.5)
-
-                    // Reset bubble when it goes off screen
-                    if bubbles[i].y < -20 {
-                        bubbles[i].y = size.height + 20
-                        bubbles[i].x = CGFloat.random(in: 0...size.width)
-                        bubbles[i].size = CGFloat.random(in: 3...12)
-                        bubbles[i].opacity = Double.random(in: 0.2...0.6)
-                    }
-                }
-            }
-        }
+    /// Pure function: legacy code moved `speed` pixels per 0.05s tick. Preserve
+    /// the same visual cadence by converting that to pixels/sec.
+    private func computePosition(bubble: BubbleSeed, elapsed: TimeInterval, in size: CGSize) -> CGPoint {
+        let pixelsPerSecond = bubble.speed / 0.05
+        let travel = pixelsPerSecond * elapsed
+        // Total wrap range: from yStart up to -20, then jumps to height+20.
+        let range = size.height + 40
+        let wrapped = travel.truncatingRemainder(dividingBy: range)
+        var y = bubble.yStart - CGFloat(wrapped)
+        if y < -20 { y += range }
+        let wobble = sin(elapsed * 2 + bubble.wobblePhase) * 4
+        return CGPoint(x: bubble.xBase + CGFloat(wobble), y: y)
     }
 }
 

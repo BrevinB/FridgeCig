@@ -15,6 +15,7 @@ class DeepLinkHandler: ObservableObject {
         case addDrink = "add"       // fridgecig://add
         case stats = "stats"        // fridgecig://stats
         case badges = "badges"      // fridgecig://badges
+        case states = "states"      // fridgecig://states
         case paywall = "paywall"    // fridgecig://paywall
     }
 
@@ -24,7 +25,9 @@ class DeepLinkHandler: ObservableObject {
     @Published var shouldNavigateToAddDrink = false
     @Published var shouldNavigateToStats = false
     @Published var shouldNavigateToBadges = false
+    @Published var shouldNavigateToStateCans = false
     @Published var shouldShowPaywall = false
+    @Published var shouldShowTodayRecap = false
 
     private init() {}
 
@@ -68,6 +71,10 @@ class DeepLinkHandler: ObservableObject {
             // fridgecig://badges
             shouldNavigateToBadges = true
             return true
+        case DeepLinkPath.states.rawValue:
+            // fridgecig://states
+            shouldNavigateToStateCans = true
+            return true
         case DeepLinkPath.paywall.rawValue:
             // fridgecig://paywall
             shouldShowPaywall = true
@@ -86,7 +93,9 @@ class DeepLinkHandler: ObservableObject {
         shouldNavigateToAddDrink = false
         shouldNavigateToStats = false
         shouldNavigateToBadges = false
+        shouldNavigateToStateCans = false
         shouldShowPaywall = false
+        shouldShowTodayRecap = false
     }
 
     /// Clear just the friend code state

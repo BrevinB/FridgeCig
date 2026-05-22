@@ -5,32 +5,38 @@ struct WhatsNewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
-    // Define what's new for each version
-    private var features: [WhatsNewFeature] {
-        WhatsNewFeature.featuresForVersion(preferences.currentAppVersion)
+    private var releases: [WhatsNewRelease] {
+        WhatsNewRelease.allReleases
+    }
+
+    private var latestVersion: String? {
+        releases.first?.version
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 12) {
+                VStack(spacing: 32) {
+                    VStack(spacing: 8) {
                         Text("What's New")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(.dietCokeCharcoal)
 
-                        Text("Version \(preferences.currentAppVersion)")
-                            .font(.subheadline)
-                            .foregroundColor(.dietCokeDarkSilver)
+                        if let latest = latestVersion {
+                            Text("Latest: v\(latest)")
+                                .font(.subheadline)
+                                .foregroundColor(.dietCokeDarkSilver)
+                        }
                     }
                     .padding(.top, 20)
 
-                    // Features list
-                    VStack(spacing: 20) {
-                        ForEach(features) { feature in
-                            WhatsNewFeatureRow(feature: feature)
+                    VStack(spacing: 28) {
+                        ForEach(releases) { release in
+                            WhatsNewReleaseSection(
+                                release: release,
+                                isLatest: release.version == latestVersion
+                            )
                         }
                     }
                     .padding(.horizontal)
@@ -75,6 +81,136 @@ struct WhatsNewView: View {
     }
 }
 
+// MARK: - Release Model
+
+struct WhatsNewRelease: Identifiable {
+    let id: String
+    let version: String
+    let features: [WhatsNewFeature]
+
+    init(version: String, features: [WhatsNewFeature]) {
+        self.id = version
+        self.version = version
+        self.features = features
+    }
+
+    /// Releases in reverse chronological order — newest first.
+    static let allReleases: [WhatsNewRelease] = [
+        WhatsNewRelease(version: "2.2.0", features: [
+            WhatsNewFeature(
+                icon: "bell.badge.fill",
+                iconColor: .orange,
+                title: "Today's Recap",
+                description: "Get an end-of-day notification with your drinks, ounces, and streak — and see how you stacked up against yesterday."
+            ),
+            WhatsNewFeature(
+                icon: "applewatch",
+                iconColor: .blue,
+                title: "Better Apple Watch Sync",
+                description: "Drinks you log on your phone now show up on your Watch faster and stay reliably in sync."
+            ),
+            WhatsNewFeature(
+                icon: "bolt.fill",
+                iconColor: .yellow,
+                title: "Faster & Smoother",
+                description: "Snappier logging, cleaner animations, and a batch of bug fixes throughout the app."
+            )
+        ]),
+        WhatsNewRelease(version: "2.0", features: [
+            WhatsNewFeature(
+                icon: "rectangle.stack.fill",
+                iconColor: .dietCokeRed,
+                title: "Unified Feed",
+                description: "Friends and Global feeds combined into one tab with a simple toggle."
+            ),
+            WhatsNewFeature(
+                icon: "eye.fill",
+                iconColor: .blue,
+                title: "Post Visibility",
+                description: "Choose who sees each drink: Only Me, Friends, or Public."
+            ),
+            WhatsNewFeature(
+                icon: "person.crop.circle.fill",
+                iconColor: .purple,
+                title: "Profile Photos & Emoji",
+                description: "Set a profile photo or pick an emoji avatar to show up in feeds and leaderboards."
+            ),
+            WhatsNewFeature(
+                icon: "person.badge.plus",
+                iconColor: .green,
+                title: "Tap to Add Friends",
+                description: "Tap any username in the feed or leaderboard to view their profile and send a friend request."
+            ),
+            WhatsNewFeature(
+                icon: "medal.fill",
+                iconColor: .yellow,
+                title: "Friend Badges",
+                description: "View your friends' earned badges on their profile."
+            ),
+            WhatsNewFeature(
+                icon: "snowflake",
+                iconColor: .cyan,
+                title: "Streak Freezes Fixed",
+                description: "Pro subscribers get 3 freezes monthly. They auto-activate when you miss a day."
+            ),
+            WhatsNewFeature(
+                icon: "widget.small.badge.plus",
+                iconColor: .pink,
+                title: "Social Widgets",
+                description: "Medium and large widgets now show your top friend's streak alongside your stats."
+            )
+        ]),
+        WhatsNewRelease(version: "1.2", features: [
+            WhatsNewFeature(
+                icon: "globe",
+                iconColor: .green,
+                title: "Global Explore Feed",
+                description: "Share your drink photos with the community and see what others are sipping."
+            ),
+            WhatsNewFeature(
+                icon: "hand.thumbsup.fill",
+                iconColor: .orange,
+                title: "Cheers",
+                description: "Double-tap photos in the Global feed to send cheers to fellow fans."
+            )
+        ]),
+        WhatsNewRelease(version: "1.1", features: [
+            WhatsNewFeature(
+                icon: "face.smiling.fill",
+                iconColor: .pink,
+                title: "Fun Achievements",
+                description: "40+ new hilarious badges to unlock and share with friends."
+            ),
+            WhatsNewFeature(
+                icon: "leaf.fill",
+                iconColor: .yellow,
+                title: "Caffeine Free Options",
+                description: "Track DC Caffeine Free and Coke Zero Caffeine Free."
+            ),
+            WhatsNewFeature(
+                icon: "bell.badge.fill",
+                iconColor: .orange,
+                title: "Smart Notifications",
+                description: "Streak reminders and friend activity alerts."
+            ),
+            WhatsNewFeature(
+                icon: "square.and.arrow.up",
+                iconColor: .blue,
+                title: "Export Your Data",
+                description: "Download your complete drink history anytime."
+            )
+        ]),
+        WhatsNewRelease(version: "1.0", features: [
+            WhatsNewFeature(
+                icon: "sparkles",
+                iconColor: .dietCokeRed,
+                title: "Welcome to FridgeCig!",
+                description: "Track your DC consumption, earn badges, and compete with friends."
+            )
+        ])
+    ]
+}
+
 // MARK: - Feature Model
 
 struct WhatsNewFeature: Identifiable {
@@ -83,128 +219,42 @@ struct WhatsNewFeature: Identifiable {
     let iconColor: Color
     let title: String
     let description: String
+}
 
-    static func featuresForVersion(_ version: String) -> [WhatsNewFeature] {
-        // Add features for each version here
-        // This can be expanded as you release new versions
-        switch version {
-        case "1.0":
-            return [
-                WhatsNewFeature(
-                    icon: "sparkles",
-                    iconColor: .dietCokeRed,
-                    title: "Welcome to FridgeCig!",
-                    description: "Track your DC consumption, earn badges, and compete with friends."
-                )
-            ]
-        case "1.1":
-            return [
-                WhatsNewFeature(
-                    icon: "face.smiling.fill",
-                    iconColor: .pink,
-                    title: "Fun Achievements",
-                    description: "40+ new hilarious badges to unlock and share with friends."
-                ),
-                WhatsNewFeature(
-                    icon: "leaf.fill",
-                    iconColor: .yellow,
-                    title: "Caffeine Free Options",
-                    description: "Now track DC Caffeine Free and Coke Zero Caffeine Free."
-                ),
-                WhatsNewFeature(
-                    icon: "bell.badge.fill",
-                    iconColor: .orange,
-                    title: "Smart Notifications",
-                    description: "Streak reminders and friend activity alerts."
-                ),
-                WhatsNewFeature(
-                    icon: "square.and.arrow.up",
-                    iconColor: .blue,
-                    title: "Export Your Data",
-                    description: "Download your complete drink history anytime."
-                )
-            ]
-        case "1.2", "1.2.0":
-            return [
-                WhatsNewFeature(
-                    icon: "globe",
-                    iconColor: .green,
-                    title: "Global Explore Feed",
-                    description: "Share your drink photos with the entire community and see what others are sipping. Opt in during onboarding or from Sharing Settings."
-                ),
-                WhatsNewFeature(
-                    icon: "hand.thumbsup.fill",
-                    iconColor: .orange,
-                    title: "Cheers",
-                    description: "Double-tap photos in the Global feed to send cheers to fellow fans."
-                ),
-                WhatsNewFeature(
-                    icon: "ant.fill",
-                    iconColor: .dietCokeRed,
-                    title: "Bug Fixes & Improvements",
-                    description: "Squashed bugs and polished the experience for a smoother ride."
-                )
-            ]
-        case "2.0", "2.0.0":
-            return [
-                WhatsNewFeature(
-                    icon: "rectangle.stack.fill",
-                    iconColor: .dietCokeRed,
-                    title: "Unified Feed",
-                    description: "Friends and Global feeds combined into one tab with a simple toggle. Less tabs, less confusion."
-                ),
-                WhatsNewFeature(
-                    icon: "eye.fill",
-                    iconColor: .blue,
-                    title: "Post Visibility",
-                    description: "Choose who sees each drink: Only Me, Friends, or Public. Your privacy, your choice."
-                ),
-                WhatsNewFeature(
-                    icon: "person.crop.circle.fill",
-                    iconColor: .purple,
-                    title: "Profile Photos & Emoji",
-                    description: "Set a profile photo, take a selfie, or pick an emoji avatar. Show up in feeds and leaderboards with personality."
-                ),
-                WhatsNewFeature(
-                    icon: "person.badge.plus",
-                    iconColor: .green,
-                    title: "Tap to Add Friends",
-                    description: "Tap any username in the feed or leaderboard to view their profile and send a friend request."
-                ),
-                WhatsNewFeature(
-                    icon: "medal.fill",
-                    iconColor: .yellow,
-                    title: "Friend Badges",
-                    description: "View your friends' earned badges on their profile. See who's the biggest collector."
-                ),
-                WhatsNewFeature(
-                    icon: "snowflake",
-                    iconColor: .cyan,
-                    title: "Streak Freezes Fixed",
-                    description: "Pro subscribers now receive 3 freezes monthly. Freezes auto-activate when you miss a day to protect your streak."
-                ),
-                WhatsNewFeature(
-                    icon: "bolt.fill",
-                    iconColor: .orange,
-                    title: "Faster Everything",
-                    description: "Parallel friend loading, smart caching, and freshness gates mean the feed loads instantly."
-                ),
-                WhatsNewFeature(
-                    icon: "widget.small.badge.plus",
-                    iconColor: .pink,
-                    title: "Social Widgets",
-                    description: "Medium and large widgets now show your top friend's streak alongside your stats."
-                )
-            ]
-        default:
-            return [
-                WhatsNewFeature(
-                    icon: "arrow.up.circle.fill",
-                    iconColor: .green,
-                    title: "Bug Fixes & Improvements",
-                    description: "Various performance improvements and bug fixes."
-                )
-            ]
+// MARK: - Release Section
+
+private struct WhatsNewReleaseSection: View {
+    let release: WhatsNewRelease
+    let isLatest: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text("Version \(release.version)")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundColor(.dietCokeCharcoal)
+
+                if isLatest {
+                    Text("LATEST")
+                        .font(.system(size: 10, weight: .bold))
+                        .tracking(1)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.dietCokeRed)
+                        .clipShape(Capsule())
+                }
+
+                Spacer()
+            }
+            .padding(.leading, 4)
+
+            VStack(spacing: 12) {
+                ForEach(release.features) { feature in
+                    WhatsNewFeatureRow(feature: feature)
+                }
+            }
         }
     }
 }
@@ -258,7 +308,8 @@ private struct WhatsNewFeatureRow: View {
     }
 }
 
+#if DEBUG
 #Preview {
-    WhatsNewView()
-        .environmentObject(UserPreferences())
+    WhatsNewView().withPreviewEnvironment()
 }
+#endif

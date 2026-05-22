@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var store: DrinkStore
@@ -12,14 +11,17 @@ struct ContentView: View {
     @EnvironmentObject var offlineQueue: OfflineQueue
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var themeManager: ThemeManager
+
     @State private var showingAddDrink = false
-    enum RootTab { case today, history, social, badges, cans, stats }
     @State private var selectedTab: RootTab = .today
     @State private var showingBadgeToast = false
     @State private var showingShareSheet = false
     @State private var showingMilestoneCard = false
     @State private var showingWhatsNew = false
     @State private var showingPaywallFromDeepLink = false
+    @State private var showingTodayRecap = false
+
+    enum RootTab { case today, history, social, badges, cans, stats, settings }
 
     var body: some View {
         mainContent
@@ -36,16 +38,19 @@ struct ContentView: View {
                 milestoneService: milestoneService,
                 badgeStore: badgeStore,
                 preferences: preferences,
+                reviewService: reviewService,
                 showingMilestoneCard: $showingMilestoneCard,
                 showingShareSheet: $showingShareSheet,
                 showingWhatsNew: $showingWhatsNew,
-                showingPaywallFromDeepLink: $showingPaywallFromDeepLink
+                showingPaywallFromDeepLink: $showingPaywallFromDeepLink,
+                showingTodayRecap: $showingTodayRecap
             ))
             .modifier(ContentViewDeepLinks(
                 deepLinkHandler: deepLinkHandler,
                 selectedTab: $selectedTab,
                 showingAddDrink: $showingAddDrink,
-                showingPaywallFromDeepLink: $showingPaywallFromDeepLink
+                showingPaywallFromDeepLink: $showingPaywallFromDeepLink,
+                showingTodayRecap: $showingTodayRecap
             ))
             .onAppear {
                 store.checkBadges(with: badgeStore)
@@ -84,6 +89,9 @@ struct ContentView: View {
                         Tab("History", systemImage: "clock.fill", value: .history) {
                             HistoryView()
                         }
+                        Tab("Settings", systemImage: "gearshape.fill", value: .settings) {
+                            SettingsView(hidesDoneButton: true)
+                        }
                     }
                     .tint(themeManager.primaryColor)
                     .sheet(isPresented: $showingAddDrink) {
@@ -105,7 +113,6 @@ struct ContentView: View {
             .buttonStyle(PlainButtonStyle())
             .accessibilityLabel("Dismiss badge Toast")
 
-
             BadgeUnlockToast(badge: badge, brand: preferences.defaultBrand) {
                 dismissBadgeToast()
             } onShare: {
@@ -117,9 +124,16 @@ struct ContentView: View {
     }
 
     private func dismissBadgeToast() {
+        let dismissedBadge = badgeStore.recentlyUnlocked
         showingBadgeToast = false
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(300))
+            if let badge = dismissedBadge {
+                reviewService.checkForReviewAfterBadge(
+                    badgeRarity: badge.rarity,
+                    totalBadges: badgeStore.earnedBadges.count
+                )
+            }
             badgeStore.dismissRecentBadge()
         }
     }
@@ -138,13 +152,11 @@ private struct ContentViewChangeHandlers: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onChange(of: badgeStore.recentlyUnlocked) { _, newBadge in
-                if let badge = newBadge {
+                if newBadge != nil {
                     showingBadgeToast = true
                     HapticManager.badgeUnlocked()
-                    reviewService.checkForReviewAfterBadge(
-                        badgeRarity: badge.rarity,
-                        totalBadges: badgeStore.earnedBadges.count
-                    )
+                    // Review prompt is deferred to toast dismiss so it doesn't
+                    // collide with the celebration UI.
                 }
             }
             .onChange(of: store.entries.count) { oldCount, newCount in
@@ -172,10 +184,12 @@ private struct ContentViewSheets: ViewModifier {
     @ObservedObject var milestoneService: MilestoneCardService
     @ObservedObject var badgeStore: BadgeStore
     @ObservedObject var preferences: UserPreferences
+    @ObservedObject var reviewService: ReviewPromptService
     @Binding var showingMilestoneCard: Bool
     @Binding var showingShareSheet: Bool
     @Binding var showingWhatsNew: Bool
     @Binding var showingPaywallFromDeepLink: Bool
+    @Binding var showingTodayRecap: Bool
 
     func body(content: Content) -> some View {
         content
@@ -184,6 +198,7 @@ private struct ContentViewSheets: ViewModifier {
                     MilestoneCardPreviewSheet(card: card)
                         .onDisappear {
                             milestoneService.dismissCard()
+                            reviewService.checkForReviewAfterPositiveMoment()
                         }
                 }
             }
@@ -198,6 +213,12 @@ private struct ContentViewSheets: ViewModifier {
             .sheet(isPresented: $showingPaywallFromDeepLink) {
                 PaywallView()
             }
+            .sheet(isPresented: $showingTodayRecap) {
+                TodayRecapSheet()
+                    .onDisappear {
+                        reviewService.checkForReviewAfterPositiveMoment()
+                    }
+            }
     }
 }
 
@@ -206,6 +227,7 @@ private struct ContentViewDeepLinks: ViewModifier {
     @Binding var selectedTab: ContentView.RootTab
     @Binding var showingAddDrink: Bool
     @Binding var showingPaywallFromDeepLink: Bool
+    @Binding var showingTodayRecap: Bool
 
     func body(content: Content) -> some View {
         content
@@ -232,888 +254,30 @@ private struct ContentViewDeepLinks: ViewModifier {
                     deepLinkHandler.clearPendingNavigation()
                 }
             }
+            .onChange(of: deepLinkHandler.shouldNavigateToStateCans) { _, shouldNavigate in
+                if shouldNavigate {
+                    selectedTab = .cans
+                    deepLinkHandler.clearPendingNavigation()
+                }
+            }
             .onChange(of: deepLinkHandler.shouldShowPaywall) { _, shouldShow in
                 if shouldShow {
                     showingPaywallFromDeepLink = true
                     deepLinkHandler.clearPendingNavigation()
                 }
             }
+            .onChange(of: deepLinkHandler.shouldShowTodayRecap) { _, shouldShow in
+                if shouldShow {
+                    selectedTab = .today
+                    showingTodayRecap = true
+                    deepLinkHandler.clearPendingNavigation()
+                }
+            }
     }
 }
 
-struct HomeView: View {
-    @EnvironmentObject var store: DrinkStore
-    @EnvironmentObject var preferences: UserPreferences
-    @EnvironmentObject var purchaseService: PurchaseService
-    @EnvironmentObject var themeManager: ThemeManager
-    @Environment(\.colorScheme) private var colorScheme
-    @Binding var showingAddDrink: Bool
-    @State private var showingSettings = false
-    @State private var showingCatalog = false
-    @State private var celebrationActive = false
-    @State private var showDrinkUpsell = false
-    @State private var showingPaywall = false
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                // Background
-                themeManager.backgroundColor(for: colorScheme)
-                    .ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Header Card
-                        TodaySummaryCard()
-
-                        // Today's Drinks
-                        TodayDrinksSection()
-
-                        // Activity Feed
-                        HomeActivityFeedSection()
-
-                        // 5th drink upsell banner (non-premium)
-                        if showDrinkUpsell && !purchaseService.isPremium {
-                            UpsellBanner.drinkTrigger(
-                                onTap: {
-                                    showingPaywall = true
-                                },
-                                onDismiss: {
-                                    withAnimation {
-                                        showDrinkUpsell = false
-                                    }
-                                    preferences.markDrinkUpsellShown()
-                                }
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-
-                        // Bottom spacing for tab bar
-                        Spacer()
-                            .frame(height: 20)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                }
-
-                // Celebration overlay
-                if celebrationActive {
-                    FizzBurstView(isActive: $celebrationActive)
-                        .ignoresSafeArea()
-                }
-
-                // Floating add button
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button {
-                            showingAddDrink = true
-                        } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(preferences.defaultBrand.gradient)
-                                    .frame(width: 56, height: 56)
-                                    .shadow(color: preferences.defaultBrand.color.opacity(0.4), radius: 8, y: 4)
-                                Image(systemName: "plus")
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 16)
-                    }
-                }
-            }
-            .navigationTitle("FridgeCig")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 17))
-                            .foregroundColor(.dietCokeDarkSilver)
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingCatalog = true
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 17))
-                            .foregroundColor(.dietCokeDarkSilver)
-                    }
-                }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
-            .sheet(isPresented: $showingCatalog) {
-                DrinkCatalogView()
-            }
-            .sheet(isPresented: $showingPaywall) {
-                PaywallView()
-            }
-            .onChange(of: store.todayCount) { oldValue, newValue in
-                // Trigger celebration on new drink
-                if newValue > oldValue {
-                    celebrationActive = true
-                    HapticManager.drinkAdded()
-                }
-            }
-            .onChange(of: store.allTimeCount) { _, newCount in
-                // Check for 5th drink upsell
-                if !purchaseService.isPremium && preferences.shouldShowDrinkUpsell(drinkCount: newCount) {
-                    withAnimation(.easeInOut.delay(0.5)) {
-                        showDrinkUpsell = true
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct TodaySummaryCard: View {
-    @EnvironmentObject var store: DrinkStore
-    @EnvironmentObject var preferences: UserPreferences
-    @EnvironmentObject var themeManager: ThemeManager
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var animateCount = false
-    @State private var showFizz = false
-    @State private var showingStreakInfo = false
-
-    private var streakIncludesFreeze: Bool {
-        guard store.streakDays > 0 else { return false }
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        for offset in 0..<store.streakDays {
-            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
-            if preferences.isFrozenDay(date) { return true }
-        }
-        return false
-    }
-
-    var body: some View {
-        ZStack {
-            // Background - metallic for classic, themed gradient for premium themes
-            RoundedRectangle(cornerRadius: 24)
-                .fill(
-                    themeManager.currentTheme == .classic
-                        ? (colorScheme == .dark ? Color.dietCokeDarkMetallicGradient : Color.dietCokeMetallicGradient)
-                        : themeManager.primaryGradient
-                )
-
-            // Subtle fizz bubbles
-            if showFizz {
-                AmbientBubblesBackground(bubbleCount: 8)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .accessibilityHidden(true)
-            }
-
-            // Content
-            VStack(spacing: 0) {
-                // Top accent bar
-                HStack {
-                    Text("TODAY")
-                        .font(.caption.weight(.bold))
-                        .tracking(2)
-                        .foregroundStyle(
-                            themeManager.currentTheme == .classic
-                                ? AnyShapeStyle(preferences.defaultBrand.iconGradient)
-                                : AnyShapeStyle(Color.white.opacity(0.9))
-                        )
-
-                    Spacer()
-
-                    if store.streakDays > 0 {
-                        Button {
-                            showingStreakInfo = true
-                            HapticManager.lightImpact()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "flame.fill")
-                                    .font(.caption)
-                                Text("\(store.streakDays)")
-                                    .font(.caption.weight(.bold))
-                                if streakIncludesFreeze {
-                                    Image(systemName: "snowflake")
-                                        .font(.caption2)
-                                        .foregroundColor(.cyan)
-                                }
-                            }
-                            .foregroundColor(.orange)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.orange.opacity(0.15))
-                            .clipShape(Capsule())
-                        }
-                        .accessibilityLabel("\(store.streakDays) day streak\(preferences.streakFreezeCount > 0 ? ", \(preferences.streakFreezeCount) freezes available" : "")")
-                        .accessibilityHint("Double tap for streak details")
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-
-                Spacer()
-
-                // Hero count display
-                VStack(spacing: 4) {
-                    Text("\(store.todayCount)")
-                        .font(.system(size: 96, weight: .black, design: .rounded))
-                        .minimumScaleFactor(0.5)
-                        .foregroundStyle(
-                            themeManager.currentTheme == .classic
-                                ? AnyShapeStyle(preferences.defaultBrand.buttonGradient)
-                                : AnyShapeStyle(Color.white)
-                        )
-                        .scaleEffect(animateCount ? 1.0 : 0.8)
-                        .opacity(animateCount ? 1.0 : 0.5)
-
-                    Text(store.todayCount == 1 ? preferences.defaultBrand.shortName : "\(preferences.defaultBrand.shortName)s")
-                        .font(.subheadline.weight(.semibold))
-                        .tracking(1.5)
-                        .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.8))
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(store.todayCount) \(preferences.defaultBrand.rawValue)\(store.todayCount == 1 ? "" : "s") today")
-
-                Spacer()
-
-                // Bottom stats row
-                HStack(spacing: 24) {
-                    // Ounces stat
-                    VStack(spacing: 2) {
-                        Text(String(format: "%.0f", store.todayOunces))
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
-                            .minimumScaleFactor(0.8)
-                        Text("OUNCES")
-                            .font(.caption2.weight(.medium))
-                            .tracking(1)
-                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(Int(store.todayOunces)) ounces today")
-
-                    // Divider
-                    Rectangle()
-                        .fill(themeManager.currentTheme == .classic ? Color.dietCokeSilver.opacity(0.3) : Color.white.opacity(0.3))
-                        .frame(width: 1, height: 30)
-                        .accessibilityHidden(true)
-
-                    // Average stat
-                    VStack(spacing: 2) {
-                        Text(String(format: "%.1f", store.averagePerDay))
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
-                            .minimumScaleFactor(0.8)
-                        Text("AVG/DAY")
-                            .font(.caption2.weight(.medium))
-                            .tracking(1)
-                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(String(format: "%.1f", store.averagePerDay)) average per day")
-
-                    // Divider
-                    Rectangle()
-                        .fill(themeManager.currentTheme == .classic ? Color.dietCokeSilver.opacity(0.3) : Color.white.opacity(0.3))
-                        .frame(width: 1, height: 30)
-                        .accessibilityHidden(true)
-
-                    // Week stat
-                    VStack(spacing: 2) {
-                        Text("\(store.thisWeekCount)")
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeCharcoal : .white)
-                            .minimumScaleFactor(0.8)
-                        Text("THIS WEEK")
-                            .font(.caption2.weight(.medium))
-                            .tracking(1)
-                            .foregroundColor(themeManager.currentTheme == .classic ? .dietCokeDarkSilver : .white.opacity(0.7))
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(store.thisWeekCount) this week")
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
-            }
-        }
-        .frame(height: 280)
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.4 : 0.1), radius: 20, x: 0, y: 10)
-        .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                animateCount = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                showFizz = true
-            }
-        }
-        .onChange(of: store.todayCount) { _, _ in
-            // Animate on count change
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                animateCount = false
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                    animateCount = true
-                }
-            }
-        }
-        .sheet(isPresented: $showingStreakInfo) {
-            StreakInfoSheet()
-        }
-    }
-}
-
-// MARK: - Streak Info Sheet
-
-struct StreakInfoSheet: View {
-    @EnvironmentObject var store: DrinkStore
-    @EnvironmentObject var preferences: UserPreferences
-    @EnvironmentObject var purchaseService: PurchaseService
-    @EnvironmentObject var themeManager: ThemeManager
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var showingStreakFreezeUsed = false
-
-    private var hasLoggedToday: Bool {
-        store.todayCount > 0
-    }
-
-    private var streakAtRisk: Bool {
-        !hasLoggedToday && store.streakDays > 0
-    }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Streak display
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [Color.orange.opacity(0.3), Color.clear],
-                                        center: .center,
-                                        startRadius: 30,
-                                        endRadius: 80
-                                    )
-                                )
-                                .frame(width: 160, height: 160)
-
-                            VStack(spacing: 4) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.orange)
-
-                                Text("\(store.streakDays)")
-                                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                                    .foregroundColor(.orange)
-
-                                Text(store.streakDays == 1 ? "DAY" : "DAYS")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        if hasLoggedToday {
-                            Label("Streak safe for today!", systemImage: "checkmark.circle.fill")
-                                .font(.subheadline)
-                                .foregroundColor(.green)
-                        } else if store.streakDays > 0 {
-                            Label("Log a drink to keep your streak!", systemImage: "exclamationmark.triangle.fill")
-                                .font(.subheadline)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                    .padding(.top, 20)
-
-                    Divider()
-                        .padding(.horizontal)
-
-                    // Streak Freezes Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Image(systemName: "snowflake")
-                                .font(.title2)
-                                .foregroundColor(.cyan)
-
-                            Text("Streak Freezes")
-                                .font(.headline)
-
-                            Spacer()
-
-                            Text("\(preferences.streakFreezeCount) available")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Text("Streak freezes protect your streak for one day when you can't log a drink. They're automatically used at midnight if needed.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        if streakAtRisk && preferences.streakFreezeCount > 0 {
-                            Button {
-                                useStreakFreeze()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "snowflake")
-                                    Text("Use Streak Freeze Now")
-                                }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(
-                                    LinearGradient(
-                                        colors: [.cyan, .blue],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .clipShape(Capsule())
-                            }
-                        }
-
-                        // How to earn freezes
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("How to earn freezes:")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "crown.fill")
-                                    .foregroundColor(.dietCokeRed)
-                                Text("Pro subscribers get 3 freezes per month")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "trophy.fill")
-                                    .foregroundColor(.orange)
-                                Text("Earn freezes by reaching streak milestones")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding()
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .padding(.horizontal)
-
-                    Spacer()
-                }
-            }
-            .background(
-                themeManager.backgroundColor(for: colorScheme)
-                    .ignoresSafeArea()
-            )
-            .navigationTitle("Your Streak")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-            .alert("Streak Protected!", isPresented: $showingStreakFreezeUsed) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Your streak is now protected for today. You have \(preferences.streakFreezeCount) freezes remaining.")
-            }
-        }
-    }
-
-    private func useStreakFreeze() {
-        if preferences.useStreakFreeze() {
-            HapticManager.success()
-            showingStreakFreezeUsed = true
-        }
-    }
-}
-
-struct QuickAddSection: View {
-    @EnvironmentObject var store: DrinkStore
-    @EnvironmentObject var badgeStore: BadgeStore
-    @EnvironmentObject var preferences: UserPreferences
-    @EnvironmentObject var activityService: ActivityFeedService
-    @Binding var showingAddDrink: Bool
-    @Environment(\.colorScheme) private var colorScheme
-
-    @State private var showingRateLimitAlert = false
-    @State private var rateLimitMessage = ""
-    @State private var showingCamera = false
-    @State private var selectedTypeForPhoto: DrinkType?
-    @State private var pendingPhoto: UIImage?
-    @State private var showingVerificationAlert = false
-    @State private var verificationMessage = ""
-    @State private var selectedBrand: BeverageBrand = .dietCoke
-    @StateObject private var verificationService = ImageVerificationService()
-
-    let quickTypes: [DrinkType] = [
-        .regularCan,
-        .bottle20oz
-    ]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header with brand toggle
-            HStack {
-                Text("QUICK ADD")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundColor(.dietCokeDarkSilver)
-
-                Spacer()
-
-                // Brand toggle
-                HStack(spacing: 0) {
-                    ForEach([BeverageBrand.dietCoke, BeverageBrand.cokeZero], id: \.self) { brand in
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                selectedBrand = brand
-                            }
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                            impactFeedback.impactOccurred()
-                        } label: {
-                            Text(brand.shortName)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(selectedBrand == brand ? .white : .dietCokeCharcoal)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    selectedBrand == brand ? brand.color : Color.clear
-                                )
-                        }
-                    }
-                }
-                .background(Color.dietCokeSilver.opacity(0.15))
-                .clipShape(Capsule())
-
-                Button {
-                    showingAddDrink = true
-                } label: {
-                    Text("More")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(preferences.defaultBrand.iconGradient)
-                }
-                .padding(.leading, 8)
-            }
-
-            // Quick add buttons - 2 columns
-            HStack(spacing: 12) {
-                ForEach(quickTypes) { type in
-                    QuickAddButton(type: type, brand: selectedBrand) {
-                        quickAdd(type: type)
-                    } onAddWithRating: { rating in
-                        quickAddWithRating(type: type, rating: rating)
-                    } onAddWithPhoto: {
-                        showCameraForType(type)
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(Color.dietCokeCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 12, x: 0, y: 4)
-        .onAppear {
-            selectedBrand = preferences.defaultBrand
-        }
-        .alert("Too Fast!", isPresented: $showingRateLimitAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(rateLimitMessage)
-        }
-        .sheet(isPresented: $showingCamera) {
-            CameraView(capturedImage: $pendingPhoto)
-        }
-        .onChange(of: pendingPhoto) { _, newPhoto in
-            guard let photo = newPhoto, let type = selectedTypeForPhoto else { return }
-            verifyAndAddPhoto(photo, for: type)
-        }
-        .alert("Not a DC?", isPresented: $showingVerificationAlert) {
-            Button("Use Anyway", role: .destructive) {
-                if let photo = pendingPhoto, let type = selectedTypeForPhoto {
-                    addDrinkWithPhoto(type: type, photo: photo)
-                }
-                pendingPhoto = nil
-                selectedTypeForPhoto = nil
-            }
-            Button("Retake", role: .cancel) {
-                pendingPhoto = nil
-                showingCamera = true
-            }
-        } message: {
-            Text(verificationMessage)
-        }
-    }
-
-    private func quickAdd(type: DrinkType) {
-        let validation = store.validateNewEntry(type: type, customOunces: nil)
-
-        if !validation.isValid {
-            rateLimitMessage = validation.errorMessage ?? "Please wait before adding another drink."
-            showingRateLimitAlert = true
-            return
-        }
-
-        withAnimation(.spring(response: 0.3)) {
-            store.addDrink(type: type, brand: selectedBrand)
-            store.checkBadges(with: badgeStore)
-        }
-    }
-
-    private func quickAddWithRating(type: DrinkType, rating: DrinkRating) {
-        let validation = store.validateNewEntry(type: type, customOunces: nil)
-
-        if !validation.isValid {
-            rateLimitMessage = validation.errorMessage ?? "Please wait before adding another drink."
-            showingRateLimitAlert = true
-            return
-        }
-
-        withAnimation(.spring(response: 0.3)) {
-            store.addDrink(type: type, brand: selectedBrand, rating: rating)
-            store.checkBadges(with: badgeStore)
-        }
-    }
-
-    private func showCameraForType(_ type: DrinkType) {
-        let validation = store.validateNewEntry(type: type, customOunces: nil)
-
-        if !validation.isValid {
-            rateLimitMessage = validation.errorMessage ?? "Please wait before adding another drink."
-            showingRateLimitAlert = true
-            return
-        }
-
-        selectedTypeForPhoto = type
-        showingCamera = true
-    }
-
-    private func verifyAndAddPhoto(_ photo: UIImage, for type: DrinkType) {
-        guard ImageVerificationService.isAvailable else {
-            addDrinkWithPhoto(type: type, photo: photo)
-            pendingPhoto = nil
-            selectedTypeForPhoto = nil
-            return
-        }
-
-        Task {
-            let result = await verificationService.verifyImage(photo)
-
-            if result.isValid {
-                addDrinkWithPhoto(type: type, photo: photo)
-                pendingPhoto = nil
-                selectedTypeForPhoto = nil
-            } else {
-                verificationMessage = result.message
-                showingVerificationAlert = true
-            }
-        }
-    }
-
-    private func addDrinkWithPhoto(type: DrinkType, photo: UIImage) {
-        // Respect the user's sharing preferences for the quick-add path:
-        //   - Drink sharing off → onlyMe
-        //   - Global photo sharing on → public
-        //   - Otherwise → friends (the store default)
-        let prefs = activityService.sharingPreferences
-        let visibility: PostVisibility
-        if !prefs.shareDrinkLogs {
-            visibility = .onlyMe
-        } else if prefs.sharePhotosGlobally {
-            visibility = .public
-        } else {
-            visibility = .friends
-        }
-
-        withAnimation(.spring(response: 0.3)) {
-            store.addDrink(type: type, brand: selectedBrand, photo: photo, visibility: visibility)
-            store.checkBadges(with: badgeStore)
-        }
-    }
-}
-
-struct TodayDrinksSection: View {
-    @EnvironmentObject var store: DrinkStore
-    @Environment(\.colorScheme) private var colorScheme
-
-    var todayEntries: [DrinkEntry] {
-        store.entries.filter { $0.isToday }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack {
-                Text("TODAY'S DRINKS")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundColor(.dietCokeDarkSilver)
-
-                Spacer()
-
-                if !todayEntries.isEmpty {
-                    Text("\(todayEntries.count)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .frame(width: 24, height: 24)
-                        .background(Color.dietCokeRed)
-                        .clipShape(Circle())
-                }
-            }
-
-            if todayEntries.isEmpty {
-                // Empty state
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.dietCokeSilver.opacity(0.1))
-                            .frame(width: 80, height: 80)
-
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.dietCokeSilver.opacity(0.5), .dietCokeSilver.opacity(0.3)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                    }
-
-                    VStack(spacing: 4) {
-                        Text("No drinks yet")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.dietCokeCharcoal)
-                        Text("Tap + to log your first DC")
-                            .font(.system(size: 13))
-                            .foregroundColor(.dietCokeDarkSilver)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
-            } else {
-                // Drinks list
-                VStack(spacing: 8) {
-                    ForEach(todayEntries) { entry in
-                        DrinkRowView(entry: entry)
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(Color.dietCokeCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 12, x: 0, y: 4)
-    }
-}
-
-// MARK: - Home Activity Feed Section
-
-struct HomeActivityFeedSection: View {
-    @EnvironmentObject var activityService: ActivityFeedService
-    @EnvironmentObject var identityService: IdentityService
-    @EnvironmentObject var friendService: FriendConnectionService
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var recentActivities: [ActivityItem] {
-        Array(activityService.activities.prefix(5))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack {
-                Text("ACTIVITY")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundColor(.dietCokeDarkSilver)
-
-                Spacer()
-
-                if !activityService.activities.isEmpty {
-                    NavigationLink {
-                        ActivityFeedView()
-                    } label: {
-                        Text("See All")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.dietCokeRed)
-                    }
-                }
-            }
-
-            if activityService.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            } else if recentActivities.isEmpty {
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.dietCokeSilver.opacity(0.1))
-                            .frame(width: 60, height: 60)
-
-                        Image(systemName: "person.2.wave.2")
-                            .font(.system(size: 24))
-                            .foregroundColor(.dietCokeDarkSilver)
-                    }
-
-                    VStack(spacing: 4) {
-                        Text("No activity yet")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.dietCokeCharcoal)
-                        Text("Add friends to see their activity here")
-                            .font(.system(size: 12))
-                            .foregroundColor(.dietCokeDarkSilver)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(recentActivities) { activity in
-                        ActivityItemRow(activity: activity)
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(Color.dietCokeCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 12, x: 0, y: 4)
-        .task(id: identityService.state) {
-            guard identityService.state == .ready,
-                  let userID = identityService.currentProfile?.userIDString else { return }
-            let friendIDs = friendService.friends.map { $0.userIDString }
-            activityService.configure(currentUserID: userID, friendIDs: friendIDs)
-            await activityService.fetchActivities()
-        }
-    }
-}
-
+#if DEBUG
 #Preview {
-    ContentView()
-        .environmentObject(DrinkStore())
-        .environmentObject(BadgeStore())
-        .environmentObject(StateCanStore())
-        .environmentObject(MilestoneCardService())
-        .environmentObject(UserPreferences())
-        .environmentObject(PurchaseService.shared)
-        .environmentObject(NotificationService(cloudKitManager: CloudKitManager()))
-        .environmentObject(ReviewPromptService())
-        .environmentObject(NetworkMonitor.shared)
-        .environmentObject(OfflineQueue.shared)
-        .environmentObject(DeepLinkHandler.shared)
-        .environmentObject(ThemeManager())
+    ContentView().withPreviewEnvironment()
 }
+#endif

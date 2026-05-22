@@ -175,3 +175,11 @@ private extension Comparable {
         min(max(self, limits.lowerBound), limits.upperBound)
     }
 }
+
+#if DEBUG
+#Preview {
+    USMapView(highlightedCode: "CA")
+        .padding()
+        .withPreviewEnvironment()
+}
+#endif

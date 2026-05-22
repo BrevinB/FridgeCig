@@ -1,5 +1,6 @@
 import SwiftUI
 import CloudKit
+import UIKit
 
 struct AvatarView: View {
     let displayName: String
@@ -128,4 +129,18 @@ class ProfilePhotoCache {
         for task in inFlight.values { task.cancel() }
         inFlight.removeAll()
     }
+}
+
+#Preview("Sizes") {
+    HStack(spacing: 16) {
+        AvatarView(displayName: "Alex", profileEmoji: "🥤", size: 32)
+        AvatarView(displayName: "Brevin Bavinka", profileEmoji: "👑", size: 56, showGradientRing: true)
+        AvatarView(displayName: "Sam", size: 80)
+    }
+    .padding()
+}
+
+#Preview("Initials fallback") {
+    AvatarView(displayName: "Sarah Patel", size: 64)
+        .padding()
 }

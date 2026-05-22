@@ -129,6 +129,52 @@ class WatchConnectivityManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Delta Application
+
+    private nonisolated func handleEntryAdded(_ data: Data) {
+        guard let entry = try? JSONDecoder().decode(DrinkEntry.self, from: data) else { return }
+        Task { @MainActor in
+            var entries = self.loadEntriesFromLocalStorage()
+            if !entries.contains(where: { $0.id == entry.id }) {
+                entries.append(entry)
+                self.saveEntriesToLocalStorage(entries)
+                self.entriesDidUpdate = true
+            }
+        }
+    }
+
+    private nonisolated func handleEntryUpdated(_ data: Data) {
+        guard let entry = try? JSONDecoder().decode(DrinkEntry.self, from: data) else { return }
+        Task { @MainActor in
+            var entries = self.loadEntriesFromLocalStorage()
+            if let idx = entries.firstIndex(where: { $0.id == entry.id }) {
+                entries[idx] = entry
+                self.saveEntriesToLocalStorage(entries)
+                self.entriesDidUpdate = true
+            }
+        }
+    }
+
+    private nonisolated func handleEntryDeleted(_ idString: String) {
+        guard let id = UUID(uuidString: idString) else { return }
+        Task { @MainActor in
+            var entries = self.loadEntriesFromLocalStorage()
+            let before = entries.count
+            entries.removeAll { $0.id == id }
+            if entries.count != before {
+                self.saveEntriesToLocalStorage(entries)
+                self.entriesDidUpdate = true
+            }
+        }
+    }
+
+    private func loadEntriesFromLocalStorage() -> [DrinkEntry] {
+        let data = UserDefaults(suiteName: appGroupID)?.data(forKey: entriesKey)
+            ?? UserDefaults.standard.data(forKey: entriesKey)
+        guard let data else { return [] }
+        return (try? JSONDecoder().decode([DrinkEntry].self, from: data)) ?? []
+    }
+
     private func saveEntriesToLocalStorage(_ entries: [DrinkEntry]) {
         guard let defaults = UserDefaults(suiteName: appGroupID) else {
             // Fall back to standard UserDefaults on Watch
@@ -194,18 +240,27 @@ extension WatchConnectivityManager: WCSessionDelegate {
             }
         }
 
-        // Handle entries data from iPhone
-        if let entriesData = message["entriesData"] as? Data {
-            handleReceivedEntriesData(entriesData)
-        }
+        applyEntryPayload(message)
     }
 
     // Receive userInfo transfers from iPhone (reliable delivery)
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         print("[WatchConnectivity] Received userInfo transfer")
+        applyEntryPayload(userInfo)
+    }
 
-        // Handle entries data
-        if let entriesData = userInfo["entriesData"] as? Data {
+    private nonisolated func applyEntryPayload(_ payload: [String: Any]) {
+        if let data = payload["newEntryFromPhone"] as? Data {
+            handleEntryAdded(data)
+        }
+        if let data = payload["updatedEntryFromPhone"] as? Data {
+            handleEntryUpdated(data)
+        }
+        if let id = payload["deletedEntryIDFromPhone"] as? String {
+            handleEntryDeleted(id)
+        }
+        // Backwards-compatible full sync
+        if let entriesData = payload["entriesData"] as? Data {
             handleReceivedEntriesData(entriesData)
         }
     }

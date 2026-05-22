@@ -24,6 +24,10 @@ class BadgeStore: ObservableObject {
     var cloudKitManager: CloudKitManager?
     private var cloudRecordID: CKRecord.ID?
 
+    /// Coalesces rapid saves during checkAchievements bursts.
+    private var pendingSave: DispatchWorkItem?
+    private let saveDebounceInterval: DispatchTimeInterval = .milliseconds(400)
+
     init() {
         loadBadges()
         loadRecordID()
@@ -445,14 +449,33 @@ class BadgeStore: ObservableObject {
     // MARK: - Persistence
 
     private func saveBadges() {
-        do {
-            let data = try JSONEncoder().encode(unlockedBadges)
-            UserDefaults.standard.set(data, forKey: saveKey)
-        } catch {
-            AppLogger.store.error("Failed to save badges: \(error.localizedDescription)")
+        pendingSave?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                self?.flushSaveBadges()
+            }
+        }
+        pendingSave = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + saveDebounceInterval, execute: item)
+    }
+
+    private func flushSaveBadges() {
+        pendingSave = nil
+        // Snapshot the dict before hopping off-main for encoding.
+        let snapshot = unlockedBadges
+        let key = saveKey
+
+        Task.detached(priority: .utility) {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                UserDefaults.standard.set(data, forKey: key)
+            } catch {
+                await MainActor.run {
+                    AppLogger.store.error("Failed to save badges: \(error.localizedDescription)")
+                }
+            }
         }
 
-        // Sync to CloudKit
         Task {
             try? await syncToCloud()
         }

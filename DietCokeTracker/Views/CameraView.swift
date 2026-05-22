@@ -413,3 +413,12 @@ extension CameraView {
         AVCaptureDevice.default(for: .video) != nil
     }
 }
+
+#if DEBUG
+private struct CameraViewPreviewWrapper: View {
+    @State private var image: UIImage?
+    var body: some View { CameraView(capturedImage: $image) }
+}
+
+#Preview { CameraViewPreviewWrapper() }
+#endif

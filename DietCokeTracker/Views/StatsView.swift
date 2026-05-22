@@ -6,6 +6,7 @@ struct StatsView: View {
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var purchaseService: PurchaseService
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var reviewService: ReviewPromptService
     @State private var showingWeeklyRecap = false
     @State private var showingPaywall = false
     @State private var showStreakUpsell = false
@@ -56,6 +57,9 @@ struct StatsView: View {
             .navigationTitle("Statistics")
             .sheet(isPresented: $showingWeeklyRecap) {
                 WeeklyRecapSheet()
+                    .onDisappear {
+                        reviewService.checkForReviewAfterPositiveMoment()
+                    }
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()

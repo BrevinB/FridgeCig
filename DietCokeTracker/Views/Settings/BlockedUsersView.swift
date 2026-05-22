@@ -82,3 +82,12 @@ struct BlockedUsersView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    NavigationStack {
+        BlockedUsersView()
+    }
+    .withPreviewEnvironment()
+}
+#endif

@@ -555,3 +555,9 @@ struct StateCanPhotoFullscreen: View {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    StateCansView().withPreviewEnvironment()
+}
+#endif

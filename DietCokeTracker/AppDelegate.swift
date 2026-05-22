@@ -84,6 +84,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             NotificationCenter.default.post(name: .navigateToActivityFeed, object: nil)
         case "STREAK_REMINDER":
             NotificationCenter.default.post(name: .navigateToAddDrink, object: nil)
+        case "DAILY_SUMMARY":
+            Task { @MainActor in
+                DeepLinkHandler.shared.shouldShowTodayRecap = true
+            }
         default:
             break
         }
@@ -139,13 +143,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             intentIdentifiers: [],
             options: []
         )
+        let dailySummaryCategory = UNNotificationCategory(
+            identifier: "DAILY_SUMMARY",
+            actions: [],
+            intentIdentifiers: [],
+            options: []
+        )
 
         center.setNotificationCategories([
             friendRequestCategory,
             friendAcceptedCategory,
             cheersCategory,
             friendMilestoneCategory,
-            streakReminderCategory
+            streakReminderCategory,
+            dailySummaryCategory
         ])
     }
 }

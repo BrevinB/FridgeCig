@@ -15,7 +15,7 @@ struct DietCokeTrackerApp: App {
     @StateObject private var recapService = WeeklyRecapService()
 
     // Social/Leaderboard services
-    @StateObject private var cloudKitManager = CloudKitManager()
+    @StateObject private var cloudKitManager: CloudKitManager
     @StateObject private var identityService: IdentityService
     @StateObject private var friendService: FriendConnectionService
     @StateObject private var drinkSyncService: DrinkSyncService

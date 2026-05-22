@@ -148,11 +148,19 @@ class StateCanStore: ObservableObject {
     // MARK: - Persistence
 
     private func saveRecords() {
-        do {
-            let data = try JSONEncoder().encode(records)
-            UserDefaults.standard.set(data, forKey: recordsSaveKey)
-        } catch {
-            AppLogger.store.error("Failed to save state can records: \(error.localizedDescription)")
+        // Snapshot value-type dict for off-main encoding.
+        let snapshot = records
+        let key = recordsSaveKey
+
+        Task.detached(priority: .utility) {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                UserDefaults.standard.set(data, forKey: key)
+            } catch {
+                await MainActor.run {
+                    AppLogger.store.error("Failed to save state can records: \(error.localizedDescription)")
+                }
+            }
         }
         Task { try? await syncToCloud() }
     }

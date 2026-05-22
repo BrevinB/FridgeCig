@@ -58,12 +58,12 @@
 		A1000006 /* DrinkEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000006 /* DrinkEntry.swift */; };
 		A1000007 /* DrinkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000007 /* DrinkStore.swift */; };
 		A1000008 /* Color+DietCoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000008 /* Color+DietCoke.swift */; };
-		A1000009 /* AddDrinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000009 /* AddDrinkView.swift */; };
 		A1000010 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000010 /* HistoryView.swift */; };
 		A1000011 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000011 /* StatsView.swift */; };
 		A1000012 /* DrinkRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000012 /* DrinkRowView.swift */; };
 		A1000013 /* QuickAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* QuickAddButton.swift */; };
 		CC000005000000000000001E /* ContentReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000004000000000000001D /* ContentReport.swift */; };
+		CC100000000000000000001B /* PreviewSamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC100000000000000000001C /* PreviewSamples.swift */; };
 		DD0000020000000000001A /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000010000000000001A /* AppLogger.swift */; };
 		DD0000040000000000001B /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000030000000000001B /* Constants.swift */; };
 		DD0000060000000000001C /* SyncErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000050000000000001C /* SyncErrorBanner.swift */; };
@@ -170,12 +170,12 @@
 		A2000006 /* DrinkEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkEntry.swift; sourceTree = "<group>"; };
 		A2000007 /* DrinkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkStore.swift; sourceTree = "<group>"; };
 		A2000008 /* Color+DietCoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+DietCoke.swift"; sourceTree = "<group>"; };
-		A2000009 /* AddDrinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDrinkView.swift; sourceTree = "<group>"; };
 		A2000010 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A2000011 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		A2000012 /* DrinkRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkRowView.swift; sourceTree = "<group>"; };
 		A2000013 /* QuickAddButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddButton.swift; sourceTree = "<group>"; };
 		CC000004000000000000001D /* ContentReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentReport.swift; sourceTree = "<group>"; };
+		CC100000000000000000001C /* PreviewSamples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewSamples.swift; sourceTree = "<group>"; };
 		DD0000010000000000001A /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLogger.swift; path = Services/AppLogger.swift; sourceTree = "<group>"; };
 		DD0000030000000000001B /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DD0000050000000000001C /* SyncErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncErrorBanner.swift; path = Views/Components/SyncErrorBanner.swift; sourceTree = "<group>"; };
@@ -269,6 +269,8 @@
 		CC000003000000000000001C /* Onboarding */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Onboarding; sourceTree = "<group>"; };
 		CC000006000000000000001F /* GlobalFeed */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (2385D8A92F5E9B0C00DEA52D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = GlobalFeed; sourceTree = "<group>"; };
 		CC000007000000000000002A /* StateCans */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = StateCans; sourceTree = "<group>"; };
+		CC100000000000000000001A /* AddDrink */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AddDrink; sourceTree = "<group>"; };
+		CC100000000000000000001D /* Home */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Home; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -404,7 +406,8 @@
 				23CA13F02F1895AD000C7B43 /* EditEntrySheet.swift */,
 				23CA13DE2F18617D000C7B43 /* BadgesView.swift */,
 				23CA13DF2F18617D000C7B43 /* BadgeView.swift */,
-				A2000009 /* AddDrinkView.swift */,
+				CC100000000000000000001A /* AddDrink */,
+				CC100000000000000000001D /* Home */,
 				A2000010 /* HistoryView.swift */,
 				A2000011 /* StatsView.swift */,
 				A2000012 /* DrinkRowView.swift */,
@@ -436,6 +439,7 @@
 			isa = PBXGroup;
 			children = (
 				A2000004 /* Preview Assets.xcassets */,
+				CC100000000000000000001C /* PreviewSamples.swift */,
 			);
 			path = "Preview Content";
 			sourceTree = "<group>";
@@ -544,6 +548,8 @@
 				CC000002000000000000001B /* Sharing */,
 				CC000003000000000000001C /* Onboarding */,
 				CC000007000000000000002A /* StateCans */,
+				CC100000000000000000001A /* AddDrink */,
+				CC100000000000000000001D /* Home */,
 			);
 			name = DietCokeTracker;
 			productName = DietCokeTracker;
@@ -695,7 +701,7 @@
 				237342E92F21D1B7007CD14A /* ActivityItem.swift in Sources */,
 				CC000005000000000000001E /* ContentReport.swift in Sources */,
 				A1000008 /* Color+DietCoke.swift in Sources */,
-				A1000009 /* AddDrinkView.swift in Sources */,
+				CC100000000000000000001B /* PreviewSamples.swift in Sources */,
 				23CA15BB2F19ECA4000C7B43 /* UserIdentity.swift in Sources */,
 				A1000010 /* HistoryView.swift in Sources */,
 				23CA13DC2F186169000C7B43 /* Badge.swift in Sources */,
@@ -748,7 +754,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.DietCokeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -779,7 +785,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.DietCokeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -809,7 +815,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -842,7 +848,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -876,7 +882,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp.DietCokeWatchWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -909,7 +915,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp.DietCokeWatchWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1076,7 +1082,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1114,7 +1120,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

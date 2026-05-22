@@ -398,3 +398,10 @@ private struct GlobalFeedCard: View {
         .contentShape(Rectangle())
     }
 }
+
+#if DEBUG
+#Preview {
+    GlobalFeedView()
+        .withPreviewEnvironment()
+}
+#endif

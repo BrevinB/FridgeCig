@@ -86,3 +86,7 @@ extension Character {
         return scalar.properties.isEmoji && (scalar.value > 0x238C || unicodeScalars.count > 1)
     }
 }
+
+#Preview {
+    EmojiPickerSheet { _ in }
+}

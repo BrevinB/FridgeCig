@@ -47,3 +47,10 @@ struct SyncErrorBanner: View {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    SyncErrorBanner()
+        .withPreviewEnvironment()
+}
+#endif

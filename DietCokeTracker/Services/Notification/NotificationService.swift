@@ -172,6 +172,7 @@ class NotificationService: ObservableObject {
         content.title = "Today's Recap"
         content.body = "See how your day stacked up!"
         content.sound = .default
+        content.categoryIdentifier = "DAILY_SUMMARY"
 
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: preferences.dailySummaryTime)
