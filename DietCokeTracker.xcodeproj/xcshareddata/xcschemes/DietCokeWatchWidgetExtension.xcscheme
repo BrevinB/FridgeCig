@@ -110,7 +110,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "23CA143C2F18ACE1000C7B43"
             BuildableName = "DietCokeWatchWidgetExtension.appex"
-            BlueprintName = "DietCokeWatchWidgetExtension"
             ReferencedContainer = "container:DietCokeTracker.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
