@@ -18,9 +18,9 @@ Everything here is free to use for editorial coverage of FridgeCig. Assets are i
 | **Platforms** | iOS (iPhone) + Apple Watch · Home & Lock Screen widgets |
 | **Category** | Lifestyle |
 | **Price** | Free, with optional FridgeCig Pro |
-| **Release date** | *TBD — update at launch* |
-| **Website** | https://brevinb.github.io/FridgeCig/ *(update if custom domain)* |
-| **App Store** | *link coming soon* |
+| **Release date** | Available now |
+| **Website** | https://brevinb.github.io/FridgeCig/ |
+| **App Store** | https://apps.apple.com/app/id6757887069 |
 | **Press contact** | brevbot2@gmail.com |
 | **Social** | *TikTok / Instagram handles — add* |
 
@@ -88,13 +88,13 @@ Three lengths — grab whichever fits your format.
 
 ## Assets
 
-Download from the [`/press`](press/) folder. See [`press/ASSETS.md`](press/ASSETS.md)
-for the checklist of what to drop in.
+One-click download: [`press/press-kit.zip`](press/press-kit.zip) — or grab
+individual files below. See [`press/ASSETS.md`](press/ASSETS.md) for the full checklist.
 
-- App icon (1024×1024 + smaller sizes)
-- App Store screenshots (5–8)
-- Silent demo clip (GIF/MP4) — *highest priority; shows the loop in ~10s*
-- Logo / wordmark on transparent background
+- App icon — [1024×1024](press/app-icon-1024.png) · [180×180](press/app-icon-180.png)
+- App Store screenshots — [streak](press/screenshot-1-streak.jpg) · [badges](press/screenshot-2-badges.jpg) · [state cans](press/screenshot-3-state-cans.jpg) · [friends](press/screenshot-4-friends.jpg) · [weekly recap](press/screenshot-5-recap.jpg)
+- Marketing hero (3-up showcase) — [hero.png](press/hero.png)
+- Silent demo clip (GIF/MP4) — *coming soon*
 - Brand color swatches (above)
 
 **Permission:** You're welcome to use any asset in this kit for coverage of
@@ -102,4 +102,4 @@ FridgeCig. Please don't modify the logo or icon. Screenshots may be cropped to f
 
 ---
 
-*Press kit last updated: update on edit.*
+*Press kit last updated: July 22, 2026.*

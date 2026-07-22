@@ -4,13 +4,13 @@ Drop the files below into this folder. Filenames are suggestions; if you change
 them, update the links in `../press-kit.md`.
 
 ## Required
-- [ ] `app-icon-1024.png` — 1024×1024, no rounded corners (Apple rounds it)
-- [ ] `app-icon-180.png` — smaller convenience size
-- [ ] `screenshot-1-streak.png` — TRACK YOUR DIET COKE STREAK
-- [ ] `screenshot-2-badges.png` — UNLOCK 70+ HILARIOUS BADGES
-- [ ] `screenshot-3-state-cans.png` — COLLECT EVERY STATE CAN
-- [ ] `screenshot-4-friends.png` — COMPETE WITH FRIENDS
-- [ ] `screenshot-5-recap.png` — SHARE YOUR WEEKLY RECAP
+- [x] `app-icon-1024.png` — 1024×1024, no rounded corners (Apple rounds it)
+- [x] `app-icon-180.png` — smaller convenience size
+- [x] `screenshot-1-streak.jpg` — TRACK YOUR DIET COKE STREAK
+- [x] `screenshot-2-badges.jpg` — UNLOCK 70+ HILARIOUS BADGES
+- [x] `screenshot-3-state-cans.jpg` — COLLECT EVERY STATE CAN
+- [x] `screenshot-4-friends.jpg` — COMPETE WITH FRIENDS
+- [x] `screenshot-5-recap.jpg` — SHARE YOUR WEEKLY RECAP
 
 ## High priority
 - [ ] `demo.mp4` and/or `demo.gif` — silent ~10s screen recording of the core
@@ -20,8 +20,9 @@ them, update the links in `../press-kit.md`.
 ## Nice to have
 - [ ] `logo-wordmark.png` — "FridgeCig" wordmark on transparent background
 - [ ] `logo-wordmark-dark.png` — variant for dark backgrounds
-- [ ] `hero.png` — 16:9 marketing hero (icon + tagline) for article headers
-- [ ] `press-kit.zip` — everything above zipped, for one-click download
+- [x] `hero.png` — 3-up marketing showcase (streak / state cans / badges) for article headers
+- [x] `press-kit.zip` — everything above zipped, for one-click download
+      (regenerate after changing any asset: `cd docs/press && zip -q press-kit.zip app-icon-*.png hero.png screenshot-*.jpg`)
 
 ## Tips
 - Export App Store screenshots straight from the simulator or the ones you

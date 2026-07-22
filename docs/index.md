@@ -17,4 +17,4 @@ For questions or support, contact us at **brevbot2@gmail.com**
 
 ## Download
 
-[Download on the App Store](#) *(link coming soon)*
+[Download on the App Store](https://apps.apple.com/app/id6757887069)
