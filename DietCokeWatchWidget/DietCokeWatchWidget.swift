@@ -24,7 +24,7 @@ struct ComplicationProvider: TimelineProvider {
             todayCount: SharedDataManager.getTodayCount(),
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
-            isPremium: SubscriptionStatusManager.isPremium()
+            isPremium: true
         )
         completion(entry)
     }
@@ -35,7 +35,7 @@ struct ComplicationProvider: TimelineProvider {
             todayCount: SharedDataManager.getTodayCount(),
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
-            isPremium: SubscriptionStatusManager.isPremium()
+            isPremium: true
         )
 
         let refreshDate = Date().addingTimeInterval(15 * 60)

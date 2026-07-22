@@ -150,16 +150,27 @@ class ShareCardService: ObservableObject {
     }
 
     private func generateShareCaption() -> String? {
-        guard let content = currentContent else { return nil }
+        ShareCardService.shareCaption(for: currentContent)
+    }
 
-        switch content.contentType {
-        case .milestone:
-            return "\(content.shareTitle) \(content.shareSubtitle) #FridgeCig"
-        case .weeklyRecap:
-            return "My weekly recap: \(content.shareValue) DC's! #FridgeCig"
-        default:
-            return nil
+    /// Caption attached to every share so the post carries a tappable download
+    /// link — turning each shared card into an acquisition channel.
+    static func shareCaption(for content: (any ShareableContent)?) -> String {
+        let download = "Track yours: \(Constants.AppLinks.shareDownloadURL)"
+        let headline: String
+        if let content {
+            switch content.contentType {
+            case .milestone:
+                headline = "\(content.shareTitle) \(content.shareSubtitle) #FridgeCig"
+            case .weeklyRecap:
+                headline = "My weekly recap: \(content.shareValue) DC's! #FridgeCig"
+            default:
+                headline = "Tracking my Diet Coke habit on FridgeCig 🥤 #FridgeCig"
+            }
+        } else {
+            headline = "Tracking my Diet Coke habit on FridgeCig 🥤 #FridgeCig"
         }
+        return "\(headline)\n\n\(download)"
     }
 
     // MARK: - Presets

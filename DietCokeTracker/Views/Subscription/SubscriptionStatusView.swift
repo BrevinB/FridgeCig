@@ -27,9 +27,8 @@ struct SubscriptionStatusView: View {
                 }
 
                 Section {
-                    FeatureStatusRow(title: "Home Screen Widgets", isUnlocked: true)
-                    FeatureStatusRow(title: "Lock Screen Widgets", isUnlocked: true)
-                    FeatureStatusRow(title: "Apple Watch App", isUnlocked: true)
+                    FeatureStatusRow(title: "Premium Themes", isUnlocked: true)
+                    FeatureStatusRow(title: "Monthly Streak Freezes", isUnlocked: true)
                 } header: {
                     Text("Premium Features")
                 }
@@ -52,7 +51,7 @@ struct SubscriptionStatusView: View {
                         Text("Unlock FridgeCig Pro")
                             .font(.title2.bold())
 
-                        Text("Get access to widgets and Apple Watch app")
+                        Text("Unlock premium themes and monthly streak freezes")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -69,9 +68,8 @@ struct SubscriptionStatusView: View {
                 }
 
                 Section {
-                    FeatureStatusRow(title: "Home Screen Widgets", isUnlocked: false)
-                    FeatureStatusRow(title: "Lock Screen Widgets", isUnlocked: false)
-                    FeatureStatusRow(title: "Apple Watch App", isUnlocked: false)
+                    FeatureStatusRow(title: "Premium Themes", isUnlocked: false)
+                    FeatureStatusRow(title: "Monthly Streak Freezes", isUnlocked: false)
                 } header: {
                     Text("Premium Features")
                 }

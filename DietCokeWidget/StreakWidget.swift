@@ -44,7 +44,7 @@ struct StreakWidgetProvider: AppIntentTimelineProvider {
             milestoneInfo: milestoneInfo,
             encouragement: encouragement,
             isOnMilestone: isOnMilestone,
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             configuration: configuration
         )
     }
@@ -61,7 +61,7 @@ struct StreakWidgetProvider: AppIntentTimelineProvider {
             milestoneInfo: milestoneInfo,
             encouragement: encouragement,
             isOnMilestone: isOnMilestone,
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             configuration: configuration
         )
 

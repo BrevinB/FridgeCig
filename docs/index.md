@@ -2,6 +2,10 @@
 
 Track your soda consumption with streaks, badges, and friends.
 
+## Press
+
+- [Press Kit](press-kit.md)
+
 ## Legal
 
 - [Privacy Policy](privacy-policy.md)

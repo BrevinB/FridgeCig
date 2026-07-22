@@ -456,7 +456,7 @@ struct BadgeUnlockToast: View {
         }
         .padding(28)
         .frame(maxWidth: 320)
-        .background(
+        .glassSurface(in: RoundedRectangle(cornerRadius: 28), tint: badge.rarity.color) {
             ZStack {
                 // Colored glassmorphism background
                 RoundedRectangle(cornerRadius: 28)
@@ -478,21 +478,22 @@ struct BadgeUnlockToast: View {
                             endPoint: .bottomTrailing
                         )
                     )
-
-                // Border
-                RoundedRectangle(cornerRadius: 28)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.6),
-                                Color.white.opacity(0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
             }
+        }
+        .overlay(
+            // Border ring (kept on both paths for the celebratory edge)
+            RoundedRectangle(cornerRadius: 28)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.6),
+                            Color.white.opacity(0.2)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         )
         .shadow(color: badge.rarity.color.opacity(0.4), radius: 30, y: 15)
         .onAppear {

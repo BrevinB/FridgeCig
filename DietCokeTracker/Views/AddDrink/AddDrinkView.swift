@@ -110,24 +110,30 @@ struct AddDrinkView: View {
                             Text("Add \(effectiveBrand.shortName)")
                         }
                         .font(.headline)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(
-                            canAddDrink
-                                ? effectiveBrand.buttonGradient
-                                : LinearGradient(
-                                    colors: [Color.dietCokeSilver, Color.dietCokeSilver],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                        .glassSurface(
+                            in: RoundedRectangle(cornerRadius: 14),
+                            tint: canAddDrink ? effectiveBrand.color : nil,
+                            interactive: canAddDrink
+                        ) {
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(
+                                    canAddDrink
+                                        ? effectiveBrand.buttonGradient
+                                        : LinearGradient(
+                                            colors: [Color.dietCokeSilver, Color.dietCokeSilver],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
                                 )
-                        )
-                        .foregroundColor(.white)
-                        .cornerRadius(14)
-                        .shadow(
-                            color: canAddDrink ? effectiveBrand.color.opacity(0.3) : Color.clear,
-                            radius: 8,
-                            y: 4
-                        )
+                                .shadow(
+                                    color: canAddDrink ? effectiveBrand.color.opacity(0.3) : Color.clear,
+                                    radius: 8,
+                                    y: 4
+                                )
+                        }
                     }
                     .disabled(!canAddDrink)
                     .padding(.top, 8)

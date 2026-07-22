@@ -72,18 +72,18 @@ struct UpsellBanner: View {
             }
         }
         .padding(12)
-        .background(
+        .glassSurface(in: RoundedRectangle(cornerRadius: 12)) {
             RoundedRectangle(cornerRadius: 12)
                 .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
-        )
+                .shadow(
+                    color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08),
+                    radius: 8,
+                    y: 2
+                )
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(goldGradient.opacity(0.3), lineWidth: 1)
-        )
-        .shadow(
-            color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08),
-            radius: 8,
-            y: 2
         )
     }
 }
@@ -91,12 +91,12 @@ struct UpsellBanner: View {
 // MARK: - Preset Upsell Banners
 
 extension UpsellBanner {
-    /// 5th drink trigger - "Track faster with widgets"
+    /// 5th drink trigger - soft Pro nudge
     static func drinkTrigger(onTap: @escaping () -> Void, onDismiss: @escaping () -> Void) -> UpsellBanner {
         UpsellBanner(
-            title: "Track faster with widgets",
-            subtitle: "Add drinks right from your home screen",
-            icon: "square.grid.2x2.fill",
+            title: "Make it yours with Pro",
+            subtitle: "Premium themes + monthly streak freezes",
+            icon: "paintpalette.fill",
             onTap: onTap,
             onDismiss: onDismiss
         )

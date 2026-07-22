@@ -31,7 +31,7 @@ struct DietCokeProvider: TimelineProvider {
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
             weekCount: SharedDataManager.getThisWeekCount(),
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             friendCount: SharedDataManager.getFriendCount(),
             topFriendName: topFriend?.name,
             topFriendStreak: topFriend?.streak
@@ -583,7 +583,7 @@ struct ConfigurableDietCokeProvider: AppIntentTimelineProvider {
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
             weekCount: SharedDataManager.getThisWeekCount(),
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             configuration: configuration
         )
     }
@@ -595,7 +595,7 @@ struct ConfigurableDietCokeProvider: AppIntentTimelineProvider {
             todayOunces: SharedDataManager.getTodayOunces(),
             streak: SharedDataManager.getStreak(),
             weekCount: SharedDataManager.getThisWeekCount(),
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             configuration: configuration
         )
 

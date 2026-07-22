@@ -147,11 +147,8 @@ struct PaywallView: View {
     // MARK: - Feature Carousel
 
     private let features: [(icon: String, title: String, subtitle: String, gradient: [Color])] = [
+        ("paintpalette.fill", "Premium Themes", "Midnight, Neon, Forest & Sunset.\nMake the app yours.", [.purple, .pink]),
         ("snowflake", "Streak Freezes", "3 per month. Auto-activates\nwhen you miss a day.", [.cyan, .blue]),
-        ("rectangle.3.offgrid.fill", "Home Widgets", "Track your DCs at a glance\nright from your home screen.", [.red, .orange]),
-        ("applewatch", "Apple Watch", "Log drinks from your wrist.\nInstant, effortless tracking.", [.green, .mint]),
-        ("paintpalette.fill", "Premium Themes", "Customize your app with\nexclusive color themes.", [.purple, .pink]),
-        ("heart.text.square.fill", "Health Sync", "Auto-log caffeine intake\nto Apple Health.", [.pink, .red]),
     ]
 
     @State private var currentFeature = 0
@@ -229,15 +226,21 @@ struct PaywallView: View {
                 }
             }
             .foregroundColor(.white)
-            .background(
-                LinearGradient(
-                    colors: selectedPackage != nil ? [Color.dietCokeRed, Color.dietCokeDeepRed] : [.gray, .gray],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .clipShape(Capsule())
-            .shadow(color: selectedPackage != nil ? Color.dietCokeRed.opacity(0.3) : .clear, radius: 8, y: 4)
+            .glassSurface(
+                in: Capsule(),
+                tint: selectedPackage != nil ? .dietCokeRed : .gray,
+                interactive: selectedPackage != nil
+            ) {
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: selectedPackage != nil ? [Color.dietCokeRed, Color.dietCokeDeepRed] : [.gray, .gray],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .shadow(color: selectedPackage != nil ? Color.dietCokeRed.opacity(0.3) : .clear, radius: 8, y: 4)
+            }
             .disabled(selectedPackage == nil || purchaseService.isPurchasing)
             .padding(.horizontal)
 

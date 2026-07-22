@@ -88,22 +88,22 @@ struct QuickAddButton: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .background(
+        .glassSurface(in: RoundedRectangle(cornerRadius: 16)) {
             RoundedRectangle(cornerRadius: 16)
                 .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
-        )
+                .shadow(
+                    color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.06),
+                    radius: isExpanded ? 12 : 8,
+                    x: 0,
+                    y: isExpanded ? 4 : 2
+                )
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
                     isExpanded ? accentColor.opacity(0.3) : Color.dietCokeSilver.opacity(0.2),
                     lineWidth: isExpanded ? 1.5 : 1
                 )
-        )
-        .shadow(
-            color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.06),
-            radius: isExpanded ? 12 : 8,
-            x: 0,
-            y: isExpanded ? 4 : 2
         )
         .onChange(of: isExpanded) { _, expanded in
             if !expanded {

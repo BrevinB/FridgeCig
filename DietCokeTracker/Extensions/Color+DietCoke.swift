@@ -142,19 +142,33 @@ struct DietCokeCardStyle: ViewModifier {
 
 struct DietCokePrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.white)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 14)
-            .background(
-                configuration.isPressed
-                    ? Color.dietCokeRed.opacity(0.8)
-                    : Color.dietCokeRed
-            )
-            .cornerRadius(12)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+        if #available(iOS 26, *) {
+            configuration.label
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .glassEffect(
+                    .regular.tint(.dietCokeRed).interactive(),
+                    in: .rect(cornerRadius: 12)
+                )
+                .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+                .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+        } else {
+            configuration.label
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(
+                    configuration.isPressed
+                        ? Color.dietCokeRed.opacity(0.8)
+                        : Color.dietCokeRed
+                )
+                .cornerRadius(12)
+                .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+                .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+        }
     }
 }
 
@@ -195,5 +209,53 @@ extension ButtonStyle where Self == DietCokePrimaryButtonStyle {
 extension ButtonStyle where Self == DietCokeSecondaryButtonStyle {
     static var dietCokeSecondary: DietCokeSecondaryButtonStyle {
         DietCokeSecondaryButtonStyle()
+    }
+}
+
+// MARK: - Liquid Glass
+
+/// Helpers for adopting iOS 26 Liquid Glass with a graceful fallback on
+/// earlier systems. Apply these *after* layout/appearance modifiers so the
+/// glass shape is computed from the final frame.
+extension View {
+    /// Applies a Liquid Glass surface in `shape` on iOS 26+, falling back to
+    /// the chrome produced by `fallback` on earlier systems.
+    ///
+    /// The `fallback` builder should return the previously-used background
+    /// (e.g. a filled, stroked, shadowed shape) so older OSes look unchanged.
+    ///
+    /// - Parameters:
+    ///   - shape: The shape the glass is clipped to.
+    ///   - tint: Optional color tint for prominence (e.g. a brand or status color).
+    ///   - interactive: Pass `true` only when the surface itself is tappable
+    ///     so the glass reacts to touch/pointer input.
+    ///   - fallback: The background to use on systems older than iOS 26.
+    @ViewBuilder
+    func glassSurface<ClipShape: Shape, Fallback: View>(
+        in shape: ClipShape,
+        tint: Color? = nil,
+        interactive: Bool = false,
+        @ViewBuilder fallback: () -> Fallback
+    ) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.glassStyle(tint: tint, interactive: interactive), in: shape)
+        } else {
+            background(fallback())
+        }
+    }
+}
+
+@available(iOS 26, *)
+extension Glass {
+    /// Builds a `.regular` glass with optional tint and interactivity.
+    static func glassStyle(tint: Color?, interactive: Bool) -> Glass {
+        var glass: Glass = .regular
+        if let tint {
+            glass = glass.tint(tint)
+        }
+        if interactive {
+            glass = glass.interactive()
+        }
+        return glass
     }
 }

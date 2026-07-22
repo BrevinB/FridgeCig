@@ -17,7 +17,7 @@ struct HealthSection: View {
         } header: {
             Text("Health")
         } footer: {
-            if healthKitManager.isHealthKitAvailable && purchaseService.isPremium && healthKitManager.isAuthorized {
+            if healthKitManager.isHealthKitAvailable && healthKitManager.isAuthorized {
                 Text("Caffeine from your drinks will be automatically logged to Apple Health.")
             }
         }
@@ -34,15 +34,9 @@ struct HealthSection: View {
                 SettingsIconBadge(systemImage: "heart.text.square.fill", tint: .red)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("Sync to Apple Health")
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-
-                        if !purchaseService.isPremium {
-                            ProBadge()
-                        }
-                    }
+                    Text("Sync to Apple Health")
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
 
                     Text("Auto-log caffeine intake")
                         .font(.caption)
@@ -53,16 +47,12 @@ struct HealthSection: View {
 
                 if isRequestingHealthKit {
                     ProgressView()
-                } else if purchaseService.isPremium {
+                } else {
                     Toggle("Sync to Apple Health", isOn: $isHealthKitEnabled)
                         .labelsHidden()
                         .onChange(of: isHealthKitEnabled) { _, _ in
                             handleHealthKitToggle()
                         }
-                } else {
-                    Image(systemName: "lock.fill")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
                 }
             }
         }
@@ -86,10 +76,6 @@ struct HealthSection: View {
     }
 
     private func handleHealthKitToggle() {
-        if !purchaseService.isPremium {
-            showingHealthKitPaywall = true
-            return
-        }
         if healthKitManager.isAuthorized {
             healthKitManager.isAutoLogEnabled.toggle()
             return

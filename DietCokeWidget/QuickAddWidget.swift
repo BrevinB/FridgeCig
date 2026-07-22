@@ -37,7 +37,7 @@ struct QuickAddProvider: TimelineProvider {
         let entry = QuickAddEntry(
             date: Date(),
             todayCount: SharedDataManager.getTodayCount(),
-            isPremium: SubscriptionStatusManager.isPremium()
+            isPremium: true
         )
         completion(entry)
     }
@@ -46,7 +46,7 @@ struct QuickAddProvider: TimelineProvider {
         let entry = QuickAddEntry(
             date: Date(),
             todayCount: SharedDataManager.getTodayCount(),
-            isPremium: SubscriptionStatusManager.isPremium()
+            isPremium: true
         )
 
         let refreshDate = Date().addingTimeInterval(15 * 60)

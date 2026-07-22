@@ -40,7 +40,7 @@ struct GraphWidgetProvider: AppIntentTimelineProvider {
             date: Date(),
             last7DaysData: Array(data),
             totals: totals,
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             configuration: configuration
         )
     }
@@ -52,7 +52,7 @@ struct GraphWidgetProvider: AppIntentTimelineProvider {
             date: Date(),
             last7DaysData: Array(data),
             totals: totals,
-            isPremium: SubscriptionStatusManager.isPremium(),
+            isPremium: true,
             configuration: configuration
         )
 

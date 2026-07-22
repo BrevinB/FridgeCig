@@ -65,7 +65,9 @@ struct OfflineBanner: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .background(Color.gray.opacity(0.9))
+            .glassSurface(in: Rectangle(), tint: .gray) {
+                Color.gray.opacity(0.9)
+            }
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

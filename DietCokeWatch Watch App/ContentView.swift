@@ -8,14 +8,7 @@ struct ContentView: View {
     @State private var streak = 0
 
     var body: some View {
-        if connectivity.isPremium {
-            mainContent
-        } else {
-            WatchUpgradePromptView()
-                .onAppear {
-                    connectivity.requestSubscriptionStatus()
-                }
-        }
+        mainContent
     }
 
     private var mainContent: some View {
@@ -50,27 +43,6 @@ struct ContentView: View {
         todayCount = WatchDataManager.getTodayCount()
         todayOunces = WatchDataManager.getTodayOunces()
         streak = WatchDataManager.getStreak()
-    }
-}
-
-// MARK: - Upgrade Prompt View
-
-struct WatchUpgradePromptView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.red)
-
-            Text("FridgeCig Pro")
-                .font(.headline)
-
-            Text("Open iPhone app to upgrade")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
     }
 }
 

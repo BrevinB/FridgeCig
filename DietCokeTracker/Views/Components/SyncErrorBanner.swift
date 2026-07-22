@@ -42,7 +42,9 @@ struct SyncErrorBanner: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
             }
-            .background(Color.orange.opacity(0.9))
+            .glassSurface(in: Rectangle(), tint: .orange) {
+                Color.orange.opacity(0.9)
+            }
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

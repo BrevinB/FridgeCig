@@ -444,7 +444,7 @@ struct SharePreviewSheet: View {
         }
 
         let activityVC = UIActivityViewController(
-            activityItems: [url],
+            activityItems: [url, ShareCardService.shareCaption(for: content)],
             applicationActivities: nil
         )
         activityVC.excludedActivityTypes = [.assignToContact, .addToReadingList]

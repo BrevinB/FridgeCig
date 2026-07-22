@@ -98,15 +98,19 @@ struct HomeView: View {
                 Button {
                     showingAddDrink = true
                 } label: {
-                    ZStack {
-                        Circle()
-                            .fill(preferences.defaultBrand.gradient)
-                            .frame(width: 56, height: 56)
-                            .shadow(color: preferences.defaultBrand.color.opacity(0.4), radius: 8, y: 4)
-                        Image(systemName: "plus")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .glassSurface(
+                            in: Circle(),
+                            tint: preferences.defaultBrand.color,
+                            interactive: true
+                        ) {
+                            Circle()
+                                .fill(preferences.defaultBrand.gradient)
+                                .shadow(color: preferences.defaultBrand.color.opacity(0.4), radius: 8, y: 4)
+                        }
                 }
                 .padding(.trailing, 20)
                 .padding(.bottom, 16)
