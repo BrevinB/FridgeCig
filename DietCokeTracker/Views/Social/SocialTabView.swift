@@ -118,10 +118,12 @@ struct SocialMainView: View {
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var globalFeedService: GlobalFeedService
+    @EnvironmentObject var socialNotifications: SocialNotificationService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedSection: SocialSection = .feed
     @State private var showingAddFriendFromDeepLink = false
+    @State private var showingInbox = false
 
     enum SocialSection: String, CaseIterable {
         case feed = "Feed"
@@ -145,97 +147,142 @@ struct SocialMainView: View {
             : Color(red: 0.96, green: 0.96, blue: 0.97)
     }
 
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Custom Tab Bar with badge support
-                HStack(spacing: 4) {
-                    ForEach(SocialSection.allCases, id: \.self) { section in
-                        SocialTabButton(
-                            section: section,
-                            isSelected: selectedSection == section,
-                            badgeCount: section == .friends ? friendService.pendingRequests.count : 0
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedSection = section
-                            }
+    /// The section switcher plus its content. Kept separate from the
+    /// `NavigationStack` chain so the inbox sheet and the add-friend sheet hang
+    /// off different views rather than stacking on one.
+    private var sectionContent: some View {
+        VStack(spacing: 0) {
+            // Custom Tab Bar with badge support
+            HStack(spacing: 4) {
+                ForEach(SocialSection.allCases, id: \.self) { section in
+                    SocialTabButton(
+                        section: section,
+                        isSelected: selectedSection == section,
+                        badgeCount: section == .friends ? friendService.pendingRequests.count : 0
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedSection = section
                         }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-                        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-                )
-                .padding(.horizontal)
-                .padding(.top, 8)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                    .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+            )
+            .padding(.horizontal)
+            .padding(.top, 8)
 
-                // Content
-                switch selectedSection {
+            // Content
+            switch selectedSection {
+            case .feed:
+                FeedView()
+            case .leaderboard:
+                LeaderboardView()
+            case .friends:
+                FriendsListView()
+            case .profile:
+                ProfileView()
+            }
+        }
+        .sheet(isPresented: $showingInbox) {
+            NotificationInboxView { destination in
+                switch destination {
                 case .feed:
-                    FeedView()
-                case .leaderboard:
-                    LeaderboardView()
+                    selectedSection = .feed
                 case .friends:
-                    FriendsListView()
-                case .profile:
-                    ProfileView()
+                    selectedSection = .friends
+                case .logDrink:
+                    deepLinkHandler.shouldNavigateToAddDrink = true
                 }
             }
-            .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Social")
-            .navigationDestination(for: UserProfile.self) { friend in
-                FriendDetailView(friend: friend)
-            }
-            .task {
-                // Load friends to get pending request count
-                if let userID = identityService.currentIdentity?.userIDString {
-                    await friendService.loadFriends(forUserID: userID)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            sectionContent
+                .background(backgroundColor.ignoresSafeArea())
+                .navigationTitle("Social")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        InboxBellButton {
+                            showingInbox = true
+                        }
+                    }
                 }
-            }
-            .onChange(of: identityService.currentIdentity?.userIDString) { _, _ in
-                Task {
+                .navigationDestination(for: UserProfile.self) { friend in
+                    FriendDetailView(friend: friend)
+                }
+                .task {
+                    // Load friends to get pending request count
                     if let userID = identityService.currentIdentity?.userIDString {
                         await friendService.loadFriends(forUserID: userID)
                     }
+                    await socialNotifications.refresh()
                 }
-            }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                if newPhase == .active {
-                    AppLogger.friends.debug("App became active, refreshing friend data for badge")
+                .onChange(of: identityService.currentIdentity?.userIDString) { _, _ in
                     Task {
                         if let userID = identityService.currentIdentity?.userIDString {
                             await friendService.loadFriends(forUserID: userID)
                         }
+                        await socialNotifications.refresh(force: true)
                     }
                 }
-            }
-            // Handle deep link friend code
-            .onChange(of: deepLinkHandler.shouldNavigateToAddFriend) { _, shouldNavigate in
-                if shouldNavigate {
-                    selectedSection = .friends
-                    showingAddFriendFromDeepLink = true
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    if newPhase == .active {
+                        AppLogger.friends.debug("App became active, refreshing friend data for badge")
+                        Task {
+                            if let userID = identityService.currentIdentity?.userIDString {
+                                await friendService.loadFriends(forUserID: userID)
+                            }
+                            await socialNotifications.refresh()
+                        }
+                    }
                 }
-            }
-            .sheet(isPresented: $showingAddFriendFromDeepLink, onDismiss: {
-                deepLinkHandler.clearPendingFriendCode()
-            }) {
-                NavigationStack {
-                    ShareCodeView(initialCode: deepLinkHandler.pendingFriendCode)
-                        .navigationTitle("Add Friend")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Cancel") {
-                                    showingAddFriendFromDeepLink = false
+                .onReceive(NotificationCenter.default.publisher(for: .socialInboxDidChange)) { _ in
+                    Task { await socialNotifications.refresh(force: true) }
+                }
+                .onChange(of: deepLinkHandler.shouldShowSocialInbox) { _, shouldShow in
+                    if shouldShow { openInboxFromDeepLink() }
+                }
+                .onAppear {
+                    // Covers the case where this tab is built *because* of the
+                    // deep link, so the change above never fires.
+                    if deepLinkHandler.shouldShowSocialInbox { openInboxFromDeepLink() }
+                }
+                // Handle deep link friend code
+                .onChange(of: deepLinkHandler.shouldNavigateToAddFriend) { _, shouldNavigate in
+                    if shouldNavigate {
+                        selectedSection = .friends
+                        showingAddFriendFromDeepLink = true
+                    }
+                }
+                .sheet(isPresented: $showingAddFriendFromDeepLink, onDismiss: {
+                    deepLinkHandler.clearPendingFriendCode()
+                }) {
+                    NavigationStack {
+                        ShareCodeView(initialCode: deepLinkHandler.pendingFriendCode)
+                            .navigationTitle("Add Friend")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .navigationBarLeading) {
+                                    Button("Cancel") {
+                                        showingAddFriendFromDeepLink = false
+                                    }
                                 }
                             }
-                        }
+                    }
                 }
-            }
         }
+    }
+
+    private func openInboxFromDeepLink() {
+        showingInbox = true
+        deepLinkHandler.clearPendingSocialInbox()
     }
 }
 
@@ -295,11 +342,9 @@ private struct SocialTabButton: View {
     }
 }
 
+#if DEBUG
 #Preview {
-    let ckManager = CloudKitManager()
-    return SocialTabView()
-        .environmentObject(IdentityService(cloudKitManager: ckManager))
-        .environmentObject(FriendConnectionService(cloudKitManager: ckManager))
-        .environmentObject(ActivityFeedService(cloudKitManager: ckManager))
-        .environmentObject(GlobalFeedService(cloudKitManager: ckManager))
+    SocialTabView()
+        .withPreviewEnvironment()
 }
+#endif

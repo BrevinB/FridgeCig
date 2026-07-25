@@ -22,15 +22,18 @@ class GlobalFeedService: ObservableObject {
         self.cloudKitManager = cloudKitManager
     }
 
-    /// Subscribe to cheers updates from ActivityFeedService
-    func observeCheersUpdates(from activityService: ActivityFeedService) {
-        activityService.cheersUpdated
+    /// Mirror reaction changes made elsewhere onto the copy of the post shown
+    /// in the global grid.
+    func observeReactionUpdates(from activityService: ActivityFeedService) {
+        // Re-subscribing on every view appearance would stack duplicate sinks.
+        guard cancellables.isEmpty else { return }
+
+        activityService.reactionsUpdated
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] (activityID, newCount, newUserIDs) in
+            .sink { [weak self] (activityID, reactions) in
                 guard let self else { return }
                 if let index = self.items.firstIndex(where: { $0.id == activityID }) {
-                    self.items[index].cheersCount = newCount
-                    self.items[index].cheersUserIDs = newUserIDs
+                    self.items[index].applyReactions(reactions)
                 }
             }
             .store(in: &cancellables)

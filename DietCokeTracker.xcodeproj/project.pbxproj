@@ -271,6 +271,7 @@
 		CC000007000000000000002A /* StateCans */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = StateCans; sourceTree = "<group>"; };
 		CC100000000000000000001A /* AddDrink */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AddDrink; sourceTree = "<group>"; };
 		CC100000000000000000001D /* Home */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Home; sourceTree = "<group>"; };
+		CC000009000000000000002C /* Social */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Social; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -367,6 +368,7 @@
 			children = (
 				237349B02F2AE6E5007CD14A /* NotificationPreferences.swift */,
 				CC000001000000000000001A /* Sharing */,
+				CC000009000000000000002C /* Social */,
 				237342E02F21D1B7007CD14A /* ActivityItem.swift */,
 				CC000004000000000000001D /* ContentReport.swift */,
 				237342E12F21D1B7007CD14A /* MilestoneCard.swift */,
@@ -550,6 +552,7 @@
 				CC000007000000000000002A /* StateCans */,
 				CC100000000000000000001A /* AddDrink */,
 				CC100000000000000000001D /* Home */,
+				CC000009000000000000002C /* Social */,
 			);
 			name = DietCokeTracker;
 			productName = DietCokeTracker;

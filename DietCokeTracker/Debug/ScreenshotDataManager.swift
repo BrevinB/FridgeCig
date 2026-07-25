@@ -169,8 +169,7 @@ class ScreenshotDataManager {
                 type: .badgeUnlock,
                 timestamp: Date().addingTimeInterval(-1800), // 30 min ago
                 payload: ActivityPayload(badgeID: "streak_30", badgeTitle: "Monthly Master", badgeIcon: "calendar.badge.checkmark", badgeRarity: .epic),
-                cheersCount: 12,
-                cheersUserIDs: ["user1", "user2"]
+                reactions: Self.sampleReactions([(.clap, 5), (.fire, 4), (.heart, 3)])
             ),
             ActivityItem(
                 userID: "friend2",
@@ -178,8 +177,7 @@ class ScreenshotDataManager {
                 type: .drinkLog,
                 timestamp: Date().addingTimeInterval(-3600), // 1 hour ago
                 payload: ActivityPayload(drinkType: .mcdonaldsLarge, drinkNote: "Perfect fountain ratio", hasPhoto: true),
-                cheersCount: 5,
-                cheersUserIDs: []
+                reactions: Self.sampleReactions([(.ice, 3), (.eyes, 2)])
             ),
             ActivityItem(
                 userID: "friend3",
@@ -187,8 +185,7 @@ class ScreenshotDataManager {
                 type: .streakMilestone,
                 timestamp: Date().addingTimeInterval(-7200), // 2 hours ago
                 payload: ActivityPayload(streakDays: 30, streakMessage: "A whole month!"),
-                cheersCount: 24,
-                cheersUserIDs: ["user1", "user2", "user3"]
+                reactions: Self.sampleReactions([(.fire, 14), (.clap, 8), (.heart, 2)])
             ),
             ActivityItem(
                 userID: "friend4",
@@ -196,8 +193,7 @@ class ScreenshotDataManager {
                 type: .badgeUnlock,
                 timestamp: Date().addingTimeInterval(-14400), // 4 hours ago
                 payload: ActivityPayload(badgeID: "legend", badgeTitle: "Legend", badgeIcon: "trophy.fill", badgeRarity: .epic),
-                cheersCount: 31,
-                cheersUserIDs: []
+                reactions: Self.sampleReactions([(.clap, 18), (.fire, 9), (.eyes, 4)])
             ),
             ActivityItem(
                 userID: "friend5",
@@ -205,8 +201,7 @@ class ScreenshotDataManager {
                 type: .drinkLog,
                 timestamp: Date().addingTimeInterval(-21600), // 6 hours ago
                 payload: ActivityPayload(drinkType: .chickfilaLarge, drinkNote: "Lunch break essential", hasPhoto: false),
-                cheersCount: 3,
-                cheersUserIDs: []
+                reactions: Self.sampleReactions([(.laugh, 2), (.clap, 1)])
             ),
             ActivityItem(
                 userID: "friend1",
@@ -214,8 +209,7 @@ class ScreenshotDataManager {
                 type: .drinkLog,
                 timestamp: Date().addingTimeInterval(-28800), // 8 hours ago
                 payload: ActivityPayload(drinkType: .regularCan, drinkNote: nil, hasPhoto: true),
-                cheersCount: 7,
-                cheersUserIDs: []
+                reactions: Self.sampleReactions([(.ice, 4), (.clap, 3)])
             ),
             ActivityItem(
                 userID: "friend6",
@@ -223,8 +217,7 @@ class ScreenshotDataManager {
                 type: .streakMilestone,
                 timestamp: Date().addingTimeInterval(-43200), // 12 hours ago
                 payload: ActivityPayload(streakDays: 7, streakMessage: "One week strong!"),
-                cheersCount: 15,
-                cheersUserIDs: []
+                reactions: Self.sampleReactions([(.fire, 9), (.clap, 6)])
             ),
             ActivityItem(
                 userID: "friend2",
@@ -232,12 +225,23 @@ class ScreenshotDataManager {
                 type: .badgeUnlock,
                 timestamp: Date().addingTimeInterval(-86400), // 1 day ago
                 payload: ActivityPayload(badgeID: "centurion", badgeTitle: "Centurion", badgeIcon: "crown.fill", badgeRarity: .rare),
-                cheersCount: 19,
-                cheersUserIDs: []
+                reactions: Self.sampleReactions([(.clap, 11), (.heart, 8)])
             ),
         ]
 
         activityService.activities = activities
+    }
+
+    /// Builds a reaction set with the requested per-emoji counts, using
+    /// synthetic user IDs so each reaction is distinct.
+    private static func sampleReactions(_ counts: [(ReactionEmoji, Int)]) -> [Reaction] {
+        var reactions: [Reaction] = []
+        for (emoji, count) in counts {
+            for index in 0..<count {
+                reactions.append(Reaction(userID: "screenshot-\(emoji.rawValue)-\(index)", emoji: emoji))
+            }
+        }
+        return reactions
     }
 
     // MARK: - Friends

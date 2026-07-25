@@ -80,8 +80,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             NotificationCenter.default.post(name: .navigateToFriendRequests, object: nil)
         case "FRIEND_ACCEPTED", "FRIEND_MILESTONE":
             NotificationCenter.default.post(name: .navigateToActivityFeed, object: nil)
-        case "CHEERS":
-            NotificationCenter.default.post(name: .navigateToActivityFeed, object: nil)
+        case "CHEERS", "SOCIAL":
+            // Every social event now lands in the inbox, so that's where a tap
+            // should go — the user can see who did what.
+            NotificationCenter.default.post(name: .navigateToSocialInbox, object: nil)
         case "STREAK_REMINDER":
             NotificationCenter.default.post(name: .navigateToAddDrink, object: nil)
         case "DAILY_SUMMARY":
@@ -131,6 +133,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             intentIdentifiers: [],
             options: []
         )
+        // Reactions, comments, nudges, and friend activity all arrive under one
+        // category now that they share a single inbox.
+        let socialCategory = UNNotificationCategory(
+            identifier: "SOCIAL",
+            actions: [],
+            intentIdentifiers: [],
+            options: []
+        )
         let friendMilestoneCategory = UNNotificationCategory(
             identifier: "FRIEND_MILESTONE",
             actions: [],
@@ -154,6 +164,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             friendRequestCategory,
             friendAcceptedCategory,
             cheersCategory,
+            socialCategory,
             friendMilestoneCategory,
             streakReminderCategory,
             dailySummaryCategory
@@ -167,4 +178,8 @@ extension Notification.Name {
     static let navigateToFriendRequests = Notification.Name("navigateToFriendRequests")
     static let navigateToActivityFeed = Notification.Name("navigateToActivityFeed")
     static let navigateToAddDrink = Notification.Name("navigateToAddDrink")
+    /// Open the social inbox (bell) — posted when a social push is tapped.
+    static let navigateToSocialInbox = Notification.Name("navigateToSocialInbox")
+    /// A social push arrived; anything showing the inbox should refetch.
+    static let socialInboxDidChange = Notification.Name("socialInboxDidChange")
 }

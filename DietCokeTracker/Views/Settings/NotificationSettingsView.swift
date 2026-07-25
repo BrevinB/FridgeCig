@@ -35,16 +35,8 @@ struct NotificationSettingsView: View {
 
             // Push Notifications
             Section {
-                Toggle(isOn: $notificationService.preferences.friendRequestsEnabled) {
-                    Label("Friend Requests", systemImage: "person.badge.plus")
-                }
-
-                Toggle(isOn: $notificationService.preferences.friendAcceptedEnabled) {
-                    Label("Friend Accepted", systemImage: "person.badge.checkmark")
-                }
-
-                Toggle(isOn: $notificationService.preferences.cheersReceivedEnabled) {
-                    Label("Cheers Received", systemImage: "hands.clap.fill")
+                Toggle(isOn: $notificationService.preferences.socialActivityEnabled) {
+                    Label("Reactions, Comments & Nudges", systemImage: "bell.badge.fill")
                 }
 
                 Toggle(isOn: $notificationService.preferences.friendMilestonesEnabled) {
@@ -53,7 +45,7 @@ struct NotificationSettingsView: View {
             } header: {
                 Text("Social Notifications")
             } footer: {
-                Text("Get notified when friends interact with you or hit milestones.")
+                Text("The first covers anything a friend does to you — reactions, comments, nudges, and friend requests. All of it also shows up in your Activity inbox.")
             }
             .disabled(!notificationService.isAuthorized)
 

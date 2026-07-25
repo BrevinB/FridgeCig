@@ -44,6 +44,9 @@ struct ActivityItem: Identifiable, Codable {
     let payload: ActivityPayload
     var cheersCount: Int
     var cheersUserIDs: [String]
+    /// Per-emoji reactions. `cheersCount`/`cheersUserIDs` are kept in sync as
+    /// the aggregate view of this list so older clients still render a count.
+    var reactions: [Reaction]
     var isPremium: Bool
     var isGlobalPhoto: Bool
     var visibility: PostVisibility
@@ -63,6 +66,7 @@ struct ActivityItem: Identifiable, Codable {
         payload: ActivityPayload,
         cheersCount: Int = 0,
         cheersUserIDs: [String] = [],
+        reactions: [Reaction] = [],
         isPremium: Bool = false,
         isGlobalPhoto: Bool = false,
         visibility: PostVisibility = .friends,
@@ -77,11 +81,42 @@ struct ActivityItem: Identifiable, Codable {
         self.payload = payload
         self.cheersCount = cheersCount
         self.cheersUserIDs = cheersUserIDs
+        self.reactions = reactions
         self.isPremium = isPremium
         self.isGlobalPhoto = isGlobalPhoto
         self.visibility = visibility
         self.profilePhotoID = profilePhotoID
         self.profileEmoji = profileEmoji
+    }
+
+    // MARK: - Reaction Accessors
+
+    /// Total across every emoji. Falls back to the stored aggregate for legacy
+    /// posts that only ever recorded a count.
+    var totalReactionCount: Int {
+        reactions.isEmpty ? cheersCount : reactions.count
+    }
+
+    /// What the reaction bar renders, newest schema first and legacy counts
+    /// folded into a single clap chip.
+    var reactionGroups: [ReactionGroup] {
+        if reactions.isEmpty {
+            guard cheersCount > 0 else { return [] }
+            return [ReactionGroup(emoji: .legacyDefault, count: cheersCount)]
+        }
+        return reactions.grouped
+    }
+
+    func reaction(by userID: String) -> ReactionEmoji? {
+        reactions.emoji(for: userID)
+    }
+
+    /// Applies a reaction set and refreshes the aggregate fields that older
+    /// clients and the global feed grid read.
+    mutating func applyReactions(_ updated: [Reaction]) {
+        reactions = updated
+        cheersUserIDs = updated.map { $0.userID }
+        cheersCount = updated.count
     }
 
     var formattedTime: String {
@@ -112,6 +147,26 @@ struct ActivityItem: Identifiable, Codable {
             return payload.streakMessage
         case .drinkLog:
             return payload.drinkType?.displayName
+        }
+    }
+
+    /// Push body for friends watching this user's milestones. Stored on the
+    /// record so CloudKit can substitute it into the alert directly, instead of
+    /// the app showing a second, more specific banner on top of a generic one.
+    var pushSummary: String {
+        switch type {
+        case .badgeUnlock:
+            if let badgeTitle = payload.badgeTitle {
+                return "earned the \(badgeTitle) badge 🏆"
+            }
+            return "earned a new badge 🏆"
+        case .streakMilestone:
+            if let days = payload.streakDays {
+                return "hit a \(days)-day streak 🔥"
+            }
+            return "hit a streak milestone 🔥"
+        case .drinkLog:
+            return "logged a drink 🥤"
         }
     }
 }
@@ -277,6 +332,29 @@ struct UserSharingPreferences: Codable {
 extension ActivityItem {
     static let recordType = "ActivityItem"
 
+    /// Reads the reaction set off a record, folding in any pre-reactions
+    /// `cheersUserIDs` entries as claps so old posts keep their cheers.
+    static func reactions(from record: CKRecord) -> [Reaction] {
+        let tokens = record["reactionTokens"] as? [String] ?? []
+        var parsed = tokens.compactMap { Reaction(token: $0) }
+
+        let known = Set(parsed.map { $0.userID })
+        let legacyIDs = record["cheersUserIDs"] as? [String] ?? []
+        for userID in legacyIDs where !known.contains(userID) {
+            parsed.append(Reaction(userID: userID, emoji: .legacyDefault))
+        }
+        return parsed
+    }
+
+    /// Writes a reaction set plus the aggregate fields older clients read.
+    static func write(reactions: [Reaction], to record: CKRecord) {
+        // CloudKit can't initialize a new field with an empty array, so clear
+        // rather than write `[]` when the last reaction is removed.
+        record["reactionTokens"] = reactions.isEmpty ? nil : reactions.map { $0.token }
+        record["cheersUserIDs"] = reactions.isEmpty ? nil : reactions.map { $0.userID }
+        record["cheersCount"] = reactions.count
+    }
+
     init?(from record: CKRecord) {
         guard let activityIDString = record["activityID"] as? String,
               let activityID = UUID(uuidString: activityIDString),
@@ -293,8 +371,18 @@ extension ActivityItem {
         self.displayName = displayName
         self.type = type
         self.timestamp = timestamp
-        self.cheersCount = (record["cheersCount"] as? Int64).map { Int($0) } ?? 0
-        self.cheersUserIDs = record["cheersUserIDs"] as? [String] ?? []
+
+        let parsedReactions = Self.reactions(from: record)
+        self.reactions = parsedReactions
+        if parsedReactions.isEmpty {
+            // Nothing to reconstruct — trust whatever aggregate the record holds.
+            self.cheersUserIDs = record["cheersUserIDs"] as? [String] ?? []
+            self.cheersCount = (record["cheersCount"] as? Int64).map { Int($0) } ?? 0
+        } else {
+            self.cheersUserIDs = parsedReactions.map { $0.userID }
+            self.cheersCount = parsedReactions.count
+        }
+
         self.isPremium = (record["isPremium"] as? Int64 ?? 0) == 1
         self.isGlobalPhoto = (record["isGlobalPhoto"] as? Int64 ?? 0) == 1
         self.visibility = PostVisibility(rawValue: record["visibility"] as? String ?? "") ?? .friends
@@ -329,16 +417,21 @@ extension ActivityItem {
         record["displayName"] = displayName
         record["type"] = type.rawValue
         record["timestamp"] = timestamp
-        record["cheersCount"] = cheersCount
-        // CloudKit can't initialize a new field with an empty array, so only set if non-empty
-        if !cheersUserIDs.isEmpty {
+
+        if reactions.isEmpty && !cheersUserIDs.isEmpty {
+            // Legacy in-memory item that never carried a reaction list.
+            record["cheersCount"] = cheersCount
             record["cheersUserIDs"] = cheersUserIDs
+        } else {
+            Self.write(reactions: reactions, to: record)
         }
+
         record["isPremium"] = isPremium ? 1 : 0
         record["isGlobalPhoto"] = isGlobalPhoto ? 1 : 0
         record["visibility"] = visibility.rawValue
         record["profilePhotoID"] = profilePhotoID
         record["profileEmoji"] = profileEmoji
+        record["milestoneText"] = pushSummary
 
         // Store entryID as a top-level queryable field for efficient deletion lookups
         if let entryID = payload.drinkEntryID {

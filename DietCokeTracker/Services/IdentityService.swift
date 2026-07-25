@@ -194,6 +194,21 @@ class IdentityService: ObservableObject {
         }
     }
 
+    /// Persists the global-photo opt-in to the public profile.
+    ///
+    /// Lives here so every entry point writes it the same way and
+    /// `currentProfile` stays truthful — a stale local copy makes the UI
+    /// disagree with what's actually published.
+    func setSharePhotosGlobally(_ enabled: Bool) async {
+        guard currentProfile != nil else { return }
+        currentProfile?.sharePhotosGlobally = enabled
+        do {
+            try await saveProfile()
+        } catch {
+            AppLogger.identity.error("Failed to sync global sharing opt-in: \(error.localizedDescription)")
+        }
+    }
+
     func saveProfile() async throws {
         guard let profile = currentProfile, let recordID = profileRecordID else { return }
         if cloudKitManager.isAvailable {

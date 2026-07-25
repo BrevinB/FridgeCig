@@ -9,6 +9,8 @@ struct SettingsView: View {
     @EnvironmentObject var cloudKitManager: CloudKitManager
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var activityService: ActivityFeedService
+    @EnvironmentObject var commentService: CommentService
+    @EnvironmentObject var socialNotifications: SocialNotificationService
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var store: DrinkStore
     @EnvironmentObject var themeManager: ThemeManager
@@ -130,6 +132,8 @@ struct SettingsView: View {
         let storeRef = store
         let friendServiceRef = friendService
         let activityServiceRef = activityService
+        let commentServiceRef = commentService
+        let socialNotificationsRef = socialNotifications
         let deletion = AccountDeletionService(cloudKitManager: cloudKitManager)
 
         Task {
@@ -147,6 +151,8 @@ struct SettingsView: View {
                     storeRef.clearAllData()
                     friendServiceRef.clearAllData()
                     activityServiceRef.clearAllData()
+                    commentServiceRef.clearAllData()
+                    socialNotificationsRef.clearAllData()
                 }
 
                 await MainActor.run {

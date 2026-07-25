@@ -9,6 +9,7 @@ struct DebugSection: View {
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var cloudKitManager: CloudKitManager
+    @EnvironmentObject var socialNotifications: SocialNotificationService
 
     @State private var debugTestUserCode: String?
     @State private var isCreatingTestUser = false
@@ -233,6 +234,7 @@ struct DebugSection: View {
     private func populateFakeData() {
         friendService.addFakeFriends()
         activityService.addTestActivities()
+        socialNotifications.addTestNotifications()
         showingFakeDataAdded = true
     }
 
@@ -240,6 +242,7 @@ struct DebugSection: View {
         friendService.clearFakeFriends()
         friendService.clearFakePendingRequests()
         activityService.clearTestActivities()
+        socialNotifications.clearAllData()
     }
 
     private func simulateFriendRequests() {

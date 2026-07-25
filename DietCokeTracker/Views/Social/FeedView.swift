@@ -8,7 +8,12 @@ struct FeedView: View {
         var id: String { rawValue }
     }
 
-    @AppStorage("feedScope") private var scopeRaw: String = Scope.friends.rawValue
+    /// Shared so other screens can drop the user straight into the Global
+    /// segment — landing on "Friends" after tapping "see your global post"
+    /// would show the wrong feed.
+    static let scopeStorageKey = "feedScope"
+
+    @AppStorage(FeedView.scopeStorageKey) private var scopeRaw: String = Scope.friends.rawValue
     @State private var showingPreferences = false
     @Environment(\.colorScheme) private var colorScheme
 
