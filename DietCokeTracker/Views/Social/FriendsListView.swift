@@ -372,40 +372,43 @@ private struct FriendRow: View {
     let friend: UserProfile
 
     var body: some View {
-        NavigationLink(value: friend) {
-            HStack(spacing: 14) {
-                AvatarView(
-                    displayName: friend.displayName,
-                    profilePhotoID: friend.profilePhotoID,
-                    profileEmoji: friend.profileEmoji,
-                    size: 48
-                )
+        // The nudge button lives outside the NavigationLink so tapping it
+        // doesn't also push the profile.
+        HStack(spacing: 10) {
+            NavigationLink(value: friend) {
+                HStack(spacing: 14) {
+                    AvatarView(
+                        displayName: friend.displayName,
+                        profilePhotoID: friend.profilePhotoID,
+                        profileEmoji: friend.profileEmoji,
+                        size: 48
+                    )
 
-                // Info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(friend.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.dietCokeCharcoal)
+                    // Info
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(friend.displayName)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeCharcoal)
 
-                    // Stats preview
-                    HStack(spacing: 12) {
-                        StatBadge(icon: "flame.fill", value: "\(friend.currentStreak)", color: .orange)
-                        StatBadge(icon: "cup.and.saucer.fill", value: "\(friend.allTimeDrinks)", color: .dietCokeRed)
+                        // Stats preview
+                        HStack(spacing: 12) {
+                            StatBadge(icon: "flame.fill", value: "\(friend.currentStreak)", color: .orange)
+                            StatBadge(icon: "cup.and.saucer.fill", value: "\(friend.allTimeDrinks)", color: .dietCokeRed)
+                        }
                     }
+
+                    Spacer()
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.dietCokeSilver)
+                .contentShape(Rectangle())
             }
-            .padding(12)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
+            .buttonStyle(.plain)
+
+            NudgeButton(friend: friend, compact: true)
         }
-        .buttonStyle(.plain)
+        .padding(12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
     }
 }
 
@@ -428,10 +431,11 @@ private struct StatBadge: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         FriendsListView()
-            .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
-            .environmentObject(FriendConnectionService(cloudKitManager: CloudKitManager()))
     }
+    .withPreviewEnvironment()
 }
+#endif

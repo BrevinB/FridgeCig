@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject var offlineQueue: OfflineQueue
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var socialNotifications: SocialNotificationService
 
     @State private var showingAddDrink = false
     @State private var selectedTab: RootTab = .today
@@ -77,6 +78,10 @@ struct ContentView: View {
                         Tab("Social", systemImage: "person.2.fill", value: .social) {
                             SocialTabView()
                         }
+                        // Unread reactions, comments, and nudges are worth
+                        // surfacing from anywhere in the app, not just inside
+                        // the Social tab.
+                        .badge(socialNotifications.unreadCount)
                         Tab("Badges", systemImage: "trophy.fill", value: .badges) {
                             BadgesView()
                         }
@@ -235,6 +240,16 @@ private struct ContentViewDeepLinks: ViewModifier {
                 if shouldNavigate {
                     selectedTab = .social
                 }
+            }
+            .onChange(of: deepLinkHandler.shouldShowSocialInbox) { _, shouldShow in
+                // The Social tab itself opens the sheet; this just makes sure
+                // it's the visible tab when it does.
+                if shouldShow {
+                    selectedTab = .social
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateToSocialInbox)) { _ in
+                deepLinkHandler.shouldShowSocialInbox = true
             }
             .onChange(of: deepLinkHandler.shouldNavigateToAddDrink) { _, shouldNavigate in
                 if shouldNavigate {

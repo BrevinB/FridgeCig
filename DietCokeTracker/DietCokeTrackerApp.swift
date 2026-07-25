@@ -21,6 +21,8 @@ struct DietCokeTrackerApp: App {
     @StateObject private var drinkSyncService: DrinkSyncService
     @StateObject private var activityService: ActivityFeedService
     @StateObject private var globalFeedService: GlobalFeedService
+    @StateObject private var commentService: CommentService
+    @StateObject private var socialNotifications: SocialNotificationService
 
     // Notification service
     @StateObject private var notificationService: NotificationService
@@ -49,6 +51,8 @@ struct DietCokeTrackerApp: App {
         _drinkSyncService = StateObject(wrappedValue: DrinkSyncService(cloudKitManager: ckManager))
         _activityService = StateObject(wrappedValue: ActivityFeedService(cloudKitManager: ckManager))
         _globalFeedService = StateObject(wrappedValue: GlobalFeedService(cloudKitManager: ckManager))
+        _commentService = StateObject(wrappedValue: CommentService(cloudKitManager: ckManager))
+        _socialNotifications = StateObject(wrappedValue: SocialNotificationService(cloudKitManager: ckManager))
         _notificationService = StateObject(wrappedValue: NotificationService(cloudKitManager: ckManager))
 
         // Configure RevenueCat - Replace with your API key from RevenueCat dashboard
@@ -70,6 +74,8 @@ struct DietCokeTrackerApp: App {
                 .environmentObject(recapService)
                 .environmentObject(activityService)
                 .environmentObject(globalFeedService)
+                .environmentObject(commentService)
+                .environmentObject(socialNotifications)
                 .environmentObject(notificationService)
                 .environmentObject(reviewService)
                 .environmentObject(networkMonitor)
@@ -90,6 +96,12 @@ struct DietCokeTrackerApp: App {
 
                     // Connect notification service to app delegate
                     appDelegate.notificationService = notificationService
+
+                    // Let the services that generate social events write to the
+                    // recipient's inbox.
+                    activityService.socialNotifications = socialNotifications
+                    commentService.socialNotifications = socialNotifications
+                    friendService.socialNotifications = socialNotifications
 
                     // Initialize identity and sync data
                     await identityService.initialize()
@@ -128,10 +140,19 @@ struct DietCokeTrackerApp: App {
                             if let userID = identityService.currentProfile?.userIDString {
                                 await friendService.loadFriends(forUserID: userID)
 
+                                // Identity first, so the block-list pass below
+                                // isn't wiped by the user-changed reset.
+                                commentService.configure(currentUserID: userID)
+                                socialNotifications.configure(profile: identityService.currentProfile)
+
                                 // Fetch blocked users and configure filtering across all feeds
                                 let blockedIDs = (try? await friendService.fetchBlockedUserIDs(forUserID: userID)) ?? []
                                 activityService.configure(blockedUserIDs: blockedIDs)
                                 globalFeedService.configure(blockedUserIDs: blockedIDs)
+                                commentService.configure(blockedUserIDs: blockedIDs)
+                                socialNotifications.configure(blockedUserIDs: blockedIDs)
+
+                                await socialNotifications.refresh(force: true)
 
                                 // Configure activity service with current user
                                 activityService.configure(
@@ -152,24 +173,15 @@ struct DietCokeTrackerApp: App {
                     }
                 }
                 .onChange(of: identityService.currentProfile?.profilePhotoID) { _, _ in
-                    if let profile = identityService.currentProfile {
-                        activityService.configure(
-                            currentUserID: profile.userIDString,
-                            friendIDs: Array(friendService.friendIDs),
-                            profilePhotoID: profile.profilePhotoID,
-                            profileEmoji: profile.profileEmoji
-                        )
-                    }
+                    syncProfileToSocialServices()
                 }
                 .onChange(of: identityService.currentProfile?.profileEmoji) { _, _ in
-                    if let profile = identityService.currentProfile {
-                        activityService.configure(
-                            currentUserID: profile.userIDString,
-                            friendIDs: Array(friendService.friendIDs),
-                            profilePhotoID: profile.profilePhotoID,
-                            profileEmoji: profile.profileEmoji
-                        )
-                    }
+                    syncProfileToSocialServices()
+                }
+                .onChange(of: identityService.currentProfile?.displayName) { _, _ in
+                    // Outgoing notifications embed the actor's name, so keep it
+                    // current after a rename.
+                    syncProfileToSocialServices()
                 }
                 .onChange(of: friendService.friends) { _, _ in
                     // Update activity service when friends list changes
@@ -282,11 +294,18 @@ struct DietCokeTrackerApp: App {
                     // Delete drink activity from activity feed
                     guard let userID = identityService.currentProfile?.userIDString else { return }
 
+                    // Capture before deletion so the comment threads attached to
+                    // the post don't outlive it.
+                    let orphanedActivityIDs = activityService.activityIDs(forEntryID: entry.id.uuidString)
+
                     Task {
                         await activityService.deleteDrinkActivity(
                             entryID: entry.id.uuidString,
                             userID: userID
                         )
+                        for activityID in orphanedActivityIDs {
+                            await commentService.deleteThread(for: activityID)
+                        }
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .networkBecameAvailable)) { _ in
@@ -314,6 +333,20 @@ struct DietCokeTrackerApp: App {
                     globalFeedService.insertLocalItem(activity)
                 }
         }
+    }
+
+    /// Push the current profile into every service that stamps the user's
+    /// identity onto outgoing content.
+    private func syncProfileToSocialServices() {
+        guard let profile = identityService.currentProfile else { return }
+        activityService.configure(
+            currentUserID: profile.userIDString,
+            friendIDs: Array(friendService.friendIDs),
+            profilePhotoID: profile.profilePhotoID,
+            profileEmoji: profile.profileEmoji
+        )
+        commentService.configure(currentUserID: profile.userIDString)
+        socialNotifications.configure(profile: profile)
     }
 
     /// Process a queued offline operation

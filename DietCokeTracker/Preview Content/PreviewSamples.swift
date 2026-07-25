@@ -73,6 +73,18 @@ enum PreviewSamples {
         GlobalFeedService(cloudKitManager: cloudKitManager)
     }
 
+    static func commentService() -> CommentService {
+        CommentService(cloudKitManager: cloudKitManager)
+    }
+
+    static func socialNotificationService(populated: Bool = true) -> SocialNotificationService {
+        let service = SocialNotificationService(cloudKitManager: cloudKitManager)
+        if populated {
+            service.addTestNotifications()
+        }
+        return service
+    }
+
     static func notificationService() -> NotificationService {
         NotificationService(cloudKitManager: cloudKitManager)
     }
@@ -99,6 +111,12 @@ enum PreviewSamples {
                 drinkBrand: .dietCoke
             ),
             cheersCount: 4,
+            reactions: [
+                Reaction(userID: "preview-user-2", emoji: .clap),
+                Reaction(userID: "preview-user-3", emoji: .fire),
+                Reaction(userID: "preview-user-4", emoji: .fire),
+                Reaction(userID: "preview-user-5", emoji: .ice)
+            ],
             isPremium: true,
             visibility: .friends
         )
@@ -124,6 +142,8 @@ private struct PreviewEnvironmentModifier: ViewModifier {
             .environmentObject(PreviewSamples.recapService())
             .environmentObject(PreviewSamples.activityService())
             .environmentObject(PreviewSamples.globalFeedService())
+            .environmentObject(PreviewSamples.commentService())
+            .environmentObject(PreviewSamples.socialNotificationService(populated: populated))
             .environmentObject(PreviewSamples.notificationService())
             .environmentObject(PreviewSamples.reviewService())
             .environmentObject(NetworkMonitor.shared)

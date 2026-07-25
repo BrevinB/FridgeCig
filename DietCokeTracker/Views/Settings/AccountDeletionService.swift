@@ -15,6 +15,8 @@ struct AccountDeletionService {
         try await deleteAllDrinkEntries(userID: userID)
         try await deleteAllFriendConnections(userID: userID)
         try await deleteAllActivityItemsAndPhotos(userID: userID)
+        try await deleteAllComments(userID: userID)
+        try await deleteAllSocialNotifications(userID: userID)
         try await deleteAllProfilePhotos(userID: userID)
         try await deleteAllContentReports(userID: userID)
         try await deletePrivateCloudData()
@@ -90,6 +92,32 @@ struct AccountDeletionService {
         for recordName in photoRecordNames {
             let recordID = CKRecord.ID(recordName: recordName)
             try? await cloudKitManager.deleteFromPublic(recordID: recordID)
+        }
+    }
+
+    private func deleteAllComments(userID: String) async throws {
+        let records = try await cloudKitManager.fetchFromPublic(
+            recordType: ActivityComment.recordType,
+            predicate: NSPredicate(format: "authorID == %@", userID),
+            limit: 1000
+        )
+        for record in records {
+            try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+        }
+    }
+
+    /// Both directions: inbox entries addressed to this user and the ones they
+    /// generated in other people's inboxes.
+    private func deleteAllSocialNotifications(userID: String) async throws {
+        for key in ["recipientID", "actorID"] {
+            let records = try await cloudKitManager.fetchFromPublic(
+                recordType: SocialNotification.recordType,
+                predicate: NSPredicate(format: "%K == %@", key, userID),
+                limit: 1000
+            )
+            for record in records {
+                try await cloudKitManager.deleteFromPublic(recordID: record.recordID)
+            }
         }
     }
 

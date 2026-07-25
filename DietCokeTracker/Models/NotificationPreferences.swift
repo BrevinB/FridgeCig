@@ -2,9 +2,11 @@ import Foundation
 
 struct NotificationPreferences: Codable {
     // MARK: - Push Notification Preferences
-    var friendRequestsEnabled: Bool
-    var friendAcceptedEnabled: Bool
-    var cheersReceivedEnabled: Bool
+
+    /// Covers reactions, comments, nudges, and friend requests — everything a
+    /// person does *to you*. They share one CloudKit subscription, so they
+    /// share one switch.
+    var socialActivityEnabled: Bool
     var friendMilestonesEnabled: Bool
 
     // MARK: - Local Notification Preferences
@@ -16,9 +18,7 @@ struct NotificationPreferences: Codable {
     var weeklySummaryTime: Date
 
     init(
-        friendRequestsEnabled: Bool = true,
-        friendAcceptedEnabled: Bool = true,
-        cheersReceivedEnabled: Bool = true,
+        socialActivityEnabled: Bool = true,
         friendMilestonesEnabled: Bool = true,
         streakRemindersEnabled: Bool = true,
         streakReminderTime: Date = NotificationPreferences.defaultStreakReminderTime,
@@ -27,9 +27,7 @@ struct NotificationPreferences: Codable {
         weeklySummaryEnabled: Bool = true,
         weeklySummaryTime: Date = NotificationPreferences.defaultWeeklySummaryTime
     ) {
-        self.friendRequestsEnabled = friendRequestsEnabled
-        self.friendAcceptedEnabled = friendAcceptedEnabled
-        self.cheersReceivedEnabled = cheersReceivedEnabled
+        self.socialActivityEnabled = socialActivityEnabled
         self.friendMilestonesEnabled = friendMilestonesEnabled
         self.streakRemindersEnabled = streakRemindersEnabled
         self.streakReminderTime = streakReminderTime
@@ -66,6 +64,48 @@ struct NotificationPreferences: Codable {
     }
 
     static let `default` = NotificationPreferences()
+
+    /// Decoded field by field so adding or retiring a preference doesn't throw
+    /// away everything the user had configured. `socialActivityEnabled`
+    /// inherits the old per-event flags when upgrading: if any of them was on,
+    /// the combined switch stays on.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = NotificationPreferences.default
+
+        if let combined = try container.decodeIfPresent(Bool.self, forKey: .socialActivityEnabled) {
+            socialActivityEnabled = combined
+        } else {
+            var legacyValues: [Bool] = []
+            if let legacyContainer = try? decoder.container(keyedBy: LegacyCodingKeys.self) {
+                for key in LegacyCodingKeys.allCases {
+                    let raw = try? legacyContainer.decodeIfPresent(Bool.self, forKey: key)
+                    if let value = raw ?? nil {
+                        legacyValues.append(value)
+                    }
+                }
+            }
+            // Only opt someone out if they had explicitly turned every social
+            // push off before the switches were merged.
+            socialActivityEnabled = legacyValues.isEmpty
+                ? defaults.socialActivityEnabled
+                : legacyValues.contains(true)
+        }
+
+        friendMilestonesEnabled = try container.decodeIfPresent(Bool.self, forKey: .friendMilestonesEnabled) ?? defaults.friendMilestonesEnabled
+        streakRemindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .streakRemindersEnabled) ?? defaults.streakRemindersEnabled
+        streakReminderTime = try container.decodeIfPresent(Date.self, forKey: .streakReminderTime) ?? defaults.streakReminderTime
+        dailySummaryEnabled = try container.decodeIfPresent(Bool.self, forKey: .dailySummaryEnabled) ?? defaults.dailySummaryEnabled
+        dailySummaryTime = try container.decodeIfPresent(Date.self, forKey: .dailySummaryTime) ?? defaults.dailySummaryTime
+        weeklySummaryEnabled = try container.decodeIfPresent(Bool.self, forKey: .weeklySummaryEnabled) ?? defaults.weeklySummaryEnabled
+        weeklySummaryTime = try container.decodeIfPresent(Date.self, forKey: .weeklySummaryTime) ?? defaults.weeklySummaryTime
+    }
+
+    private enum LegacyCodingKeys: String, CodingKey, CaseIterable {
+        case friendRequestsEnabled
+        case friendAcceptedEnabled
+        case cheersReceivedEnabled
+    }
 }
 
 // MARK: - Persistence

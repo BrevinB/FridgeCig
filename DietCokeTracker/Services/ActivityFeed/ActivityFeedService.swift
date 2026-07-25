@@ -14,8 +14,12 @@ class ActivityFeedService: ObservableObject {
     /// Emits when a global photo activity is posted (for GlobalFeedService to pick up)
     let globalPhotoPosted = PassthroughSubject<ActivityItem, Never>()
 
-    /// Emits when cheers are updated (activityID, newCount, newUserIDs)
-    let cheersUpdated = PassthroughSubject<(UUID, Int, [String]), Never>()
+    /// Emits when a post's reaction set changes, so other feeds showing the
+    /// same post (the global grid) can stay in sync.
+    let reactionsUpdated = PassthroughSubject<(UUID, [Reaction]), Never>()
+
+    /// Set at launch so reacting to a friend's post lands in their inbox.
+    weak var socialNotifications: SocialNotificationService?
 
     private let cloudKitManager: CloudKitManager
     private let preferencesKey = "UserSharingPreferences"
@@ -273,6 +277,14 @@ class ActivityFeedService: ObservableObject {
         await postActivity(activity)
     }
 
+    /// Activity IDs backed by a given drink entry. Callers capture these before
+    /// deleting so they can clean up attached data (comment threads).
+    func activityIDs(forEntryID entryID: String) -> [UUID] {
+        activities
+            .filter { $0.type == .drinkLog && $0.payload.drinkEntryID == entryID }
+            .map { $0.id }
+    }
+
     /// Delete a drink activity when the drink entry is deleted
     func deleteDrinkActivity(entryID: String, userID: String) async {
         AppLogger.activity.debug("deleteDrinkActivity called for entryID: \(entryID)")
@@ -419,34 +431,43 @@ class ActivityFeedService: ObservableObject {
         }
     }
 
-    // MARK: - Cheers (Reactions)
+    // MARK: - Reactions
 
-    func toggleCheers(for activity: ActivityItem) async {
+    /// The freshest copy of a post: the feed's own entry when it has one,
+    /// otherwise whatever the caller is holding (e.g. a global feed item).
+    private func liveActivity(for activity: ActivityItem) -> ActivityItem {
+        activities.first { $0.id == activity.id } ?? activity
+    }
+
+    /// The current user's reaction on a post, if any.
+    func myReaction(on activity: ActivityItem) -> ReactionEmoji? {
+        guard let currentID = currentUserID else { return nil }
+        return liveActivity(for: activity).reaction(by: currentID)
+    }
+
+    func reactionGroups(for activity: ActivityItem) -> [ReactionGroup] {
+        liveActivity(for: activity).reactionGroups
+    }
+
+    /// Adds, swaps, or removes the current user's reaction. Tapping the emoji
+    /// you already left removes it; tapping a different one replaces it.
+    func toggleReaction(_ emoji: ReactionEmoji, on activity: ActivityItem) async {
         guard let currentID = currentUserID else { return }
 
-        // Build updated cheers data from the source of truth
-        var cheersUserIDs = activity.cheersUserIDs
-        var cheersCount = activity.cheersCount
+        let source = liveActivity(for: activity)
+        let previous = source.reaction(by: currentID)
+        let newEmoji: ReactionEmoji? = (previous == emoji) ? nil : emoji
+        let updated = source.reactions.settingReaction(newEmoji, for: currentID)
 
-        if cheersUserIDs.contains(currentID) {
-            cheersUserIDs.removeAll { $0 == currentID }
-            cheersCount = max(0, cheersCount - 1)
-        } else {
-            cheersUserIDs.append(currentID)
-            cheersCount += 1
-        }
-
-        // Update in activities list (friends feed) if present
+        // Optimistic local update everywhere this post is shown.
         if let index = activities.firstIndex(where: { $0.id == activity.id }) {
-            activities[index].cheersUserIDs = cheersUserIDs
-            activities[index].cheersCount = cheersCount
+            activities[index].applyReactions(updated)
         }
+        reactionsUpdated.send((activity.id, updated))
 
-        // Notify so GlobalFeedService can update too
-        cheersUpdated.send((activity.id, cheersCount, cheersUserIDs))
+        // "Only Me" posts live in the private database and have no audience.
+        guard !source.isLocalOnly else { return }
 
-        // Sync to cloud with conflict resolution
-        let userToToggle = currentID
         do {
             let predicate = NSPredicate(format: "activityID == %@", activity.id.uuidString)
             let records = try await cloudKitManager.fetchFromPublic(
@@ -455,34 +476,34 @@ class ActivityFeedService: ObservableObject {
                 limit: 1
             )
 
-            if let existingRecord = records.first {
-                existingRecord["cheersCount"] = cheersCount
-                existingRecord["cheersUserIDs"] = cheersUserIDs
+            guard let existingRecord = records.first else {
+                AppLogger.activity.error("No record found for activity \(activity.id.uuidString), reaction not synced")
+                return
+            }
 
-                try await cloudKitManager.saveToPublicWithConflictResolution(existingRecord) { serverRecord, localRecord in
-                    // Merge: re-apply the toggle on top of the server's current state
-                    var serverUserIDs = serverRecord["cheersUserIDs"] as? [String] ?? []
-                    if serverUserIDs.contains(userToToggle) {
-                        serverUserIDs.removeAll { $0 == userToToggle }
-                    } else {
-                        serverUserIDs.append(userToToggle)
-                    }
-                    serverRecord["cheersUserIDs"] = serverUserIDs
-                    serverRecord["cheersCount"] = serverUserIDs.count
-                }
+            ActivityItem.write(reactions: updated, to: existingRecord)
+
+            try await cloudKitManager.saveToPublicWithConflictResolution(existingRecord) { serverRecord, _ in
+                // Re-apply just our change on top of whatever the server has,
+                // so concurrent reactions from other users aren't clobbered.
+                let merged = ActivityItem.reactions(from: serverRecord)
+                    .settingReaction(newEmoji, for: currentID)
+                ActivityItem.write(reactions: merged, to: serverRecord)
             }
         } catch {
-            AppLogger.activity.error("Failed to update cheers: \(error.localizedDescription)")
+            AppLogger.activity.error("Failed to update reaction: \(error.localizedDescription)")
         }
-    }
 
-    func hasUserCheered(_ activity: ActivityItem) -> Bool {
-        guard let currentID = currentUserID else { return false }
-        // Check the live list first (friends feed), then fall back to passed-in item
-        if let liveItem = activities.first(where: { $0.id == activity.id }) {
-            return liveItem.cheersUserIDs.contains(currentID)
+        // Only tell the author about new reactions, not removals, and never
+        // about their own.
+        if let newEmoji, source.userID != currentID {
+            await socialNotifications?.send(
+                kind: .reaction,
+                to: source.userID,
+                activityID: source.id,
+                detail: newEmoji.rawValue
+            )
         }
-        return activity.cheersUserIDs.contains(currentID)
     }
 
     // MARK: - Content Reports

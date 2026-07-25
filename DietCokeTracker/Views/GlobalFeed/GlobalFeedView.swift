@@ -43,7 +43,7 @@ struct GlobalFeedView: View {
         }
         .background(backgroundColor)
         .task {
-            globalFeedService.observeCheersUpdates(from: activityService)
+            globalFeedService.observeReactionUpdates(from: activityService)
             if globalFeedService.items.isEmpty {
                 if let userID = identityService.currentIdentity?.userIDString {
                     let blockedIDs = (try? await friendService.fetchBlockedUserIDs(forUserID: userID)) ?? []
@@ -354,11 +354,17 @@ private struct GlobalFeedCard: View {
 
                         Spacer()
 
-                        if item.cheersCount > 0 {
+                        if item.totalReactionCount > 0 {
                             HStack(spacing: 3) {
-                                Image(systemName: "hands.clap.fill")
-                                    .font(.system(size: 10))
-                                Text("\(item.cheersCount)")
+                                // Lead with whatever emoji is winning on this post.
+                                if let top = item.reactionGroups.first {
+                                    Text(top.emoji.rawValue)
+                                        .font(.system(size: 11))
+                                } else {
+                                    Image(systemName: "hands.clap.fill")
+                                        .font(.system(size: 10))
+                                }
+                                Text("\(item.totalReactionCount)")
                                     .font(.system(size: 11, weight: .semibold))
                             }
                             .foregroundColor(.white)

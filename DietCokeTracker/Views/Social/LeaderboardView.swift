@@ -584,8 +584,11 @@ private struct ErrorMessageView: View {
     }
 }
 
+#if DEBUG
 #Preview {
-    LeaderboardView()
-        .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
-        .environmentObject(FriendConnectionService(cloudKitManager: CloudKitManager()))
+    NavigationStack {
+        LeaderboardView()
+    }
+    .withPreviewEnvironment()
 }
+#endif

@@ -36,6 +36,10 @@ class FriendConnectionService: ObservableObject {
         }
     }
 
+    /// Set at launch so friend requests and acceptances reach the other
+    /// person's inbox (and their lock screen).
+    weak var socialNotifications: SocialNotificationService?
+
     private let cloudKitManager: CloudKitManager
     private var connectionRecordIDs: [UUID: CKRecord.ID] = [:]
     /// Maps friend userID to the CKRecord.ID of the connection (for removal)
@@ -262,6 +266,8 @@ class FriendConnectionService: ObservableObject {
         AppLogger.friends.info("FriendConnection saved successfully! RecordID: \(record.recordID)")
         connectionRecordIDs[connection.id] = record.recordID
         sentRequests.append(connection)
+
+        await socialNotifications?.send(kind: .friendRequest, to: targetProfile.userIDString)
         AppLogger.friends.info("=== FRIEND REQUEST SENT SUCCESSFULLY ===")
     }
 
@@ -286,6 +292,8 @@ class FriendConnectionService: ObservableObject {
 
         // Remove from pending and add friend
         pendingRequests.removeAll { $0.id == connection.id }
+
+        await socialNotifications?.send(kind: .friendAccepted, to: connection.requesterID)
 
         // Fetch the requester's profile
         if let requesterRecord = try await cloudKitManager.fetchUserProfile(byUserID: connection.requesterID),

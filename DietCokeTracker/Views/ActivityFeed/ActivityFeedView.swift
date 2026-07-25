@@ -5,6 +5,7 @@ struct ActivityFeedView: View {
     @EnvironmentObject var activityService: ActivityFeedService
     @EnvironmentObject var identityService: IdentityService
     @EnvironmentObject var friendService: FriendConnectionService
+    @EnvironmentObject var commentService: CommentService
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
@@ -64,6 +65,13 @@ struct ActivityFeedView: View {
         )
         activityService.updateAvatarMap(from: friendService.friends)
         await activityService.fetchActivities()
+
+        // One batched query fills in reply counts and previews for the whole
+        // feed rather than one request per row.
+        let sharedActivityIDs = activityService.activities
+            .filter { !$0.isLocalOnly }
+            .map { $0.id }
+        await commentService.loadCounts(for: sharedActivityIDs)
     }
 }
 
@@ -285,13 +293,18 @@ struct ActivityItemRow: View {
             // Content based on type
             ActivityContent(activity: activity)
 
+            if !activity.isLocalOnly {
+                LatestCommentPreview(activity: activity)
+            }
+
             // Actions
-            HStack {
+            HStack(spacing: 8) {
                 if !activity.isLocalOnly {
-                    CheersButton(activity: activity)
+                    ReactionBar(activity: activity)
+                    CommentButton(activity: activity)
                 }
 
-                Spacer()
+                Spacer(minLength: 4)
 
                 // Badge rarity if applicable
                 if let rarity = activity.payload.badgeRarity {
@@ -554,57 +567,11 @@ struct ActivityFullScreenPhotoView: View {
     }
 }
 
-// MARK: - Cheers Button
-
-struct CheersButton: View {
-    let activity: ActivityItem
-    @EnvironmentObject var activityService: ActivityFeedService
-    @State private var isAnimating = false
-
-    var hasCheered: Bool {
-        activityService.hasUserCheered(activity)
-    }
-
-    var body: some View {
-        Button {
-            withAnimation(.spring(response: 0.3)) {
-                isAnimating = true
-            }
-            HapticManager.cheerSent()
-
-            Task {
-                await activityService.toggleCheers(for: activity)
-                isAnimating = false
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: hasCheered ? "hands.clap.fill" : "hands.clap")
-                    .font(.body)
-                    .symbolEffect(.bounce, value: isAnimating)
-
-                if activity.cheersCount > 0 {
-                    Text("\(activity.cheersCount)")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-            }
-            .foregroundColor(hasCheered ? .orange : .dietCokeDarkSilver)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(hasCheered ? Color.orange.opacity(0.15) : Color(.systemGray6))
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
+#if DEBUG
 #Preview {
     NavigationStack {
         ActivityFeedView()
-            .environmentObject(ActivityFeedService(cloudKitManager: CloudKitManager()))
-            .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
-            .environmentObject(FriendConnectionService(cloudKitManager: CloudKitManager()))
     }
+    .withPreviewEnvironment()
 }
+#endif

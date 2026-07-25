@@ -28,6 +28,9 @@ class DeepLinkHandler: ObservableObject {
     @Published var shouldNavigateToStateCans = false
     @Published var shouldShowPaywall = false
     @Published var shouldShowTodayRecap = false
+    /// Raised when a social push is tapped — routes to the Social tab and opens
+    /// the inbox, even if that tab hasn't been built yet this launch.
+    @Published var shouldShowSocialInbox = false
 
     private init() {}
 
@@ -96,6 +99,13 @@ class DeepLinkHandler: ObservableObject {
         shouldNavigateToStateCans = false
         shouldShowPaywall = false
         shouldShowTodayRecap = false
+        shouldShowSocialInbox = false
+    }
+
+    /// Clear just the social inbox flag, so clearing it doesn't cancel an
+    /// unrelated pending navigation.
+    func clearPendingSocialInbox() {
+        shouldShowSocialInbox = false
     }
 
     /// Clear just the friend code state

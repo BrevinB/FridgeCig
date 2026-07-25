@@ -22,6 +22,7 @@ class NotificationService: ObservableObject {
     private var friendIDs: [String] = []
     private var failedSubscriptionRetryInfo: [(recordType: String, predicate: NSPredicate, subscriptionID: String, notificationInfo: CKSubscription.NotificationInfo, options: CKQuerySubscription.Options)] = []
     private var networkObserver: Any?
+    private var didRemoveLegacySubscriptionsFor: Set<String> = []
 
     // MARK: - Notification Identifiers
 
@@ -34,10 +35,19 @@ class NotificationService: ObservableObject {
     // MARK: - CloudKit Subscription IDs
 
     private enum SubscriptionID {
-        static func friendRequest(userID: String) -> String { "friend-request-\(userID)" }
-        static func friendAccepted(userID: String) -> String { "friend-accepted-\(userID)" }
-        static func cheersReceived(userID: String) -> String { "cheers-received-\(userID)" }
+        static func socialActivity(userID: String) -> String { "social-activity-\(userID)" }
         static func friendMilestones(userID: String) -> String { "friend-milestones-\(userID)" }
+
+        /// Superseded by `socialActivity`, which delivers the same events with
+        /// the actor's name attached and without the duplicate banners these
+        /// produced. Deleted server-side on the next configure.
+        static func legacy(userID: String) -> [String] {
+            [
+                "friend-request-\(userID)",
+                "friend-accepted-\(userID)",
+                "cheers-received-\(userID)"
+            ]
+        }
     }
 
     init(cloudKitManager: CloudKitManager) {
@@ -251,9 +261,8 @@ class NotificationService: ObservableObject {
         // Clear previous failures before retrying
         failedSubscriptionRetryInfo = []
 
-        await updateFriendRequestSubscription(userID: userID)
-        await updateFriendAcceptedSubscription(userID: userID)
-        await updateCheersSubscription(userID: userID)
+        await removeLegacySubscriptions(userID: userID)
+        await updateSocialActivitySubscription(userID: userID)
         await updateFriendMilestonesSubscription()
 
         if !failedSubscriptionRetryInfo.isEmpty {
@@ -308,78 +317,58 @@ class NotificationService: ObservableObject {
         }
     }
 
-    private func updateFriendRequestSubscription(userID: String) async {
-        let subscriptionID = SubscriptionID.friendRequest(userID: userID)
+    /// Tears down the per-event subscriptions that `socialActivity` replaced.
+    /// Without this, upgraded users keep receiving the old generic banners
+    /// alongside the new named ones.
+    ///
+    /// Runs at most once per user per launch — subscription updates happen on
+    /// every preference and friend-list change, and these deletes are pure
+    /// no-ops after the first pass.
+    private func removeLegacySubscriptions(userID: String) async {
+        guard !didRemoveLegacySubscriptionsFor.contains(userID) else { return }
+        didRemoveLegacySubscriptionsFor.insert(userID)
 
-        if preferences.friendRequestsEnabled {
-            let predicate = NSPredicate(format: "targetID == %@ AND status == %@", userID, "pending")
-            let notificationInfo = CKSubscription.NotificationInfo()
-            notificationInfo.alertLocalizationKey = "New friend request"
-            notificationInfo.soundName = "default"
-            notificationInfo.shouldBadge = true
-
-            let success = await cloudKitManager.createSubscription(
-                recordType: "FriendConnection",
-                predicate: predicate,
-                subscriptionID: subscriptionID,
-                notificationInfo: notificationInfo,
-                options: [.firesOnRecordCreation]
-            )
-            if !success {
-                failedSubscriptionRetryInfo.append((recordType: "FriendConnection", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordCreation]))
-            }
-        } else {
+        for subscriptionID in SubscriptionID.legacy(userID: userID) {
             await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
         }
     }
 
-    private func updateFriendAcceptedSubscription(userID: String) async {
-        let subscriptionID = SubscriptionID.friendAccepted(userID: userID)
+    /// One subscription for every social event addressed to this user.
+    ///
+    /// `SocialNotification` records carry the actor's name and a ready-made
+    /// body, and CloudKit substitutes those fields straight into the alert. That
+    /// turns "Someone cheered your activity" into "Alex — cheered your post 🔥"
+    /// without a server or a silent-push round trip.
+    private func updateSocialActivitySubscription(userID: String) async {
+        let subscriptionID = SubscriptionID.socialActivity(userID: userID)
 
-        if preferences.friendAcceptedEnabled {
-            let predicate = NSPredicate(format: "requesterID == %@ AND status == %@", userID, "accepted")
-            let notificationInfo = CKSubscription.NotificationInfo()
-            notificationInfo.alertLocalizationKey = "Friend request accepted"
-            notificationInfo.soundName = "default"
-            notificationInfo.shouldBadge = true
-
-            let success = await cloudKitManager.createSubscription(
-                recordType: "FriendConnection",
-                predicate: predicate,
-                subscriptionID: subscriptionID,
-                notificationInfo: notificationInfo,
-                options: [.firesOnRecordUpdate]
-            )
-            if !success {
-                failedSubscriptionRetryInfo.append((recordType: "FriendConnection", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordUpdate]))
-            }
-        } else {
+        guard preferences.socialActivityEnabled else {
             await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
+            return
         }
-    }
 
-    private func updateCheersSubscription(userID: String) async {
-        let subscriptionID = SubscriptionID.cheersReceived(userID: userID)
+        let predicate = NSPredicate(format: "recipientID == %@", userID)
+        let notificationInfo = CKSubscription.NotificationInfo()
+        // The keys double as the format strings; with no matching entry in a
+        // strings file, iOS falls back to the key itself and substitutes the
+        // named record fields.
+        notificationInfo.titleLocalizationKey = "%1$@"
+        notificationInfo.titleLocalizationArgs = ["actorName"]
+        notificationInfo.alertLocalizationKey = "%1$@"
+        notificationInfo.alertLocalizationArgs = ["bodyText"]
+        notificationInfo.category = "SOCIAL"
+        notificationInfo.soundName = "default"
+        notificationInfo.shouldBadge = true
 
-        if preferences.cheersReceivedEnabled {
-            let predicate = NSPredicate(format: "userID == %@", userID)
-            let notificationInfo = CKSubscription.NotificationInfo()
-            notificationInfo.alertLocalizationKey = "Someone cheered your activity"
-            notificationInfo.soundName = "default"
-            notificationInfo.shouldBadge = true
-
-            let success = await cloudKitManager.createSubscription(
-                recordType: "ActivityItem",
-                predicate: predicate,
-                subscriptionID: subscriptionID,
-                notificationInfo: notificationInfo,
-                options: [.firesOnRecordUpdate]
-            )
-            if !success {
-                failedSubscriptionRetryInfo.append((recordType: "ActivityItem", predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordUpdate]))
-            }
-        } else {
-            await cloudKitManager.removeSubscription(subscriptionID: subscriptionID)
+        let success = await cloudKitManager.createSubscription(
+            recordType: SocialNotification.recordType,
+            predicate: predicate,
+            subscriptionID: subscriptionID,
+            notificationInfo: notificationInfo,
+            options: [.firesOnRecordCreation]
+        )
+        if !success {
+            failedSubscriptionRetryInfo.append((recordType: SocialNotification.recordType, predicate: predicate, subscriptionID: subscriptionID, notificationInfo: notificationInfo, options: [.firesOnRecordCreation]))
         }
     }
 
@@ -395,7 +384,14 @@ class NotificationService: ObservableObject {
                 friendIDs, "badgeUnlock", "streakMilestone"
             )
             let notificationInfo = CKSubscription.NotificationInfo()
-            notificationInfo.alertLocalizationKey = "A friend hit a milestone!"
+            // Same field-substitution trick as the social subscription, so the
+            // banner names the friend and the achievement without the app
+            // posting a second one on top.
+            notificationInfo.titleLocalizationKey = "%1$@"
+            notificationInfo.titleLocalizationArgs = ["displayName"]
+            notificationInfo.alertLocalizationKey = "%1$@"
+            notificationInfo.alertLocalizationArgs = ["milestoneText"]
+            notificationInfo.category = "FRIEND_MILESTONE"
             notificationInfo.soundName = "default"
             notificationInfo.shouldBadge = true
 
@@ -428,14 +424,8 @@ class NotificationService: ObservableObject {
             AppLogger.notifications.debug("Received push for subscription: \(subscriptionID)")
 
             // Determine notification type based on subscription ID
-            if subscriptionID.hasPrefix("friend-request-") {
-                await handleFriendRequestNotification(queryNotification)
-            } else if subscriptionID.hasPrefix("friend-accepted-") {
-                await handleFriendAcceptedNotification(queryNotification)
-            } else if subscriptionID.hasPrefix("cheers-received-") {
-                await handleCheersNotification(queryNotification)
-            } else if subscriptionID.hasPrefix("friend-milestones-") {
-                await handleFriendMilestoneNotification(queryNotification)
+            if subscriptionID.hasPrefix("social-activity-") {
+                handleSocialActivityNotification()
             }
 
             return .newData
@@ -444,84 +434,11 @@ class NotificationService: ObservableObject {
         return .noData
     }
 
-    private func handleFriendRequestNotification(_ notification: CKQueryNotification) async {
-        // Fetch the friend connection record to get requester info
-        guard let recordID = notification.recordID else { return }
-
-        do {
-            if let record = try await cloudKitManager.fetchFromPublic(recordID: recordID) {
-                let requesterID = record["requesterID"] as? String ?? ""
-
-                // Fetch requester profile to get their display name
-                if let profile = try await cloudKitManager.fetchUserProfile(byUserID: requesterID) {
-                    let displayName = profile["displayName"] as? String ?? "Someone"
-                    await showLocalNotification(
-                        title: "New Friend Request",
-                        body: "\(displayName) wants to be your friend!",
-                        categoryIdentifier: "FRIEND_REQUEST"
-                    )
-                }
-            }
-        } catch {
-            AppLogger.notifications.error("Error handling friend request: \(error.localizedDescription)")
-        }
-    }
-
-    private func handleFriendAcceptedNotification(_ notification: CKQueryNotification) async {
-        guard let recordID = notification.recordID else { return }
-
-        do {
-            if let record = try await cloudKitManager.fetchFromPublic(recordID: recordID) {
-                let targetID = record["targetID"] as? String ?? ""
-
-                if let profile = try await cloudKitManager.fetchUserProfile(byUserID: targetID) {
-                    let displayName = profile["displayName"] as? String ?? "Someone"
-                    await showLocalNotification(
-                        title: "Friend Request Accepted",
-                        body: "\(displayName) accepted your friend request!",
-                        categoryIdentifier: "FRIEND_ACCEPTED"
-                    )
-                }
-            }
-        } catch {
-            AppLogger.notifications.error("Error handling friend accepted: \(error.localizedDescription)")
-        }
-    }
-
-    private func handleCheersNotification(_ notification: CKQueryNotification) async {
-        await showLocalNotification(
-            title: "New Cheers!",
-            body: "Someone cheered your activity!",
-            categoryIdentifier: "CHEERS"
-        )
-    }
-
-    private func handleFriendMilestoneNotification(_ notification: CKQueryNotification) async {
-        guard let recordID = notification.recordID else { return }
-
-        do {
-            if let record = try await cloudKitManager.fetchFromPublic(recordID: recordID) {
-                let displayName = record["displayName"] as? String ?? "A friend"
-                let activityType = record["type"] as? String ?? ""
-
-                let body: String
-                if activityType == "badgeUnlock" {
-                    body = "\(displayName) earned a new badge!"
-                } else if activityType == "streakMilestone" {
-                    body = "\(displayName) hit a streak milestone!"
-                } else {
-                    body = "\(displayName) achieved something awesome!"
-                }
-
-                await showLocalNotification(
-                    title: "Friend Milestone",
-                    body: body,
-                    categoryIdentifier: "FRIEND_MILESTONE"
-                )
-            }
-        } catch {
-            AppLogger.notifications.error("Error handling friend milestone: \(error.localizedDescription)")
-        }
+    /// CloudKit renders these alerts from the record's own fields, so there's
+    /// nothing to display here — just tell the inbox to refetch so the badge
+    /// and list are current when the user opens the app.
+    private func handleSocialActivityNotification() {
+        NotificationCenter.default.post(name: .socialInboxDidChange, object: nil)
     }
 
     private func showLocalNotification(title: String, body: String, categoryIdentifier: String) async {
@@ -555,18 +472,20 @@ class NotificationService: ObservableObject {
         )
     }
 
+    /// Mirrors the shape a real social push takes: actor name as the title,
+    /// the event as the body.
     func testCheersNotification() async {
         await showLocalNotification(
-            title: "New Cheers!",
-            body: "Someone cheered your activity!",
-            categoryIdentifier: "CHEERS"
+            title: "TestFriend",
+            body: "fired up your post 🔥",
+            categoryIdentifier: "SOCIAL"
         )
     }
 
     func testFriendMilestoneNotification() async {
         await showLocalNotification(
-            title: "Friend Milestone",
-            body: "TestFriend earned a new badge!",
+            title: "TestFriend",
+            body: "earned the Centurion badge 🏆",
             categoryIdentifier: "FRIEND_MILESTONE"
         )
     }

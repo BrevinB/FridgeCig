@@ -5,6 +5,7 @@ struct GlobalFeedDetailView: View {
     @EnvironmentObject var friendService: FriendConnectionService
     @EnvironmentObject var globalFeedService: GlobalFeedService
     @EnvironmentObject var identityService: IdentityService
+    @EnvironmentObject var commentService: CommentService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -20,20 +21,13 @@ struct GlobalFeedDetailView: View {
     @State private var userProfile: UserProfile?
 
     private var hasCheered: Bool {
-        activityService.hasUserCheered(item)
+        activityService.myReaction(on: item) != nil
     }
 
     private var backgroundColor: Color {
         colorScheme == .dark
             ? Color(red: 0.08, green: 0.08, blue: 0.10)
             : Color(red: 0.96, green: 0.96, blue: 0.97)
-    }
-
-    private var cheersButtonBackground: Color {
-        if hasCheered {
-            return Color.dietCokeRed.opacity(0.12)
-        }
-        return colorScheme == .dark ? Color(white: 0.15) : Color(.systemGray6)
     }
 
     private var toolbarIconSecondary: Color {
@@ -110,6 +104,9 @@ struct GlobalFeedDetailView: View {
             .navigationDestination(for: UserProfile.self) { profile in
                 FriendDetailView(friend: profile)
             }
+            .task {
+                await commentService.loadCounts(for: [item.id])
+            }
         }
     }
 
@@ -170,6 +167,7 @@ struct GlobalFeedDetailView: View {
     private var infoSection: some View {
         VStack(spacing: 16) {
             userInfoRow
+            engagementRow
             drinkDetailsView
             noteView
             hintText
@@ -192,7 +190,14 @@ struct GlobalFeedDetailView: View {
             .buttonStyle(.plain)
 
             Spacer()
-            cheersButton
+        }
+    }
+
+    private var engagementRow: some View {
+        HStack(spacing: 8) {
+            ReactionBar(activity: item)
+            CommentButton(activity: item)
+            Spacer(minLength: 0)
         }
     }
 
@@ -275,34 +280,6 @@ struct GlobalFeedDetailView: View {
             )
         )
         .clipShape(Capsule())
-    }
-
-    private var cheersButton: some View {
-        Button {
-            HapticManager.cheerSent()
-            Task {
-                await activityService.toggleCheers(for: item)
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: hasCheered ? "hands.clap.fill" : "hands.clap")
-                    .font(.system(size: 18))
-                    .symbolEffect(.bounce, value: showCheersAnimation)
-                if item.cheersCount > 0 {
-                    Text("\(item.cheersCount)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-            }
-            .foregroundColor(hasCheered ? .dietCokeRed : .dietCokeDarkSilver)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(cheersButtonBackground)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -442,6 +419,8 @@ struct GlobalFeedDetailView: View {
     // MARK: - Actions
 
     private func doubleTapCheers() {
+        // Double-tap is the shortcut for the default reaction; the bar covers
+        // the rest. Never turns an existing reaction off by accident.
         guard !hasCheered else { return }
         HapticManager.cheerSent()
 
@@ -450,7 +429,7 @@ struct GlobalFeedDetailView: View {
         }
 
         Task {
-            await activityService.toggleCheers(for: item)
+            await activityService.toggleReaction(.legacyDefault, on: item)
             try? await Task.sleep(for: .seconds(0.8))
             withAnimation(.easeOut(duration: 0.25)) {
                 showCheersAnimation = false

@@ -111,25 +111,30 @@ struct FriendDetailView: View {
             EmptyView()
 
         case .friend:
-            Button {
-                showingRemoveAlert = true
-            } label: {
-                HStack {
-                    if isRemoving {
-                        ProgressView()
-                            .tint(.red)
-                    } else {
-                        Image(systemName: "person.badge.minus")
+            VStack(spacing: 12) {
+                NudgeButton(friend: friend)
+                    .frame(maxWidth: .infinity)
+
+                Button {
+                    showingRemoveAlert = true
+                } label: {
+                    HStack {
+                        if isRemoving {
+                            ProgressView()
+                                .tint(.red)
+                        } else {
+                            Image(systemName: "person.badge.minus")
+                        }
+                        Text("Remove Friend")
                     }
-                    Text("Remove Friend")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .foregroundColor(.red)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(12)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.red)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(12)
+                .disabled(isRemoving)
             }
-            .disabled(isRemoving)
 
         case .requestSent:
             HStack {
@@ -271,13 +276,14 @@ private struct FriendStatCard: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         FriendDetailView(friend: UserProfile(from: UserIdentity(
             displayName: "Test Friend",
             friendCode: "ABC123"
         )))
-        .environmentObject(IdentityService(cloudKitManager: CloudKitManager()))
-        .environmentObject(FriendConnectionService(cloudKitManager: CloudKitManager()))
     }
+    .withPreviewEnvironment()
 }
+#endif
