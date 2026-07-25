@@ -74,7 +74,11 @@ struct AddDrinkView: View {
                         showingCamera: $showingCamera
                     )
 
-                    VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil)
+                    VisibilityPicker(
+                        visibility: $visibility,
+                        hasPhoto: capturedPhoto != nil,
+                        onRequestPhoto: { showingCamera = CameraView.isAvailable }
+                    )
 
                     RatingSection(selectedRating: $selectedRating)
 
@@ -157,7 +161,10 @@ struct AddDrinkView: View {
             }
             .onChange(of: capturedPhoto) { _, newPhoto in
                 let prefs = activityService.sharingPreferences
-                if newPhoto == nil && visibility == .public {
+                // Removing the photo takes Public off the table. Keep the
+                // selection there when the user asked for Public *first* and is
+                // on their way to the camera — the picker drives that case.
+                if newPhoto == nil && visibility == .public && !showingCamera {
                     visibility = .friends
                 } else if newPhoto != nil,
                           prefs.shareDrinkLogs,

@@ -7,9 +7,14 @@ struct GlobalFeedView: View {
     @EnvironmentObject var identityService: IdentityService
     @Environment(\.colorScheme) private var colorScheme
 
+    @EnvironmentObject var deepLinkHandler: DeepLinkHandler
+
     @State private var selectedItem: ActivityItem?
     @State private var photoCache: [String: UIImage] = [:]
-    @State private var showingPreferences = false
+    @State private var showingGlobalInvite = false
+    /// Deferred until the invite sheet has fully dismissed, so the Add Drink
+    /// sheet isn't presented from a sheet that's on its way out.
+    @State private var pendingFirstPost = false
     @State private var hasAppeared = false
 
     private var isGlobalSharingEnabled: Bool {
@@ -60,9 +65,19 @@ struct GlobalFeedView: View {
                 photo: photoCache[item.payload.photoURL ?? ""]
             )
         }
-        .onChange(of: showingPreferences) { _, _ in }
-        .sheet(isPresented: $showingPreferences) {
-            SharingPreferencesView()
+        // Full sharing settings still live behind the gear in the Feed toolbar;
+        // this banner now leads with the invite instead.
+        .sheet(isPresented: $showingGlobalInvite, onDismiss: {
+            if pendingFirstPost {
+                pendingFirstPost = false
+                startFirstPost()
+            }
+        }) {
+            GlobalFeedInviteSheet {
+                // Freshly opted in — send them straight to logging rather than
+                // back to an empty grid.
+                pendingFirstPost = true
+            }
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.3)) {
@@ -75,7 +90,7 @@ struct GlobalFeedView: View {
 
     private var optInBanner: some View {
         Button {
-            showingPreferences = true
+            showingGlobalInvite = true
         } label: {
             HStack(spacing: 12) {
                 ZStack {
@@ -155,13 +170,50 @@ struct GlobalFeedView: View {
                     .fontWeight(.bold)
                     .foregroundColor(.dietCokeCharcoal)
 
-                Text("When users share photos globally,\nthey'll appear here.")
+                Text(isGlobalSharingEnabled
+                     ? "Be the first. Log a drink with a photo\nand set it to Public."
+                     : "Photos shared to the Global feed\nshow up here.")
                     .font(.subheadline)
                     .foregroundColor(.dietCokeDarkSilver)
                     .multilineTextAlignment(.center)
             }
+
+            // An empty feed is the worst possible moment to say nothing — this
+            // is where someone is most likely to contribute the first photo.
+            Button {
+                if isGlobalSharingEnabled {
+                    startFirstPost()
+                } else {
+                    showingGlobalInvite = true
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: isGlobalSharingEnabled ? "camera.fill" : "globe")
+                    Text(isGlobalSharingEnabled ? "Share the First Photo" : "Join the Global Feed")
+                }
+                .font(.headline)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .foregroundColor(.white)
+                .cornerRadius(14)
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Hands off to the Add Drink sheet, which owns the camera and the
+    /// visibility picker.
+    private func startFirstPost() {
+        HapticManager.lightImpact()
+        deepLinkHandler.shouldNavigateToAddDrink = true
     }
 
     // MARK: - Loading Skeleton Grid

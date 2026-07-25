@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var socialNotifications: SocialNotificationService
+    @EnvironmentObject var activityService: ActivityFeedService
 
     @State private var showingAddDrink = false
     @State private var selectedTab: RootTab = .today
@@ -21,6 +22,8 @@ struct ContentView: View {
     @State private var showingWhatsNew = false
     @State private var showingPaywallFromDeepLink = false
     @State private var showingTodayRecap = false
+    @State private var globalPostOutcome: ActivityFeedService.GlobalPostOutcome?
+    @State private var showingGlobalInvite = false
 
     enum RootTab { case today, history, social, badges, cans, stats, settings }
 
@@ -53,6 +56,14 @@ struct ContentView: View {
                 showingPaywallFromDeepLink: $showingPaywallFromDeepLink,
                 showingTodayRecap: $showingTodayRecap
             ))
+            .onReceive(activityService.globalPostOutcome) { outcome in
+                withAnimation(.spring(response: 0.4)) {
+                    globalPostOutcome = outcome
+                }
+            }
+            .sheet(isPresented: $showingGlobalInvite) {
+                GlobalFeedInviteSheet()
+            }
             .onAppear {
                 store.checkBadges(with: badgeStore)
                 if preferences.shouldShowWhatsNew {
@@ -105,7 +116,53 @@ struct ContentView: View {
                 }
 
                 badgeToastOverlay
+                globalPostToastOverlay
             }
+        }
+    }
+
+    // MARK: - Global Post Feedback
+
+    @ViewBuilder
+    private var globalPostToastOverlay: some View {
+        if let outcome = globalPostOutcome {
+            VStack {
+                Spacer()
+                GlobalPostToast(outcome: outcome) {
+                    handleGlobalToastTap(outcome)
+                } onDismiss: {
+                    dismissGlobalToast()
+                }
+                // Clear of the tab bar.
+                .padding(.bottom, 60)
+            }
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .zIndex(90)
+            .task(id: outcome) {
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+                dismissGlobalToast()
+            }
+        }
+    }
+
+    private func handleGlobalToastTap(_ outcome: ActivityFeedService.GlobalPostOutcome) {
+        dismissGlobalToast()
+
+        switch outcome {
+        case .published:
+            UserDefaults.standard.set(FeedView.Scope.global.rawValue, forKey: FeedView.scopeStorageKey)
+            selectedTab = .social
+        case .notOptedIn:
+            showingGlobalInvite = true
+        case .blockedBySafety, .noPhoto:
+            break
+        }
+    }
+
+    private func dismissGlobalToast() {
+        withAnimation(.easeOut(duration: 0.25)) {
+            globalPostOutcome = nil
         }
     }
 

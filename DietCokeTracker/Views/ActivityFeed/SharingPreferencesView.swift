@@ -3,7 +3,6 @@ import SwiftUI
 struct SharingPreferencesView: View {
     @EnvironmentObject var activityService: ActivityFeedService
     @EnvironmentObject var identityService: IdentityService
-    @EnvironmentObject var cloudKitManager: CloudKitManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var shareBadges: Bool = true
@@ -197,23 +196,18 @@ struct SharingPreferencesView: View {
         )
         activityService.updatePreferences(newPrefs)
 
-        // Sync sharePhotosGlobally to CloudKit UserProfile
-        if var profile = identityService.currentProfile {
-            profile.sharePhotosGlobally = shareGlobally
-            Task {
-                if let record = try? await cloudKitManager.fetchUserProfile(byUserID: profile.userIDString) {
-                    record["sharePhotosGlobally"] = shareGlobally ? 1 : 0
-                    try? await cloudKitManager.saveToPublic(record)
-                }
-            }
+        // Goes through IdentityService so `currentProfile` is updated too. The
+        // previous version mutated a local copy and only wrote to CloudKit,
+        // leaving the in-memory profile reporting the old value until relaunch.
+        Task {
+            await identityService.setSharePhotosGlobally(shareGlobally)
         }
     }
 }
 
+#if DEBUG
 #Preview {
-    let ckManager = CloudKitManager()
     SharingPreferencesView()
-        .environmentObject(ActivityFeedService(cloudKitManager: ckManager))
-        .environmentObject(IdentityService(cloudKitManager: ckManager))
-        .environmentObject(ckManager)
+        .withPreviewEnvironment()
 }
+#endif

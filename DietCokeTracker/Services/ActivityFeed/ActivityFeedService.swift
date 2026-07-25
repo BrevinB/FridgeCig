@@ -14,6 +14,20 @@ class ActivityFeedService: ObservableObject {
     /// Emits when a global photo activity is posted (for GlobalFeedService to pick up)
     let globalPhotoPosted = PassthroughSubject<ActivityItem, Never>()
 
+    /// What happened to a post the user marked Public. Emitted so the app can
+    /// confirm it landed — or say why it didn't, rather than failing silently.
+    let globalPostOutcome = PassthroughSubject<GlobalPostOutcome, Never>()
+
+    enum GlobalPostOutcome: Equatable {
+        case published
+        /// The photo tripped the on-device safety classifier.
+        case blockedBySafety
+        /// Marked Public with no photo — the Global feed is a photo grid.
+        case noPhoto
+        /// Marked Public but the global opt-in or photo sharing is off.
+        case notOptedIn
+    }
+
     /// Emits when a post's reaction set changes, so other feeds showing the
     /// same post (the global grid) can stay in sync.
     let reactionsUpdated = PassthroughSubject<(UUID, [Reaction]), Never>()
@@ -246,6 +260,7 @@ class ActivityFeedService: ObservableObject {
         let hasPhoto = photo != nil
         var photoURL: String? = nil
         var isGlobalPhoto = false
+        var outcome: GlobalPostOutcome? = nil
 
         // Only upload photo if sharing prefs allow it AND visibility is beyond Only Me
         if let photo = photo, sharingPreferences.showPhotosInFeed, effectiveVisibility != .onlyMe {
@@ -256,10 +271,17 @@ class ActivityFeedService: ObservableObject {
                 let verificationService = ImageVerificationService()
                 let safetyResult = await verificationService.classifyForSafety(photo)
                 isGlobalPhoto = safetyResult.isSafe
+                outcome = safetyResult.isSafe ? .published : .blockedBySafety
                 if !safetyResult.isSafe {
                     AppLogger.activity.info("Photo blocked from global feed: \(safetyResult.flaggedCategories.joined(separator: ", "))")
                 }
             }
+        }
+
+        // The user asked for Public but something upstream vetoed it. Say which
+        // thing, instead of quietly downgrading the post to friends-only.
+        if effectiveVisibility == .public, outcome == nil {
+            outcome = hasPhoto ? .notOptedIn : .noPhoto
         }
 
         let activity = ActivityItem(
@@ -275,6 +297,10 @@ class ActivityFeedService: ObservableObject {
         )
 
         await postActivity(activity)
+
+        if let outcome {
+            globalPostOutcome.send(outcome)
+        }
     }
 
     /// Activity IDs backed by a given drink entry. Callers capture these before
@@ -544,6 +570,21 @@ class ActivityFeedService: ObservableObject {
     func updatePreferences(_ preferences: UserSharingPreferences) {
         sharingPreferences = preferences
         savePreferences()
+    }
+
+    /// Flips the global-feed opt-in.
+    ///
+    /// Turning it on also enables the two preferences it depends on. Without
+    /// that, a user could opt in from the logging flow, pick "Public", and have
+    /// nothing publish because photo sharing was off three screens away.
+    func setGlobalPhotoSharing(_ enabled: Bool) {
+        var updated = sharingPreferences
+        updated.sharePhotosGlobally = enabled
+        if enabled {
+            updated.shareDrinkLogs = true
+            updated.showPhotosInFeed = true
+        }
+        updatePreferences(updated)
     }
 
     private func savePreferences() {
