@@ -108,6 +108,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case happyTears = "Happy Tears"
     case oreo = "Oreo"
 
+    case starWars = "Star Wars"
+
     var id: String { rawValue }
 
     var category: SpecialEditionCategory {
@@ -121,6 +123,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .starlight, .dreamworld, .marshmello, .byte, .move,
              .ultimate, .y3000, .kWave, .happyTears, .oreo:
             return .cokeCreations
+        case .starWars:
+            return .limited
         }
     }
 
@@ -157,6 +161,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .kWave: return "waveform.circle.fill"
         case .happyTears: return "face.smiling.fill"
         case .oreo: return "circle.circle.fill"
+        case .starWars: return "sparkles"
         }
     }
 
@@ -216,6 +221,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return "Tasted happy tears with peach and minerals"
         case .oreo:
             return "Enjoyed the cookie-inspired Oreo collab"
+        case .starWars:
+            return "Sipped the Star Wars galaxy-spanning Zero Sugar collab. May the fizz be with you."
         }
     }
 
@@ -230,6 +237,8 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai, .dietCherry:
             return .uncommon
+        case .starWars:
+            return .legendary
         }
     }
 
