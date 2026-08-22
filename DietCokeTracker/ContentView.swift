@@ -11,8 +11,13 @@ struct ContentView: View {
     @EnvironmentObject var offlineQueue: OfflineQueue
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var activityService: ActivityFeedService
 
     @State private var showingAddDrink = false
+    // Celebration is queued while the AddDrink sheet is still up, then
+    // presented from its onDismiss so the two sheets never collide.
+    @State private var pendingCelebration: LoggedDrinkCelebration?
+    @State private var presentedCelebration: LoggedDrinkCelebration?
     @State private var selectedTab: RootTab = .today
     @State private var showingBadgeToast = false
     @State private var showingShareSheet = false
@@ -94,8 +99,36 @@ struct ContentView: View {
                         }
                     }
                     .tint(themeManager.primaryColor)
-                    .sheet(isPresented: $showingAddDrink) {
+                    .onChange(of: selectedTab) { _, newTab in
+                        TelemetryService.tabSelected(String(describing: newTab))
+                    }
+                    .sheet(isPresented: $showingAddDrink, onDismiss: {
+                        if let celebration = pendingCelebration {
+                            pendingCelebration = nil
+                            presentedCelebration = celebration
+                        }
+                    }) {
                         AddDrinkView()
+                    }
+                    .sheet(item: $presentedCelebration) { celebration in
+                        DrinkLoggedSheet(celebration: celebration)
+                    }
+                    .onReceive(store.drinkAdded) { entry, photo, visibility in
+                        // Only celebrate logs made through the AddDrink sheet;
+                        // widget/App Intent quick-adds shouldn't pop UI.
+                        guard showingAddDrink else { return }
+                        let prefs = activityService.sharingPreferences
+                        let willPostGlobally = photo != nil
+                            && visibility == .public
+                            && prefs.shareDrinkLogs
+                            && prefs.showPhotosInFeed
+                            && prefs.sharePhotosGlobally
+                        pendingCelebration = LoggedDrinkCelebration(
+                            entry: entry,
+                            photo: photo,
+                            visibility: visibility,
+                            willPostGlobally: willPostGlobally
+                        )
                     }
                 }
 
@@ -271,6 +304,13 @@ private struct ContentViewDeepLinks: ViewModifier {
                     selectedTab = .today
                     showingTodayRecap = true
                     deepLinkHandler.clearPendingNavigation()
+                }
+            }
+            .onChange(of: deepLinkHandler.shouldNavigateToGlobalFeed) { _, shouldNavigate in
+                if shouldNavigate {
+                    // SocialMainView finishes the routing (Feed section, Global
+                    // scope) and clears the flag once it has.
+                    selectedTab = .social
                 }
             }
     }

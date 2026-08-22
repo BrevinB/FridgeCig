@@ -28,6 +28,7 @@ class DeepLinkHandler: ObservableObject {
     @Published var shouldNavigateToStateCans = false
     @Published var shouldShowPaywall = false
     @Published var shouldShowTodayRecap = false
+    @Published var shouldNavigateToGlobalFeed = false
 
     private init() {}
 
@@ -86,6 +87,11 @@ class DeepLinkHandler: ObservableObject {
         return false
     }
 
+    /// Programmatic navigation to the Global feed (Social tab → Feed → Global)
+    func navigateToGlobalFeed() {
+        shouldNavigateToGlobalFeed = true
+    }
+
     /// Clear navigation state after handling
     func clearPendingNavigation() {
         pendingFriendCode = nil
@@ -96,6 +102,7 @@ class DeepLinkHandler: ObservableObject {
         shouldNavigateToStateCans = false
         shouldShowPaywall = false
         shouldShowTodayRecap = false
+        shouldNavigateToGlobalFeed = false
     }
 
     /// Clear just the friend code state

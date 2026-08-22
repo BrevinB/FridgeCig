@@ -115,6 +115,13 @@ struct LeaderboardView: View {
             Task { await loadLeaderboard() }
         }
         .task {
+            // Friendless users get Global by default — the Friends scope would
+            // only ever show them an empty state.
+            if selectedScope == .friends && friendService.friends.isEmpty {
+                selectedScope = .global
+                // onChange(of: selectedScope) triggers the load
+                return
+            }
             await loadLeaderboard()
         }
         .refreshable {
@@ -123,6 +130,7 @@ struct LeaderboardView: View {
     }
 
     private func loadLeaderboard() async {
+        TelemetryService.leaderboardViewed(scope: selectedScope, category: selectedCategory)
         isLoading = true
         errorMessage = nil
 

@@ -50,10 +50,14 @@ struct NotificationSettingsView: View {
                 Toggle(isOn: $notificationService.preferences.friendMilestonesEnabled) {
                     Label("Friend Milestones", systemImage: "trophy.fill")
                 }
+
+                Toggle(isOn: $notificationService.preferences.leaderboardUpdatesEnabled) {
+                    Label("Leaderboard Updates", systemImage: "chart.bar.fill")
+                }
             } header: {
                 Text("Social Notifications")
             } footer: {
-                Text("Get notified when friends interact with you or hit milestones.")
+                Text("Get notified when friends interact with you, hit milestones, or when your leaderboard rank changes.")
             }
             .disabled(!notificationService.isAuthorized)
 

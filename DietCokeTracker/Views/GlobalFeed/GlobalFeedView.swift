@@ -10,6 +10,7 @@ struct GlobalFeedView: View {
     @State private var selectedItem: ActivityItem?
     @State private var photoCache: [String: UIImage] = [:]
     @State private var showingPreferences = false
+    @State private var showingJoinAlert = false
     @State private var hasAppeared = false
 
     private var isGlobalSharingEnabled: Bool {
@@ -64,6 +65,18 @@ struct GlobalFeedView: View {
         .sheet(isPresented: $showingPreferences) {
             SharingPreferencesView()
         }
+        .alert("Join the Global Feed?", isPresented: $showingJoinAlert) {
+            Button("Join") {
+                var prefs = activityService.sharingPreferences
+                prefs.shareDrinkLogs = true
+                prefs.showPhotosInFeed = true
+                prefs.sharePhotosGlobally = true
+                activityService.updatePreferences(prefs)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your drink photos will appear here for the whole community. Photos are screened for safety first, and you can turn this off anytime in Sharing Settings.")
+        }
         .onAppear {
             withAnimation(.easeOut(duration: 0.3)) {
                 hasAppeared = true
@@ -75,7 +88,7 @@ struct GlobalFeedView: View {
 
     private var optInBanner: some View {
         Button {
-            showingPreferences = true
+            showingJoinAlert = true
         } label: {
             HStack(spacing: 12) {
                 ZStack {
@@ -155,7 +168,9 @@ struct GlobalFeedView: View {
                     .fontWeight(.bold)
                     .foregroundColor(.dietCokeCharcoal)
 
-                Text("When users share photos globally,\nthey'll appear here.")
+                Text(isGlobalSharingEnabled
+                     ? "Be the first! Log a drink with a photo\nand it'll show up here."
+                     : "When users share photos globally,\nthey'll appear here.")
                     .font(.subheadline)
                     .foregroundColor(.dietCokeDarkSilver)
                     .multilineTextAlignment(.center)

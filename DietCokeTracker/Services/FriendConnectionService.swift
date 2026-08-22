@@ -263,6 +263,7 @@ class FriendConnectionService: ObservableObject {
         connectionRecordIDs[connection.id] = record.recordID
         sentRequests.append(connection)
         AppLogger.friends.info("=== FRIEND REQUEST SENT SUCCESSFULLY ===")
+        TelemetryService.friendRequestSent()
     }
 
     // MARK: - Accept Request
@@ -286,6 +287,7 @@ class FriendConnectionService: ObservableObject {
 
         // Remove from pending and add friend
         pendingRequests.removeAll { $0.id == connection.id }
+        TelemetryService.friendRequestAccepted()
 
         // Fetch the requester's profile
         if let requesterRecord = try await cloudKitManager.fetchUserProfile(byUserID: connection.requesterID),

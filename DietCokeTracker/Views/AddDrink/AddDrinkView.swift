@@ -27,6 +27,11 @@ struct AddDrinkView: View {
     @State private var showingValidationAlert = false
     @State private var validationAlertMessage = ""
 
+    @State private var showingGlobalOptInAlert = false
+    // Only auto-prompt for the Global feed once; the Public visibility chip
+    // stays available as the manual path afterwards.
+    @AppStorage("hasSeenGlobalFeedLogPrompt") private var hasSeenGlobalFeedPrompt = false
+
     private var effectiveBrand: BeverageBrand {
         selectedBrand ?? preferences.defaultBrand
     }
@@ -74,7 +79,9 @@ struct AddDrinkView: View {
                         showingCamera: $showingCamera
                     )
 
-                    VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil)
+                    VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil) {
+                        showingGlobalOptInAlert = true
+                    }
 
                     RatingSection(selectedRating: $selectedRating)
 
@@ -170,12 +177,33 @@ struct AddDrinkView: View {
                           prefs.sharePhotosGlobally,
                           visibility != .public {
                     visibility = .public
+                } else if newPhoto != nil,
+                          prefs.shareDrinkLogs,
+                          !prefs.sharePhotosGlobally,
+                          !hasSeenGlobalFeedPrompt {
+                    // First photo ever attached and the user has never decided on
+                    // global sharing — this is the moment to ask, not a settings screen.
+                    hasSeenGlobalFeedPrompt = true
+                    showingGlobalOptInAlert = true
                 }
             }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(validationAlertMessage)
+            }
+            .alert("Share to the Global Feed?", isPresented: $showingGlobalOptInAlert) {
+                Button("Join Global Feed") {
+                    var prefs = activityService.sharingPreferences
+                    prefs.shareDrinkLogs = true
+                    prefs.showPhotosInFeed = true
+                    prefs.sharePhotosGlobally = true
+                    activityService.updatePreferences(prefs)
+                    visibility = .public
+                }
+                Button("Not Now", role: .cancel) {}
+            } message: {
+                Text("Your drink photos will appear in the public Global feed for the whole community. Photos are screened for safety first, and you can turn this off anytime in Sharing Settings.")
             }
         }
     }

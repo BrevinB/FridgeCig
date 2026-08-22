@@ -1,0 +1,124 @@
+[
+  {
+    "slug": "01-track-steps-meme",
+    "template": "meme-card",
+    "size": "feed",
+    "platforms": "IG feed + TikTok photo",
+    "fields": {
+      "EYEBROW": "A public service announcement",
+      "TITLE": "Normal people track steps.<br>We track Diet Cokes.",
+      "SUBTITLE": "Streaks. Badges. A leaderboard. You're welcome."
+    },
+    "caption": "Tag someone who needs to hear this. Link in bio.",
+    "hashtags": "#FridgeCig #DietCoke #DietCokeAddict #DietCokeTok #SodaTok #NicheApp"
+  },
+  {
+    "slug": "02-just-drink-water",
+    "template": "meme-card",
+    "size": "feed",
+    "platforms": "IG feed + TikTok photo",
+    "fields": {
+      "EYEBROW": "POV",
+      "TITLE": "Someone says<br>“just drink water”",
+      "SUBTITLE": "*stares in Diet Coke* There's an app for people like us now.",
+      "TITLE_SIZE": "96"
+    },
+    "caption": "We don't judge. We just track. 🥤 Link in bio.",
+    "hashtags": "#FridgeCig #DietCoke #DietCokeLovers #DietCokeObsession #DCAddict"
+  },
+  {
+    "slug": "03-slow-week-stat",
+    "template": "stat-card",
+    "size": "feed",
+    "platforms": "IG feed",
+    "fields": {
+      "LABEL": "This week",
+      "STAT": "42",
+      "UNIT": "Diet Cokes logged",
+      "CAPTION": "I call that a slow week."
+    },
+    "caption": "My weekly recap is my favorite personality test. What's your number? Drop it below ⬇️",
+    "hashtags": "#FridgeCig #DietCoke #DietCokeTok #WeeklyRecap #SodaTok"
+  },
+  {
+    "slug": "04-five-types-list",
+    "template": "list-card",
+    "size": "feed",
+    "platforms": "IG feed (carousel cover) + TikTok photo",
+    "fields": {
+      "EYEBROW": "Field guide",
+      "TITLE": "The 5 types of Diet Coke drinkers",
+      "ITEMS": [
+        { "title": "The Purist", "desc": "Can only. Cold only. No exceptions, no flavors." },
+        { "title": "The Flavor Explorer", "desc": "Owns every Creations release. Has opinions." },
+        { "title": "The Streak Obsessed", "desc": "Hasn't missed a day since March. Will tell you." },
+        { "title": "The Late Night Sipper", "desc": "Caffeine free after 9pm. Ritual is ritual." },
+        { "title": "The Double Fister", "desc": "One for now, one for the walk back to the desk." }
+      ],
+      "FOOTER": "Which one are you? Track your type with FridgeCig → link in bio"
+    },
+    "caption": "Which one are you? (Be honest.) Track your type with FridgeCig — link in bio.",
+    "hashtags": "#FridgeCig #DietCoke #DietCokeLovers #DietCokeTok #FiveTypes"
+  },
+  {
+    "slug": "05-streak-relationship",
+    "template": "meme-card",
+    "size": "feed",
+    "platforms": "IG feed + TikTok photo",
+    "fields": {
+      "EYEBROW": "Confession",
+      "TITLE": "My FridgeCig streak is longer than any relationship I've had.",
+      "SUBTITLE": "And honestly? It's healthier.",
+      "TITLE_SIZE": "80"
+    },
+    "caption": "The streak understands me. 🥤 Start yours — link in bio.",
+    "hashtags": "#FridgeCig #DietCoke #StreakLife #DietCokeAddict #DCAddict"
+  },
+  {
+    "slug": "06-100-day-streak",
+    "template": "stat-card",
+    "size": "feed",
+    "platforms": "IG feed",
+    "fields": {
+      "LABEL": "Streak",
+      "STAT": "100",
+      "UNIT": "days, zero missed",
+      "CAPTION": "Legendary dedication. Are you next?"
+    },
+    "caption": "100 days. Zero missed. Somebody in the community just hit triple digits — who's next?",
+    "hashtags": "#FridgeCig #DietCoke #100DayStreak #DietCokeTok #StreakWars"
+  },
+  {
+    "slug": "07-dc-order-list",
+    "template": "list-card",
+    "size": "feed",
+    "platforms": "IG feed + TikTok photo",
+    "fields": {
+      "EYEBROW": "The science is settled",
+      "TITLE": "What your Diet Coke order says about you",
+      "ITEMS": [
+        { "title": "McDonald's fountain", "desc": "You have taste. The syrup ratio is elite and you know it." },
+        { "title": "Ice-cold can", "desc": "Classic. Reliable. The fridge cig in its purest form." },
+        { "title": "Glass bottle", "desc": "Fancy. You call it 'an experience' and you're right." },
+        { "title": "2-liter into a styrofoam cup", "desc": "Chaotic good. We're a little scared of you." }
+      ],
+      "FOOTER": "We don't judge. We just track. → link in bio"
+    },
+    "caption": "We don't judge. We just track. Which order are you? ⬇️",
+    "hashtags": "#FridgeCig #DietCoke #McDonaldsDietCoke #DietCokeLovers #SodaTok"
+  },
+  {
+    "slug": "08-tiktok-cover",
+    "template": "meme-card",
+    "size": "story",
+    "platforms": "TikTok/Reel cover + IG story",
+    "fields": {
+      "EYEBROW": "Yes, it's real",
+      "TITLE": "The app Diet Coke people didn't know they needed.",
+      "SUBTITLE": "Streaks · 70+ badges · state can collection · friend leaderboards",
+      "TITLE_SIZE": "96"
+    },
+    "caption": "Use as the cover/end-card on demo Reels and TikToks.",
+    "hashtags": "#FridgeCig #DietCoke #AppRecommendation #IndieApp #DietCokeTok"
+  }
+]

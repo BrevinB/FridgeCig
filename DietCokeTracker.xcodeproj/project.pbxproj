@@ -50,6 +50,7 @@
 		23CA15D72F19F351000C7B43 /* LeaderboardCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23CA15D62F19F351000C7B43 /* LeaderboardCategory.swift */; };
 		23CA15DC2F1A06A6000C7B43 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 23CA15DB2F1A06A6000C7B43 /* RevenueCat */; };
 		23CA15EB2F1AFA9F000C7B43 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23CA15EA2F1AFA9F000C7B43 /* StoreKit.framework */; };
+		23DD15F22F1A070000000003 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 23DD15F12F1A070000000002 /* TelemetryDeck */; };
 		A1000001 /* DietCokeTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* DietCokeTrackerApp.swift */; };
 		A1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* ContentView.swift */; };
 		A1000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000003 /* Assets.xcassets */; };
@@ -304,6 +305,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				23CA15DC2F1A06A6000C7B43 /* RevenueCat in Frameworks */,
+				23DD15F22F1A070000000003 /* TelemetryDeck in Frameworks */,
 				23CA15EB2F1AFA9F000C7B43 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -591,6 +593,7 @@
 			mainGroup = A4000000;
 			packageReferences = (
 				23CA15DA2F1A06A6000C7B43 /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				23DD15F02F1A070000000001 /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 			);
 			productRefGroup = A4000005 /* Products */;
 			projectDirPath = "";
@@ -754,7 +757,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.DietCokeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -785,7 +788,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.DietCokeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -815,7 +818,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -848,7 +851,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -882,7 +885,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp.DietCokeWatchWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -915,7 +918,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig.watchkitapp.DietCokeWatchWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1082,7 +1085,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1120,7 +1123,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.2.0;
+				MARKETING_VERSION = 2.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.brevinb.fridgecig;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1188,6 +1191,14 @@
 				minimumVersion = 5.55.0;
 			};
 		};
+		23DD15F02F1A070000000001 /* XCRemoteSwiftPackageReference "SwiftSDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TelemetryDeck/SwiftSDK.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.14.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1195,6 +1206,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 23CA15DA2F1A06A6000C7B43 /* XCRemoteSwiftPackageReference "purchases-ios" */;
 			productName = RevenueCat;
+		};
+		23DD15F12F1A070000000002 /* TelemetryDeck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 23DD15F02F1A070000000001 /* XCRemoteSwiftPackageReference "SwiftSDK" */;
+			productName = TelemetryDeck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -218,6 +218,7 @@ struct SetupProfileView: View {
             do {
                 let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
                 try await identityService.createIdentity(displayName: name)
+                TelemetryService.profileCreated()
 
                 // Upload avatar after profile is created
                 if let image = selectedImage {

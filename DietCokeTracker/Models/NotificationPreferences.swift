@@ -6,6 +6,7 @@ struct NotificationPreferences: Codable {
     var friendAcceptedEnabled: Bool
     var cheersReceivedEnabled: Bool
     var friendMilestonesEnabled: Bool
+    var leaderboardUpdatesEnabled: Bool
 
     // MARK: - Local Notification Preferences
     var streakRemindersEnabled: Bool
@@ -20,6 +21,7 @@ struct NotificationPreferences: Codable {
         friendAcceptedEnabled: Bool = true,
         cheersReceivedEnabled: Bool = true,
         friendMilestonesEnabled: Bool = true,
+        leaderboardUpdatesEnabled: Bool = true,
         streakRemindersEnabled: Bool = true,
         streakReminderTime: Date = NotificationPreferences.defaultStreakReminderTime,
         dailySummaryEnabled: Bool = false,
@@ -31,12 +33,30 @@ struct NotificationPreferences: Codable {
         self.friendAcceptedEnabled = friendAcceptedEnabled
         self.cheersReceivedEnabled = cheersReceivedEnabled
         self.friendMilestonesEnabled = friendMilestonesEnabled
+        self.leaderboardUpdatesEnabled = leaderboardUpdatesEnabled
         self.streakRemindersEnabled = streakRemindersEnabled
         self.streakReminderTime = streakReminderTime
         self.dailySummaryEnabled = dailySummaryEnabled
         self.dailySummaryTime = dailySummaryTime
         self.weeklySummaryEnabled = weeklySummaryEnabled
         self.weeklySummaryTime = weeklySummaryTime
+    }
+
+    // Custom decoding so saved data from before leaderboardUpdatesEnabled
+    // existed doesn't fail to decode (which would reset all preferences).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        friendRequestsEnabled = try container.decode(Bool.self, forKey: .friendRequestsEnabled)
+        friendAcceptedEnabled = try container.decode(Bool.self, forKey: .friendAcceptedEnabled)
+        cheersReceivedEnabled = try container.decode(Bool.self, forKey: .cheersReceivedEnabled)
+        friendMilestonesEnabled = try container.decode(Bool.self, forKey: .friendMilestonesEnabled)
+        leaderboardUpdatesEnabled = try container.decodeIfPresent(Bool.self, forKey: .leaderboardUpdatesEnabled) ?? true
+        streakRemindersEnabled = try container.decode(Bool.self, forKey: .streakRemindersEnabled)
+        streakReminderTime = try container.decode(Date.self, forKey: .streakReminderTime)
+        dailySummaryEnabled = try container.decode(Bool.self, forKey: .dailySummaryEnabled)
+        dailySummaryTime = try container.decode(Date.self, forKey: .dailySummaryTime)
+        weeklySummaryEnabled = try container.decode(Bool.self, forKey: .weeklySummaryEnabled)
+        weeklySummaryTime = try container.decode(Date.self, forKey: .weeklySummaryTime)
     }
 
     // MARK: - Default Times

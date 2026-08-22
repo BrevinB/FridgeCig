@@ -53,6 +53,9 @@ struct DietCokeTrackerApp: App {
 
         // Configure RevenueCat - Replace with your API key from RevenueCat dashboard
         PurchaseService.shared.configure(apiKey: "appl_cbqDsdjUplQQKgcSBAFeMuyCHlo")
+
+        // Configure TelemetryDeck analytics
+        TelemetryService.initialize()
     }
 
     var body: some Scene {
@@ -147,6 +150,20 @@ struct DietCokeTrackerApp: App {
                                     userID: userID,
                                     friendIDs: Array(friendService.friendIDs)
                                 )
+
+                                // Refresh global leaderboard standing so rank-based
+                                // nudges (weekly recap, "you got passed") stay current.
+                                if let entries = try? await friendService.fetchLeaderboard(
+                                    category: .weeklyDrinks,
+                                    scope: .global,
+                                    currentUserID: userID
+                                ), let me = entries.first(where: { $0.isCurrentUser }) {
+                                    await notificationService.updateLeaderboardStanding(
+                                        rank: me.rank,
+                                        total: entries.count,
+                                        category: .weeklyDrinks
+                                    )
+                                }
                             }
                         }
                     }
@@ -218,6 +235,8 @@ struct DietCokeTrackerApp: App {
                     // Cancel streak reminder since user logged a drink today
                     notificationService.cancelStreakReminderIfNeeded(hasLoggedToday: true)
 
+                    TelemetryService.drinkLogged(entry: entry, hasPhoto: photo != nil, visibility: visibility)
+
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else {
                         AppLogger.general.debug("No identity found, skipping activity post")
@@ -249,6 +268,8 @@ struct DietCokeTrackerApp: App {
                     badgeStore.checkStateCanBadges(collectedCount: stateCanStore.collectedCount)
                 }
                 .onReceive(badgeStore.badgeUnlocked) { badge in
+                    TelemetryService.badgeUnlocked(badge)
+
                     // Post badge unlock to activity feed
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else { return }
@@ -264,6 +285,8 @@ struct DietCokeTrackerApp: App {
                     }
                 }
                 .onReceive(store.streakChanged) { newStreak in
+                    TelemetryService.streakReached(days: newStreak)
+
                     // Post streak milestone to activity feed
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else { return }
@@ -279,6 +302,8 @@ struct DietCokeTrackerApp: App {
                     }
                 }
                 .onReceive(store.drinkDeleted) { entry in
+                    TelemetryService.drinkDeleted()
+
                     // Delete drink activity from activity feed
                     guard let userID = identityService.currentProfile?.userIDString else { return }
 

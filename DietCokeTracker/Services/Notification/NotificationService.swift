@@ -29,6 +29,13 @@ class NotificationService: ObservableObject {
         static let streakReminder = "streak_reminder"
         static let dailySummary = "daily_summary"
         static let weeklySummary = "weekly_summary"
+        static let leaderboardRecap = "leaderboard_recap"
+        static let leaderboardDrop = "leaderboard_drop"
+    }
+
+    private enum LeaderboardDefaultsKey {
+        static let lastRank = "leaderboard_last_rank"
+        static let lastTotal = "leaderboard_last_total"
     }
 
     // MARK: - CloudKit Subscription IDs
@@ -112,6 +119,7 @@ class NotificationService: ObservableObject {
         await scheduleStreakReminder()
         await scheduleDailySummary()
         await scheduleWeeklySummary()
+        await scheduleLeaderboardRecap()
     }
 
     // MARK: - Streak Reminder
@@ -231,6 +239,95 @@ class NotificationService: ObservableObject {
             AppLogger.notifications.info("Scheduled weekly summary for Sunday \(hour):\(String(format: "%02d", minute))")
         } catch {
             AppLogger.notifications.error("Failed to schedule weekly summary: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Leaderboard Standing
+
+    /// Record the user's current global leaderboard position and (re)schedule
+    /// the competitive nudges built from it. Called after each leaderboard fetch.
+    func updateLeaderboardStanding(rank: Int, total: Int, category: LeaderboardCategory) async {
+        let defaults = UserDefaults.standard
+        let previousRank = defaults.object(forKey: LeaderboardDefaultsKey.lastRank) as? Int
+
+        defaults.set(rank, forKey: LeaderboardDefaultsKey.lastRank)
+        defaults.set(total, forKey: LeaderboardDefaultsKey.lastTotal)
+
+        await scheduleLeaderboardRecap()
+        await scheduleLeaderboardDropNudge(previousRank: previousRank, rank: rank, category: category)
+    }
+
+    /// Weekly "you're #N" recap, scheduled from the last known rank. The body is
+    /// baked in at schedule time, so each rank refresh reschedules it.
+    private func scheduleLeaderboardRecap() async {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationID.leaderboardRecap])
+
+        guard preferences.leaderboardUpdatesEnabled else { return }
+        guard let rank = UserDefaults.standard.object(forKey: LeaderboardDefaultsKey.lastRank) as? Int else { return }
+        let total = UserDefaults.standard.integer(forKey: LeaderboardDefaultsKey.lastTotal)
+
+        let content = UNMutableNotificationContent()
+        content.title = "Leaderboard Update"
+        if rank == 1 {
+            content.body = "You're #1 on the global leaderboard. Defend your crown this week!"
+        } else if total > 0 {
+            content.body = "You're #\(rank) of \(total) on the global leaderboard. Can you climb this week?"
+        } else {
+            content.body = "You're #\(rank) on the global leaderboard. Can you climb this week?"
+        }
+        content.sound = .default
+        content.categoryIdentifier = "LEADERBOARD_RECAP"
+
+        // Sunday evening, when the weekly categories are about to reset
+        var dateComponents = DateComponents()
+        dateComponents.weekday = 1
+        dateComponents.hour = 18
+        dateComponents.minute = 0
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: NotificationID.leaderboardRecap,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await center.add(request)
+            AppLogger.notifications.info("Scheduled leaderboard recap (rank #\(rank))")
+        } catch {
+            AppLogger.notifications.error("Failed to schedule leaderboard recap: \(error.localizedDescription)")
+        }
+    }
+
+    /// If the user's rank dropped since the last check, nudge them a few hours
+    /// later (by then they've usually left the app). Replaced or cleared on the
+    /// next rank refresh, so it never stacks.
+    private func scheduleLeaderboardDropNudge(previousRank: Int?, rank: Int, category: LeaderboardCategory) async {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationID.leaderboardDrop])
+
+        guard preferences.leaderboardUpdatesEnabled,
+              let previousRank, rank > previousRank else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "You got passed!"
+        content.body = "You slipped from #\(previousRank) to #\(rank) in \(category.rawValue). Time to crack open a cold one."
+        content.sound = .default
+        content.categoryIdentifier = "LEADERBOARD_DROP"
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 4 * 60 * 60, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: NotificationID.leaderboardDrop,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await center.add(request)
+            AppLogger.notifications.info("Scheduled leaderboard drop nudge (#\(previousRank) -> #\(rank))")
+        } catch {
+            AppLogger.notifications.error("Failed to schedule leaderboard drop nudge: \(error.localizedDescription)")
         }
     }
 

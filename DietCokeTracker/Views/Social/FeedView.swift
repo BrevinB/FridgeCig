@@ -9,13 +9,22 @@ struct FeedView: View {
     }
 
     @AppStorage("feedScope") private var scopeRaw: String = Scope.friends.rawValue
+    // Tracks whether the user ever picked a scope themselves; until they do,
+    // friendless users get Global so their first impression isn't an empty feed.
+    @AppStorage("feedScopeUserSet") private var scopeUserSet = false
     @State private var showingPreferences = false
+    @EnvironmentObject var friendService: FriendConnectionService
     @Environment(\.colorScheme) private var colorScheme
 
     private var scope: Binding<Scope> {
         Binding(
             get: { Scope(rawValue: scopeRaw) ?? .friends },
-            set: { scopeRaw = $0.rawValue }
+            set: {
+                // Set inside the binding (not .onChange) so only real user
+                // interaction marks the choice, never state hydration.
+                scopeUserSet = true
+                scopeRaw = $0.rawValue
+            }
         )
     }
 
@@ -49,6 +58,11 @@ struct FeedView: View {
         }
         .sheet(isPresented: $showingPreferences) {
             SharingPreferencesView()
+        }
+        .onAppear {
+            if !scopeUserSet, friendService.friends.isEmpty, scope.wrappedValue == .friends {
+                scopeRaw = Scope.global.rawValue
+            }
         }
     }
 }

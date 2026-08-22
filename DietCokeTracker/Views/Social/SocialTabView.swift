@@ -156,6 +156,9 @@ struct SocialMainView: View {
                             isSelected: selectedSection == section,
                             badgeCount: section == .friends ? friendService.pendingRequests.count : 0
                         ) {
+                            if section != selectedSection {
+                                TelemetryService.socialSectionViewed(section.rawValue)
+                            }
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 selectedSection = section
                             }
@@ -219,6 +222,13 @@ struct SocialMainView: View {
                     showingAddFriendFromDeepLink = true
                 }
             }
+            // Handle programmatic navigation to the Global feed
+            .onChange(of: deepLinkHandler.shouldNavigateToGlobalFeed) { _, shouldNavigate in
+                if shouldNavigate { navigateToGlobalFeed() }
+            }
+            .onAppear {
+                if deepLinkHandler.shouldNavigateToGlobalFeed { navigateToGlobalFeed() }
+            }
             .sheet(isPresented: $showingAddFriendFromDeepLink, onDismiss: {
                 deepLinkHandler.clearPendingFriendCode()
             }) {
@@ -236,6 +246,13 @@ struct SocialMainView: View {
                 }
             }
         }
+    }
+
+    private func navigateToGlobalFeed() {
+        selectedSection = .feed
+        // FeedView reads its scope from @AppStorage("feedScope")
+        UserDefaults.standard.set(FeedView.Scope.global.rawValue, forKey: "feedScope")
+        deepLinkHandler.clearPendingNavigation()
     }
 }
 

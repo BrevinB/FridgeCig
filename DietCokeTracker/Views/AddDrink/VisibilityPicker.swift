@@ -3,6 +3,9 @@ import SwiftUI
 struct VisibilityPicker: View {
     @Binding var visibility: PostVisibility
     var hasPhoto: Bool = false
+    /// Called when the user taps "Public" before enabling global sharing,
+    /// so the parent can offer the opt-in in context.
+    var onGlobalOptInNeeded: (() -> Void)? = nil
     @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.colorScheme) private var colorScheme
 
@@ -11,7 +14,7 @@ struct VisibilityPicker: View {
         if !prefs.shareDrinkLogs {
             return [.onlyMe]
         }
-        if !prefs.sharePhotosGlobally || !hasPhoto {
+        if !hasPhoto {
             return [.onlyMe, .friends]
         }
         return PostVisibility.allCases
@@ -27,6 +30,11 @@ struct VisibilityPicker: View {
             HStack(spacing: 8) {
                 ForEach(availableOptions) { option in
                     Button {
+                        if option == .public,
+                           !activityService.sharingPreferences.sharePhotosGlobally {
+                            onGlobalOptInNeeded?()
+                            return
+                        }
                         withAnimation(.easeInOut(duration: 0.2)) {
                             visibility = option
                         }
