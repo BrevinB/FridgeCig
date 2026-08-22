@@ -83,6 +83,11 @@ struct DietCokeTrackerApp: App {
                     _ = deepLinkHandler.handleURL(url)
                 }
                 .task {
+                    TelemetryService.appOpened(
+                        launchCount: preferences.appLaunchCount,
+                        hasCompletedOnboarding: preferences.hasCompletedOnboarding
+                    )
+
                     // Migrate photos from legacy app group container to main app container
                     PhotoStorage.migrateIfNeeded()
 
@@ -235,7 +240,12 @@ struct DietCokeTrackerApp: App {
                     // Cancel streak reminder since user logged a drink today
                     notificationService.cancelStreakReminderIfNeeded(hasLoggedToday: true)
 
-                    TelemetryService.drinkLogged(entry: entry, hasPhoto: photo != nil, visibility: visibility)
+                    TelemetryService.drinkLogged(
+                        entry: entry,
+                        hasPhoto: photo != nil,
+                        visibility: visibility,
+                        totalDrinks: store.allTimeCount
+                    )
 
                     guard let userID = identityService.currentProfile?.userIDString,
                           let displayName = identityService.currentProfile?.displayName else {

@@ -46,6 +46,7 @@ struct PaywallView: View {
             }
         }
         .onAppear {
+            TelemetryService.paywallViewed()
             autoSelectPackage()
             withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
                 animateHero = true

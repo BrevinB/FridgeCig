@@ -4,17 +4,13 @@ import CloudKit
 
 struct OnboardingView: View {
     @EnvironmentObject var preferences: UserPreferences
-    @EnvironmentObject var notificationService: NotificationService
-    @EnvironmentObject var identityService: IdentityService
-    @EnvironmentObject var activityService: ActivityFeedService
-    @EnvironmentObject var cloudKitManager: CloudKitManager
     @EnvironmentObject var themeManager: ThemeManager
+    let onComplete: () -> Void
     @State private var currentPage = 0
     @State private var selectedBrand: BeverageBrand = .dietCoke
-    @State private var showingPaywall = false
     @Environment(\.colorScheme) private var colorScheme
 
-    private let totalPages = 6
+    private let totalPages = 2
 
     var body: some View {
         ZStack {
@@ -28,20 +24,8 @@ struct OnboardingView: View {
                     WelcomePage()
                         .tag(0)
 
-                    FeaturesPage()
-                        .tag(1)
-
-                    NotificationsPage(notificationService: notificationService)
-                        .tag(2)
-
                     BrandSelectionPage(selectedBrand: $selectedBrand)
-                        .tag(3)
-
-                    LeaderboardPage(identityService: identityService)
-                        .tag(4)
-
-                    GlobalFeedPage(activityService: activityService, identityService: identityService, cloudKitManager: cloudKitManager)
-                        .tag(5)
+                        .tag(1)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: currentPage)
@@ -68,7 +52,7 @@ struct OnboardingView: View {
                             completeOnboarding()
                         }
                     } label: {
-                        Text(currentPage == totalPages - 1 ? "Get Started" : "Continue")
+                        Text(currentPage == totalPages - 1 ? "Log My First Drink" : "Continue")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -100,16 +84,19 @@ struct OnboardingView: View {
                 .padding(.bottom, 40)
             }
         }
-        .sheet(isPresented: $showingPaywall, onDismiss: {
-            preferences.markOnboardingComplete()
-        }) {
-            PaywallView()
+        .onAppear {
+            TelemetryService.onboardingStarted()
+        }
+        .onChange(of: currentPage) { _, page in
+            TelemetryService.onboardingPageViewed(page: page)
         }
     }
 
     private func completeOnboarding() {
         preferences.defaultBrand = selectedBrand
-        showingPaywall = true
+        preferences.markOnboardingComplete()
+        TelemetryService.onboardingCompleted(brand: selectedBrand)
+        onComplete()
     }
 }
 
@@ -855,7 +842,7 @@ private struct GlobalFeedPage: View {
 
 #Preview {
     let ckManager = CloudKitManager()
-    OnboardingView()
+    OnboardingView(onComplete: {})
         .environmentObject(UserPreferences())
         .environmentObject(NotificationService(cloudKitManager: ckManager))
         .environmentObject(IdentityService(cloudKitManager: ckManager))

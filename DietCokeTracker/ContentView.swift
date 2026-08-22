@@ -69,7 +69,9 @@ struct ContentView: View {
     private var mainContent: some View {
         ZStack {
             if !preferences.hasCompletedOnboarding {
-                OnboardingView()
+                OnboardingView {
+                    showingAddDrink = true
+                }
             } else {
                 VStack(spacing: 0) {
                     OfflineBanner()
@@ -109,6 +111,11 @@ struct ContentView: View {
                         }
                     }) {
                         AddDrinkView()
+                    }
+                    .onChange(of: showingAddDrink) { _, isPresented in
+                        if isPresented {
+                            TelemetryService.addDrinkOpened()
+                        }
                     }
                     .sheet(item: $presentedCelebration) { celebration in
                         DrinkLoggedSheet(celebration: celebration)

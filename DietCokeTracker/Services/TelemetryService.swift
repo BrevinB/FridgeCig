@@ -20,14 +20,43 @@ enum TelemetryService {
 
     // MARK: - App events
 
-    static func drinkLogged(entry: DrinkEntry, hasPhoto: Bool, visibility: PostVisibility) {
+    static func appOpened(launchCount: Int, hasCompletedOnboarding: Bool) {
+        signal("App.opened", parameters: [
+            "launchCount": String(launchCount),
+            "hasCompletedOnboarding": String(hasCompletedOnboarding)
+        ])
+    }
+
+    static func onboardingStarted() {
+        signal("Onboarding.started")
+    }
+
+    static func onboardingPageViewed(page: Int) {
+        signal("Onboarding.pageViewed", parameters: ["page": String(page)])
+    }
+
+    static func onboardingCompleted(brand: BeverageBrand) {
+        signal("Onboarding.completed", parameters: ["brand": brand.rawValue])
+    }
+
+    static func addDrinkOpened() {
+        signal("AddDrink.opened")
+    }
+
+    static func paywallViewed() {
+        signal("Paywall.viewed")
+    }
+
+    static func drinkLogged(entry: DrinkEntry, hasPhoto: Bool, visibility: PostVisibility, totalDrinks: Int) {
         signal("Drink.logged", parameters: [
             "drinkType": entry.type.rawValue,
             "brand": entry.brand.rawValue,
             "hasPhoto": String(hasPhoto),
             "hasNote": String(entry.note?.isEmpty == false),
             "rating": entry.rating.map { String($0.rawValue) } ?? "none",
-            "visibility": visibility.rawValue
+            "visibility": visibility.rawValue,
+            "totalDrinks": String(totalDrinks),
+            "isFirstDrink": String(totalDrinks == 1)
         ])
     }
 

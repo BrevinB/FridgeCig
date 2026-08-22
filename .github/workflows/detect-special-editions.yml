@@ -2,7 +2,8 @@ name: Detect new special editions
 
 on:
   schedule:
-    - cron: "0 16 * * *"
+    # Weekly is frequent enough for product announcements and keeps API usage predictable.
+    - cron: "0 16 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -20,7 +21,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install "anthropic>=0.40"
+        run: pip install "anthropic==0.121.0"
 
       - name: Run detection
         env:

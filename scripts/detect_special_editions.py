@@ -7,8 +7,9 @@ editions not in that list, and patches Badge.swift to add the new cases.
 Writes a PR body fragment to a known path so the workflow can pass it to
 peter-evans/create-pull-request.
 
-Exits 0 in all "normal" outcomes (including "no candidates"). Exits non-zero
-only on hard errors (auth, parse, malformed Claude response).
+Exits 0 in all "normal" outcomes (including "no candidates" and temporarily
+exhausted API credits). Exits non-zero on hard errors such as missing auth,
+parse failures, and malformed Claude responses.
 """
 
 from __future__ import annotations
@@ -271,7 +272,18 @@ def main() -> int:
     if already_open:
         print(f"{len(already_open)} edition(s) already in open PRs: {sorted(already_open)}", file=sys.stderr)
 
-    raw_candidates = query_claude(sorted(known_raw_values))
+    try:
+        raw_candidates = query_claude(sorted(known_raw_values))
+    except anthropic.BadRequestError as error:
+        if "credit balance is too low" not in str(error).lower():
+            raise
+        print(
+            "::warning title=Special-edition detection skipped::"
+            "The Anthropic account has insufficient API credits. "
+            "Add credits before the next scheduled run.",
+            file=sys.stderr,
+        )
+        return 0
     print(f"Claude returned {len(raw_candidates)} raw candidate(s)", file=sys.stderr)
 
     candidates = validate_candidates(raw_candidates, known_raw_values, already_open)
