@@ -82,6 +82,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case retroEdition = "Retro Edition"
     case america250 = "America 250"
     case devilWearsPrada2 = "Devil Wears Prada 2"
+    case holidayCreamyVanilla = "Holiday Creamy Vanilla"
 
     // DC Flavors
     case zeroSugarLime = "Zero Sugar Lime"
@@ -95,6 +96,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
     case dietCherry = "Diet Cherry"
     case cherryFloat = "Cherry Float"
     case retroLime = "Retro Lime"
+    case orangeCream = "Orange Cream"
 
     // Coca-Cola Creations
     case starlight = "Starlight"
@@ -112,11 +114,12 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
 
     var category: SpecialEditionCategory {
         switch self {
-        case .fifa2026, .summerVibes, .holidaySeason, .retroEdition, .america250, .devilWearsPrada2:
+        case .fifa2026, .summerVibes, .holidaySeason, .retroEdition, .america250, .devilWearsPrada2,
+             .holidayCreamyVanilla:
             return .limited
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai,
-             .dietCherry, .cherryFloat, .retroLime:
+             .dietCherry, .cherryFloat, .retroLime, .orangeCream:
             return .dietCokeFlavors
         case .starlight, .dreamworld, .marshmello, .byte, .move,
              .ultimate, .y3000, .kWave, .happyTears, .oreo:
@@ -136,6 +139,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .retroEdition: return "clock.arrow.circlepath"
         case .america250: return "flag.fill"
         case .devilWearsPrada2: return "handbag.fill"
+        case .holidayCreamyVanilla: return "snowflake"
         case .zeroSugarLime: return "leaf.fill"
         case .cherryVanilla: return "heart.fill"
         case .gingerLime: return "leaf.circle.fill"
@@ -147,6 +151,7 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         case .dietCherry: return "apple.meditate"
         case .cherryFloat: return "mug.fill"
         case .retroLime: return "clock.badge.checkmark.fill"
+        case .orangeCream: return "sun.horizon.fill"
         case .starlight: return "star.fill"
         case .dreamworld: return "moon.stars.fill"
         case .marshmello: return "music.note"
@@ -174,6 +179,10 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
             return "Celebrated America's 250th birthday with a patriotic edition"
         case .devilWearsPrada2:
             return "Sipped the Devil Wears Prada 2 promo edition. That's all."
+        case .holidayCreamyVanilla:
+            return "Got cozy with a Holiday Creamy Vanilla"
+        case .orangeCream:
+            return "Went nostalgic with an Orange Cream"
         case .zeroSugarLime:
             return "Tasted the Zero Sugar Lime variant"
         case .cherryVanilla:
@@ -223,9 +232,9 @@ enum SpecialEdition: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .fifa2026, .america250, .devilWearsPrada2, .starlight, .dreamworld, .marshmello, .y3000, .ultimate:
             return .legendary
-        case .summerVibes, .holidaySeason, .byte, .move, .kWave, .happyTears, .oreo:
+        case .summerVibes, .holidaySeason, .holidayCreamyVanilla, .byte, .move, .kWave, .happyTears, .oreo:
             return .epic
-        case .retroEdition, .cherryFloat, .retroLime:
+        case .retroEdition, .cherryFloat, .retroLime, .orangeCream:
             return .rare
         case .zeroSugarLime, .cherryVanilla, .gingerLime, .feistyCherry,
              .twistedMango, .zestyBloodOrange, .strawberryGuava, .blueberryAcai, .dietCherry:

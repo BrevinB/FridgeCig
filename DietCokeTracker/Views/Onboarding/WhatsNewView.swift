@@ -114,6 +114,12 @@ struct WhatsNewRelease: Identifiable {
                 iconColor: .orange,
                 title: "Smarter Streak Reminders",
                 description: "Reminders now know your streak and only nudge you on days you haven't logged."
+            ),
+            WhatsNewFeature(
+                icon: "snowflake",
+                iconColor: .cyan,
+                title: "Holiday Creamy Vanilla",
+                description: "This season's Coke Zero Sugar Holiday Creamy Vanilla is now a special edition you can log and collect, plus Orange Cream."
             )
         ]),
         WhatsNewRelease(version: "2.2.0", features: [
