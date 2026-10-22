@@ -540,7 +540,19 @@ class ActivityFeedService: ObservableObject {
         }
 
         do {
-            return try JSONDecoder().decode(UserSharingPreferences.self, from: data)
+            var prefs = try JSONDecoder().decode(UserSharingPreferences.self, from: data)
+            // Global used to be opt-in and off by default, so a saved `false`
+            // almost always means "never touched it". Move everyone to the new
+            // default once; the "Post to" line shows Global before every post.
+            let migrationKey = "didAdoptGlobalPhotoDefault"
+            if !UserDefaults.standard.bool(forKey: migrationKey) {
+                prefs.sharePhotosGlobally = true
+                UserDefaults.standard.set(true, forKey: migrationKey)
+                if let migrated = try? JSONEncoder().encode(prefs) {
+                    UserDefaults.standard.set(migrated, forKey: "UserSharingPreferences")
+                }
+            }
+            return prefs
         } catch {
             return .default
         }
