@@ -8,6 +8,7 @@ struct DietCokeTrackerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     @StateObject private var store = DrinkStore()
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var badgeStore = BadgeStore()
     @StateObject private var stateCanStore = StateCanStore()
     @StateObject private var preferences = UserPreferences()
@@ -56,6 +57,13 @@ struct DietCokeTrackerApp: App {
 
         // Configure TelemetryDeck analytics
         TelemetryService.initialize()
+    }
+
+    private func refreshStreakReminder() async {
+        await notificationService.refreshStreakReminder(
+            hasLoggedToday: store.hasLoggedToday,
+            streakAtRisk: store.streakThroughYesterday
+        )
     }
 
     var body: some Scene {
@@ -125,6 +133,14 @@ struct DietCokeTrackerApp: App {
 
                     // Update notification authorization status
                     await notificationService.updateAuthorizationStatus()
+                    await refreshStreakReminder()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    // Reminders are one-shot; a new day or a widget/Siri log
+                    // while backgrounded both need a fresh plan.
+                    if phase == .active {
+                        Task { await refreshStreakReminder() }
+                    }
                 }
                 .onChange(of: identityService.state) { _, newState in
                     // Sync stats when identity becomes ready (e.g., after profile creation)
@@ -226,6 +242,8 @@ struct DietCokeTrackerApp: App {
                     }
                 }
                 .onReceive(store.entriesDidChange) { _ in
+                    Task { await refreshStreakReminder() }
+
                     // Check for drink count milestones
                     let username = identityService.currentProfile?.username
                     milestoneService.checkForMilestones(
@@ -236,9 +254,6 @@ struct DietCokeTrackerApp: App {
                 }
                 .onReceive(store.drinkAdded) { entry, photo, visibility in
                     AppLogger.general.debug("Received drinkAdded notification for: \(entry.type.displayName) visibility: \(visibility.rawValue)")
-
-                    // Cancel streak reminder since user logged a drink today
-                    notificationService.cancelStreakReminderIfNeeded(hasLoggedToday: true)
 
                     TelemetryService.drinkLogged(
                         entry: entry,

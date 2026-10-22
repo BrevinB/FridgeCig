@@ -453,11 +453,28 @@ class DrinkStore: ObservableObject {
         return streakDays(frozenDates: frozen)
     }
 
-    func streakDays(frozenDates: Set<String>) -> Int {
+    /// Streak counted through yesterday — what's "at risk" before today's log.
+    var streakThroughYesterday: Int {
+        let frozen = Set(SharedDataManager.sharedDefaults?.stringArray(forKey: "usedFreezeDates") ?? [])
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        return streakDays(frozenDates: frozen, endingOn: yesterday)
+    }
+
+    var hasLoggedToday: Bool {
+        let calendar = Calendar.current
+        return entries.contains { calendar.isDateInToday($0.timestamp) }
+    }
+
+    /// The most recently logged entry, used to prefill the add-drink form.
+    var mostRecentEntry: DrinkEntry? {
+        entries.max(by: { $0.timestamp < $1.timestamp })
+    }
+
+    func streakDays(frozenDates: Set<String>, endingOn endDate: Date = Date()) -> Int {
         guard !entries.isEmpty else { return 0 }
 
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: endDate)
         var streak = 0
         var checkDate = today
         let daysWithEntries = Set(entries.map { calendar.startOfDay(for: $0.timestamp) })
