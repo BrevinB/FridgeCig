@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated: February 4, 2026**
+**Last Updated: October 21, 2026**
 
 FridgeCig ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.
 
@@ -77,6 +77,7 @@ We integrate with Apple services that have their own privacy practices:
 We do not sell your personal information. We share data only:
 
 - **With other users:** Your public profile (display name, username, stats) if you enable public visibility
+- **On the Global feed:** Photos you choose to post to Global, with your display name and drink details, are visible to all users. Global is suggested by default for photo posts and labeled before you post; photos are screened for safety first, and you can turn off Global posting in Sharing Settings
 - **With service providers:** RevenueCat for payment processing
 - **As required by law:** To comply with legal obligations
 
@@ -92,7 +93,7 @@ You have the right to:
 
 - **Access:** View all your data within the app
 - **Delete:** Remove individual entries or your entire account
-- **Opt-out:** Disable notifications, HealthKit sync, and public profile visibility
+- **Opt-out:** Disable notifications, HealthKit sync, public profile visibility, and Global feed posting
 - **Export:** Your data is stored in your personal iCloud account
 
 ## Children's Privacy
