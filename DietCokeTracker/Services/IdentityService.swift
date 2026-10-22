@@ -111,6 +111,13 @@ class IdentityService: ObservableObject {
 
     // MARK: - Create Identity
 
+    /// A fun default name so joining the community is a single tap.
+    static func suggestedDisplayName() -> String {
+        let adjectives = ["Fizzy", "Bubbly", "Crisp", "Chilled", "Iced", "Sparkling"]
+        let nouns = ["Sipper", "Fan", "Legend", "Cracker", "Fiend"]
+        return "\(adjectives.randomElement()!)\(nouns.randomElement()!)\(Int.random(in: 10...99))"
+    }
+
     func createIdentity(displayName: String) async throws {
         let friendCode = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8).uppercased())
         let identity = UserIdentity(displayName: displayName, friendCode: friendCode)

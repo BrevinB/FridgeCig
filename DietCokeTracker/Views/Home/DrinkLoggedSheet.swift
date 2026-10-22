@@ -18,11 +18,26 @@ struct DrinkLoggedSheet: View {
 
     @EnvironmentObject var purchaseService: PurchaseService
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
+    @EnvironmentObject var notificationService: NotificationService
+    @EnvironmentObject var identityService: IdentityService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var showingShareSheet = false
     @State private var iconScale: CGFloat = 0.4
+    // Captured on appear so the card doesn't vanish mid-sheet once the
+    // system prompt resolves; the card swaps to a confirmation instead.
+    @State private var showsReminderPrompt = false
+    @State private var reminderResult: Bool?
+    // One ask per sheet: the leaderboard invite wins until the user has a
+    // profile or has said no, then reminders get their turn.
+    @State private var showsLeaderboardPrompt = false
+    @State private var leaderboardName = IdentityService.suggestedDisplayName()
+    @State private var suggestedLeaderboardName = ""
+    @State private var isJoiningLeaderboard = false
+    @State private var leaderboardJoined = false
+    @State private var leaderboardJoinFailed = false
+    @AppStorage("hasDismissedLeaderboardPrompt") private var hasDismissedLeaderboardPrompt = false
 
     private var brand: BeverageBrand { celebration.entry.brand }
 
@@ -76,6 +91,12 @@ struct DrinkLoggedSheet: View {
 
             visibilityStatus
 
+            if showsLeaderboardPrompt {
+                leaderboardPrompt
+            } else if showsReminderPrompt {
+                reminderPrompt
+            }
+
             Spacer(minLength: 0)
 
             VStack(spacing: 10) {
@@ -124,7 +145,19 @@ struct DrinkLoggedSheet: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 16)
         .background(backgroundColor.ignoresSafeArea())
-        .presentationDetents([.medium])
+        .presentationDetents([presentationDetent])
+        .onAppear {
+            // Right after a log is when both asks make the most sense: there's
+            // already a drink on the board and a streak to protect.
+            if identityService.state == .noIdentity && !hasDismissedLeaderboardPrompt {
+                showsLeaderboardPrompt = true
+                suggestedLeaderboardName = leaderboardName
+                TelemetryService.leaderboardPromptShown(source: "drinkLogged")
+            } else if notificationService.authorizationStatus == .notDetermined {
+                showsReminderPrompt = true
+                TelemetryService.notificationPromptShown(source: "drinkLogged")
+            }
+        }
         .presentationDragIndicator(.hidden)
         .sheet(isPresented: $showingShareSheet) {
             SharePreviewSheet(
@@ -134,6 +167,167 @@ struct DrinkLoggedSheet: View {
                 initialTheme: .classic
             )
         }
+    }
+
+    private var presentationDetent: PresentationDetent {
+        if showsLeaderboardPrompt { return .fraction(0.78) }
+        if showsReminderPrompt { return .fraction(0.68) }
+        return .medium
+    }
+
+    private var canJoinLeaderboard: Bool {
+        !leaderboardName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isJoiningLeaderboard
+    }
+
+    private func joinLeaderboard() {
+        guard canJoinLeaderboard else { return }
+        let name = leaderboardName.trimmingCharacters(in: .whitespacesAndNewlines)
+        isJoiningLeaderboard = true
+        leaderboardJoinFailed = false
+        Task {
+            do {
+                try await identityService.createIdentity(displayName: name)
+                TelemetryService.profileCreated()
+                TelemetryService.leaderboardPromptJoined(
+                    source: "drinkLogged",
+                    editedName: name != suggestedLeaderboardName
+                )
+                withAnimation { leaderboardJoined = true }
+            } catch {
+                leaderboardJoinFailed = true
+            }
+            isJoiningLeaderboard = false
+        }
+    }
+
+    @ViewBuilder
+    private var leaderboardPrompt: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: leaderboardJoined ? "checkmark.circle.fill" : "trophy.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(leaderboardJoined ? .green : .yellow)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(leaderboardJoined ? "You're on the leaderboard!" : "Claim your leaderboard spot")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.dietCokeCharcoal)
+                    Text(leaderboardJoined
+                         ? "Find your rank anytime in Social."
+                         : "This drink already counts. You can change your name later.")
+                        .font(.caption)
+                        .foregroundColor(.dietCokeDarkSilver)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if !leaderboardJoined {
+                HStack(spacing: 8) {
+                    TextField("Display name", text: $leaderboardName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .submitLabel(.join)
+                        .onSubmit(joinLeaderboard)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
+                        )
+
+                    Button(action: joinLeaderboard) {
+                        Group {
+                            if isJoiningLeaderboard {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Join")
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                        .frame(minWidth: 52)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(Capsule().fill(brand.buttonGradient))
+                    }
+                    .disabled(!canJoinLeaderboard)
+                }
+
+                HStack {
+                    if leaderboardJoinFailed {
+                        Text("Couldn't join right now. Try again from Social.")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                    Spacer()
+                    Button("Not now") {
+                        hasDismissedLeaderboardPrompt = true
+                        withAnimation { showsLeaderboardPrompt = false }
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.dietCokeDarkSilver)
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(white: 0.14) : Color.white)
+                .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+        )
+    }
+
+    private var reminderTimeText: String {
+        notificationService.preferences.streakReminderTime
+            .formatted(date: .omitted, time: .shortened)
+    }
+
+    @ViewBuilder
+    private var reminderPrompt: some View {
+        HStack(spacing: 12) {
+            Image(systemName: reminderResult == true ? "checkmark.circle.fill" : "bell.badge.fill")
+                .font(.system(size: 22))
+                .foregroundColor(reminderResult == true ? .green : .orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(reminderResult == nil ? "Keep your streak alive" : reminderResult == true ? "Reminders on" : "No problem")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.dietCokeCharcoal)
+                Text(reminderResult == nil
+                     ? "Get a nudge at \(reminderTimeText) on days you haven't logged."
+                     : reminderResult == true
+                        ? "We'll nudge you at \(reminderTimeText) if you haven't logged."
+                        : "You can turn reminders on anytime in Settings.")
+                    .font(.caption)
+                    .foregroundColor(.dietCokeDarkSilver)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            if reminderResult == nil {
+                Button("Turn On") {
+                    Task {
+                        let granted = await notificationService.requestAuthorization()
+                        TelemetryService.notificationPermissionResult(granted: granted, source: "drinkLogged")
+                        withAnimation { reminderResult = granted }
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(brand.buttonGradient))
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(white: 0.14) : Color.white)
+                .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+        )
     }
 
     private var visibilityStatus: some View {

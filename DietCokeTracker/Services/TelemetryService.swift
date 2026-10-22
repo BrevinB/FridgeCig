@@ -35,8 +35,30 @@ enum TelemetryService {
         signal("Onboarding.pageViewed", parameters: ["page": String(page)])
     }
 
-    static func onboardingCompleted(brand: BeverageBrand) {
-        signal("Onboarding.completed", parameters: ["brand": brand.rawValue])
+    static func onboardingCompleted(brand: BeverageBrand, drinkType: DrinkType, loggedFirstDrink: Bool) {
+        signal("Onboarding.completed", parameters: [
+            "brand": brand.rawValue,
+            "drinkType": drinkType.rawValue,
+            "loggedFirstDrink": String(loggedFirstDrink)
+        ])
+    }
+
+    static func onboardingProfileCreated(editedName: Bool, hasEmoji: Bool) {
+        signal("Onboarding.profileCreated", parameters: [
+            "editedName": String(editedName),
+            "hasEmoji": String(hasEmoji)
+        ])
+    }
+
+    static func leaderboardPromptShown(source: String) {
+        signal("Leaderboard.promptShown", parameters: ["source": source])
+    }
+
+    static func leaderboardPromptJoined(source: String, editedName: Bool) {
+        signal("Leaderboard.promptJoined", parameters: [
+            "source": source,
+            "editedName": String(editedName)
+        ])
     }
 
     static func addDrinkOpened() {
@@ -57,6 +79,17 @@ enum TelemetryService {
             "visibility": visibility.rawValue,
             "totalDrinks": String(totalDrinks),
             "isFirstDrink": String(totalDrinks == 1)
+        ])
+    }
+
+    static func notificationPromptShown(source: String) {
+        signal("Notifications.promptShown", parameters: ["source": source])
+    }
+
+    static func notificationPermissionResult(granted: Bool, source: String) {
+        signal("Notifications.permissionResult", parameters: [
+            "granted": String(granted),
+            "source": source
         ])
     }
 
