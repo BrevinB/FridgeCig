@@ -1,0 +1,22 @@
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:var(--w); height:var(--h); overflow:hidden; }
+body {
+  position:relative;
+  font-family: "SF Pro Display", -apple-system, system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 42%, #F0303C 0%, rgba(240,48,60,0) 70%),
+    linear-gradient(180deg, #E31D2B 0%, #C9121F 100%);
+  color:#fff;
+}
+.bubbles { position:absolute; inset:0; pointer-events:none; }
+.bubble {
+  position:absolute; border-radius:50%;
+  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.55) 0%, rgba(255,255,255,.14) 28%, rgba(255,255,255,.05) 60%, rgba(255,255,255,0) 72%);
+  border: 3px solid rgba(255,255,255,.22);
+}
+.phone { position:absolute; filter: drop-shadow(0 50px 70px rgba(80,0,8,.45)); }
+.kicker { font-weight:800; letter-spacing:.14em; text-transform:uppercase; opacity:.92; }
+.headline { font-weight:900; text-transform:uppercase; letter-spacing:-.015em; line-height:.92;
+  text-shadow: 0 10px 40px rgba(90,0,10,.35); }
+.safe { position:absolute; outline: 6px dashed #39ff14; display:none; }
+body.debug .safe { display:block; }
