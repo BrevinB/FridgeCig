@@ -14,6 +14,8 @@ struct ContentView: View {
     @EnvironmentObject var activityService: ActivityFeedService
 
     @State private var showingAddDrink = false
+    /// Seeds the add-drink form with the usual picked during onboarding.
+    @State private var addDrinkInitialType: DrinkType?
     // Celebration is queued while the AddDrink sheet is still up, then
     // presented from its onDismiss so the two sheets never collide.
     @State private var pendingCelebration: LoggedDrinkCelebration?
@@ -69,8 +71,11 @@ struct ContentView: View {
     private var mainContent: some View {
         ZStack {
             if !preferences.hasCompletedOnboarding {
-                OnboardingView {
-                    showingAddDrink = true
+                OnboardingView { firstDrink in
+                    if let firstDrink {
+                        addDrinkInitialType = firstDrink.type
+                        showingAddDrink = true
+                    }
                 }
             } else {
                 VStack(spacing: 0) {
@@ -105,12 +110,13 @@ struct ContentView: View {
                         TelemetryService.tabSelected(String(describing: newTab))
                     }
                     .sheet(isPresented: $showingAddDrink, onDismiss: {
+                        addDrinkInitialType = nil
                         if let celebration = pendingCelebration {
                             pendingCelebration = nil
                             presentedCelebration = celebration
                         }
                     }) {
-                        AddDrinkView()
+                        AddDrinkView(initialType: addDrinkInitialType)
                     }
                     .onChange(of: showingAddDrink) { _, isPresented in
                         if isPresented {

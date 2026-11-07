@@ -1,9 +1,17 @@
 import SwiftUI
 import UIKit
 
+/// Hero of the add-drink form. Before a photo it's the fizzy drink preview
+/// with a "Snap your drink" button; after, the photo takes over the card with
+/// the drink details on top.
 struct PhotoSection: View {
     @Binding var capturedPhoto: UIImage?
     @Binding var showingCamera: Bool
+    let type: DrinkType
+    var brand: BeverageBrand = .dietCoke
+    var specialEdition: SpecialEdition? = nil
+    var customOunces: Double? = nil
+    var rating: DrinkRating? = nil
 
     @StateObject private var verificationService = ImageVerificationService()
     @State private var pendingPhoto: UIImage?
@@ -11,94 +19,25 @@ struct PhotoSection: View {
     @State private var verificationMessage = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "camera.fill")
-                    .foregroundColor(.dietCokeRed)
-                Text("Photo")
-                    .font(.headline)
-                    .foregroundColor(.dietCokeCharcoal)
-
-                Spacer()
-
-                if capturedPhoto != nil {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            capturedPhoto = nil
-                        }
-                    } label: {
-                        Text("Remove")
-                            .font(.caption)
-                            .foregroundColor(.dietCokeRed)
-                    }
-                }
-            }
-
-            Text("Take a photo of your drink (Optional)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
+        VStack(spacing: 8) {
             if let photo = capturedPhoto {
-                Image(uiImage: photo)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 200)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .cornerRadius(12)
-                    .overlay(
-                        Button {
-                            if CameraView.isAvailable {
-                                showingCamera = true
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "camera.fill")
-                                    .accessibilityHidden(true)
-                                Text("Retake")
-                            }
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(8)
-                        }
-                        .accessibilityLabel("Retake photo")
-                        .padding(8),
-                        alignment: .bottomTrailing
-                    )
+                photoCard(photo)
             } else {
-                Button {
-                    if CameraView.isAvailable {
-                        showingCamera = true
-                    }
-                } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "camera.fill")
-                            .font(.title2)
-                            .accessibilityHidden(true)
-                        Text(CameraView.isAvailable ? "Take Photo" : "Camera Unavailable")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                    .foregroundColor(CameraView.isAvailable ? .dietCokeRed : .secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 100)
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.dietCokeSilver.opacity(0.3), lineWidth: 1)
-                    )
-                }
-                .disabled(!CameraView.isAvailable)
-                .accessibilityLabel(CameraView.isAvailable ? "Take photo of your drink" : "Camera unavailable")
+                SelectedDrinkPreview(
+                    type: type,
+                    brand: brand,
+                    specialEdition: specialEdition,
+                    customOunces: customOunces,
+                    rating: rating,
+                    onTakePhoto: openCamera,
+                    isCameraAvailable: CameraView.isAvailable
+                )
+
+                Text("Optional. Photos can be shared on the Global feed.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
-        .padding(16)
-        .background(Color.dietCokeCardBackground)
-        .cornerRadius(12)
         .sheet(isPresented: $showingCamera) {
             CameraView(capturedImage: $pendingPhoto)
         }
@@ -124,7 +63,7 @@ struct PhotoSection: View {
             if verificationService.isVerifying {
                 ZStack {
                     Color.black.opacity(0.3)
-                        .cornerRadius(12)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
                     VStack(spacing: 12) {
                         ProgressView()
                             .scaleEffect(1.2)
@@ -137,6 +76,74 @@ struct PhotoSection: View {
                     .cornerRadius(12)
                 }
             }
+        }
+    }
+
+    private func photoCard(_ photo: UIImage) -> some View {
+        Image(uiImage: photo)
+            .resizable()
+            .scaledToFill()
+            .frame(height: 280)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            .overlay(alignment: .bottom) {
+                // Scrim keeps the drink details legible on any photo.
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.65)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(type.displayName)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                    HStack(spacing: 6) {
+                        BrandIconView(brand: brand, size: DrinkIconSize.xs)
+                        Text(brand.rawValue)
+                        if let rating {
+                            Text("·")
+                            Image(systemName: rating.icon)
+                            Text(rating.displayName)
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(.white)
+                .padding(16)
+            }
+            .overlay(alignment: .topTrailing) {
+                HStack(spacing: 8) {
+                    photoButton("Retake", systemImage: "camera.fill", action: openCamera)
+                        .disabled(!CameraView.isAvailable)
+                    photoButton("Remove", systemImage: "xmark") {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            capturedPhoto = nil
+                        }
+                    }
+                }
+                .padding(12)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private func photoButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title == "Retake" ? "Retake photo" : "Remove photo")
+    }
+
+    private func openCamera() {
+        if CameraView.isAvailable {
+            showingCamera = true
         }
     }
 
@@ -166,10 +173,10 @@ private struct PhotoSectionPreviewWrapper: View {
     @State private var photo: UIImage?
     @State private var showingCamera = false
     var body: some View {
-        PhotoSection(capturedPhoto: $photo, showingCamera: $showingCamera)
+        PhotoSection(capturedPhoto: $photo, showingCamera: $showingCamera, type: .regularCan)
             .padding()
     }
 }
 
-#Preview { PhotoSectionPreviewWrapper() }
+#Preview { PhotoSectionPreviewWrapper().withPreviewEnvironment() }
 #endif

@@ -1,16 +1,30 @@
 import SwiftUI
-import PhotosUI
-import CloudKit
+
+/// The drink a new user picked as their usual during onboarding.
+struct OnboardingFirstDrink {
+    let brand: BeverageBrand
+    let type: DrinkType
+}
 
 struct OnboardingView: View {
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var themeManager: ThemeManager
-    let onComplete: () -> Void
+    @EnvironmentObject var identityService: IdentityService
+    /// `firstDrink` is non-nil when the user chose to log their first drink now;
+    /// it seeds the add-drink form.
+    let onComplete: (_ firstDrink: OnboardingFirstDrink?) -> Void
     @State private var currentPage = 0
     @State private var selectedBrand: BeverageBrand = .dietCoke
+    @State private var selectedType: DrinkType = .regularCan
+    @State private var displayName = IdentityService.suggestedDisplayName()
+    @State private var suggestedName = ""
+    @State private var selectedEmoji: String?
+    @State private var isFinishing = false
     @Environment(\.colorScheme) private var colorScheme
 
-    private let totalPages = 2
+    private let totalPages = 3
+
+    private var isLastPage: Bool { currentPage == totalPages - 1 }
 
     var body: some View {
         ZStack {
@@ -24,8 +38,11 @@ struct OnboardingView: View {
                     WelcomePage()
                         .tag(0)
 
-                    BrandSelectionPage(selectedBrand: $selectedBrand)
+                    UsualDrinkPage(selectedBrand: $selectedBrand, selectedType: $selectedType)
                         .tag(1)
+
+                    NamePage(displayName: $displayName, selectedEmoji: $selectedEmoji)
+                        .tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: currentPage)
@@ -42,37 +59,43 @@ struct OnboardingView: View {
                         }
                     }
 
-                    // Continue/Get Started button
                     Button {
-                        if currentPage < totalPages - 1 {
+                        if isLastPage {
+                            completeOnboarding(logNow: true)
+                        } else {
                             withAnimation {
                                 currentPage += 1
                             }
-                        } else {
-                            completeOnboarding()
                         }
                     } label: {
-                        Text(currentPage == totalPages - 1 ? "Log My First Drink" : "Continue")
+                        Group {
+                            if isFinishing {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text(primaryButtonTitle)
+                            }
+                        }
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .background(isLastPage ? selectedBrand.buttonGradient : LinearGradient(
+                                colors: [Color.dietCokeRed, Color.dietCokeDeepRed],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ))
                             .clipShape(Capsule())
                     }
+                    .disabled(isFinishing)
                     .padding(.horizontal, 32)
 
-                    // Skip button (not on last page)
-                    if currentPage < totalPages - 1 {
-                        Button("Skip") {
-                            completeOnboarding()
+                    // Not everyone has a drink in hand on first launch; let them
+                    // in without inventing a log.
+                    if isLastPage {
+                        Button("Not right now") {
+                            completeOnboarding(logNow: false)
                         }
+                        .disabled(isFinishing)
                         .font(.subheadline)
                         .foregroundColor(.dietCokeDarkSilver)
                     } else {
@@ -89,24 +112,83 @@ struct OnboardingView: View {
         }
         .onChange(of: currentPage) { _, page in
             TelemetryService.onboardingPageViewed(page: page)
+            // A reinstall may have restored a profile from iCloud; show that
+            // name rather than inventing a new one.
+            if page == 2, identityService.state == .ready,
+               let existing = identityService.currentProfile?.displayName {
+                displayName = existing
+            }
+            if suggestedName.isEmpty {
+                suggestedName = displayName
+            }
         }
     }
 
-    private func completeOnboarding() {
-        preferences.defaultBrand = selectedBrand
-        preferences.markOnboardingComplete()
-        TelemetryService.onboardingCompleted(brand: selectedBrand)
-        onComplete()
+    private var primaryButtonTitle: String {
+        switch currentPage {
+        case 0: return "Get Started"
+        case totalPages - 1: return "Log My First Drink"
+        default: return "Continue"
+        }
+    }
+
+    private func completeOnboarding(logNow: Bool) {
+        isFinishing = true
+        Task {
+            // The profile must exist before the first drink is saved, or that
+            // drink (and its photo) never reaches the feeds.
+            await ensureProfile()
+            preferences.defaultBrand = selectedBrand
+            preferences.markOnboardingComplete()
+            TelemetryService.onboardingCompleted(brand: selectedBrand, drinkType: selectedType, loggedFirstDrink: logNow)
+            isFinishing = false
+            onComplete(logNow ? OnboardingFirstDrink(brand: selectedBrand, type: selectedType) : nil)
+        }
+    }
+
+    private func ensureProfile() async {
+        // Identity restore from iCloud runs at launch; don't race it into
+        // creating a duplicate profile.
+        for _ in 0..<25 where identityService.state == .loading {
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+
+        let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = trimmed.isEmpty ? suggestedName : trimmed
+
+        if identityService.state == .ready {
+            if name != identityService.currentProfile?.displayName {
+                try? await identityService.updateDisplayName(name)
+            }
+        } else {
+            do {
+                try await identityService.createIdentity(displayName: name)
+                TelemetryService.profileCreated()
+                TelemetryService.onboardingProfileCreated(editedName: name != suggestedName, hasEmoji: selectedEmoji != nil)
+            } catch {
+                // Social setup is still reachable from the Social tab.
+                AppLogger.identity.error("Onboarding profile creation failed: \(error.localizedDescription)")
+                return
+            }
+        }
+
+        if let emoji = selectedEmoji, var profile = identityService.currentProfile {
+            profile.profileEmoji = emoji
+            identityService.currentProfile = profile
+            try? await identityService.saveProfile()
+        }
     }
 }
 
 // MARK: - Welcome Page
 
 private struct WelcomePage: View {
+    @EnvironmentObject var globalFeedService: GlobalFeedService
     @State private var isAnimating = false
+    @State private var communityPhotos: [UIImage] = []
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 28) {
             Spacer()
 
             // Animated logo/icon
@@ -118,18 +200,18 @@ private struct WelcomePage: View {
                             colors: [Color.dietCokeRed.opacity(0.3), Color.clear],
                             center: .center,
                             startRadius: 40,
-                            endRadius: 120
+                            endRadius: 110
                         )
                     )
-                    .frame(width: 240, height: 240)
+                    .frame(width: 170, height: 170)
                     .scaleEffect(isAnimating ? 1.1 : 0.9)
 
                 // App icon
                 Image("AppIconImage")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 140, height: 140)
-                    .clipShape(RoundedRectangle(cornerRadius: 32))
+                    .frame(width: 100, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
                     .shadow(color: Color.dietCokeRed.opacity(0.5), radius: 20, y: 10)
             }
             .onAppear {
@@ -138,11 +220,7 @@ private struct WelcomePage: View {
                 }
             }
 
-            VStack(spacing: 12) {
-                Text("Welcome to")
-                    .font(.title2)
-                    .foregroundColor(.dietCokeDarkSilver)
-
+            VStack(spacing: 10) {
                 Text("FridgeCig")
                     .font(.system(size: 42, weight: .bold, design: .rounded))
                     .foregroundStyle(
@@ -153,221 +231,286 @@ private struct WelcomePage: View {
                         )
                     )
 
-                Text("Track your DC journey")
+                Text("For people who take their Diet Coke\nand Coke Zero seriously.")
                     .font(.body)
                     .foregroundColor(.dietCokeDarkSilver)
-                    .padding(.top, 4)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24)
+            }
+
+            VStack(alignment: .leading, spacing: 16) {
+                WelcomeValueRow(icon: "flame.fill", color: .orange, text: "Build a daily streak in one tap")
+                WelcomeValueRow(icon: "trophy.fill", color: .yellow, text: "Climb the leaderboard")
+                WelcomeValueRow(icon: "flag.checkered", color: .blue, text: "Collect all 52 state cans")
+            }
+            .padding(.horizontal, 40)
+
+            if !communityPhotos.isEmpty {
+                communityStrip
+                    .transition(.opacity)
             }
 
             Spacer()
             Spacer()
         }
         .padding()
-    }
-}
-
-// MARK: - Features Page
-
-private struct FeaturesPage: View {
-    var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-
-            Text("What You Can Do")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(.dietCokeCharcoal)
-
-            VStack(spacing: 24) {
-                FeatureRow(
-                    icon: "plus.circle.fill",
-                    color: .dietCokeRed,
-                    title: "Log Your Drinks",
-                    description: "Track every DC with type, size, and photos"
-                )
-
-                FeatureRow(
-                    icon: "trophy.fill",
-                    color: .orange,
-                    title: "Earn Badges",
-                    description: "Unlock fun achievements as you drink"
-                )
-
-                FeatureRow(
-                    icon: "person.2.fill",
-                    color: .blue,
-                    title: "Compete with Friends",
-                    description: "See who's the biggest DC fan"
-                )
-
-                FeatureRow(
-                    icon: "chart.bar.fill",
-                    color: .purple,
-                    title: "View Your Stats",
-                    description: "Streaks, totals, and weekly recaps"
-                )
-            }
-            .padding(.horizontal, 24)
-
-            Spacer()
-            Spacer()
+        .task {
+            await loadCommunityPhotos()
         }
-        .padding()
+    }
+
+    /// Real photos from the Global feed — shows what the community is before
+    /// asking anyone to join it.
+    private var communityStrip: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: -10) {
+                ForEach(Array(communityPhotos.enumerated()), id: \.offset) { _, image in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 52, height: 52)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                        .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+                }
+            }
+            .accessibilityHidden(true)
+
+            Text("See what everyone's sipping")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.dietCokeDarkSilver)
+        }
+    }
+
+    private func loadCommunityPhotos() async {
+        await globalFeedService.refresh()
+        var loaded: [UIImage] = []
+        for item in globalFeedService.items {
+            guard loaded.count < 5, let photoURL = item.payload.photoURL else { continue }
+            if let image = await globalFeedService.fetchPhoto(recordName: photoURL) {
+                loaded.append(image)
+            }
+        }
+        withAnimation(.easeOut(duration: 0.3)) {
+            communityPhotos = loaded
+        }
     }
 }
 
-private struct FeatureRow: View {
+private struct WelcomeValueRow: View {
     let icon: String
     let color: Color
-    let title: String
-    let description: String
+    let text: String
 
     var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 50, height: 50)
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(color.opacity(0.15)))
 
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                    .foregroundColor(color)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.dietCokeCharcoal)
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.dietCokeDarkSilver)
-            }
-
-            Spacer()
+            Text(text)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.dietCokeCharcoal)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
 
-// MARK: - Notifications Page
+// MARK: - Name Page
 
-private struct NotificationsPage: View {
-    @ObservedObject var notificationService: NotificationService
-    @State private var hasRequested = false
+private struct NamePage: View {
+    @Binding var displayName: String
+    @Binding var selectedEmoji: String?
+    @State private var showingEmojiPicker = false
+    @FocusState private var isNameFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 8) {
+                    Text("How should the\ncommunity see you?")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.dietCokeCharcoal)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.orange.opacity(0.2), Color.orange.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 140, height: 140)
-
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 60, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.orange, .red],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
-
-            VStack(spacing: 12) {
-                Text("Stay on Track")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.dietCokeCharcoal)
-
-                Text("Get reminders to maintain your streak and celebrate milestones with friends")
-                    .font(.body)
-                    .foregroundColor(.dietCokeDarkSilver)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-
-            if !hasRequested {
-                Button {
-                    Task {
-                        _ = await notificationService.requestAuthorization()
-                        hasRequested = true
-                    }
-                } label: {
-                    Label("Enable Notifications", systemImage: "bell.fill")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: [.orange, .red],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(Capsule())
-                }
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: notificationService.isAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(notificationService.isAuthorized ? .green : .secondary)
-                    Text(notificationService.isAuthorized ? "Notifications enabled!" : "You can enable later in Settings")
+                    Text("Your name on the leaderboard and the Global feed.\nYou can change it anytime.")
                         .font(.subheadline)
-                        .foregroundColor(notificationService.isAuthorized ? .green : .secondary)
+                        .foregroundColor(.dietCokeDarkSilver)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
+                .padding(.top, 32)
 
-            Spacer()
-            Spacer()
+                Button {
+                    showingEmojiPicker = true
+                } label: {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.dietCokeRed.opacity(0.12))
+                                .frame(width: 96, height: 96)
+
+                            if let selectedEmoji {
+                                Text(selectedEmoji)
+                                    .font(.system(size: 48))
+                            } else {
+                                Text(initial)
+                                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                                    .foregroundColor(.dietCokeRed)
+                            }
+                        }
+
+                        Text(selectedEmoji == nil ? "Pick an emoji" : "Change emoji")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.dietCokeRed)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(selectedEmoji == nil ? "Pick an emoji avatar" : "Change emoji avatar")
+
+                TextField("Display name", text: $displayName)
+                    .font(.title3.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .focused($isNameFocused)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.dietCokeSilver.opacity(0.25), lineWidth: 1)
+                    )
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
         }
-        .padding()
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: $showingEmojiPicker) {
+            EmojiPickerSheet { emoji in
+                selectedEmoji = emoji
+            }
+        }
+    }
+
+    private var initial: String {
+        displayName.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() } ?? "?"
     }
 }
 
-// MARK: - Brand Selection Page
+// MARK: - Usual Drink Page
 
-private struct BrandSelectionPage: View {
+private struct UsualDrinkPage: View {
     @Binding var selectedBrand: BeverageBrand
+    @Binding var selectedType: DrinkType
+
+    /// The handful of formats that cover nearly every log; the full list
+    /// stays a tap away in the add-drink form.
+    private let commonTypes: [DrinkType] = [.regularCan, .miniCan, .bottle20oz, .fountainMedium]
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 8) {
+                    Text("What's your usual?")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.dietCokeCharcoal)
 
-            VStack(spacing: 12) {
-                Text("Your Go-To Drink")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.dietCokeCharcoal)
+                    Text("We'll have it ready every time you log.\nYou can always pick something else.")
+                        .font(.subheadline)
+                        .foregroundColor(.dietCokeDarkSilver)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 32)
 
-                Text("Select your default beverage.\nYou can always change it when logging.")
-                    .font(.body)
-                    .foregroundColor(.dietCokeDarkSilver)
-                    .multilineTextAlignment(.center)
-            }
+                VStack(spacing: 10) {
+                    ForEach(BeverageBrand.allCases) { brand in
+                        BrandOptionRow(brand: brand, isSelected: selectedBrand == brand) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedBrand = brand
+                            }
+                        }
+                    }
+                }
 
-            VStack(spacing: 12) {
-                ForEach(BeverageBrand.allCases) { brand in
-                    BrandOptionRow(brand: brand, isSelected: selectedBrand == brand) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedBrand = brand
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(commonTypes) { type in
+                        DrinkTypeOption(type: type, brand: selectedBrand, isSelected: selectedType == type) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedType = type
+                            }
                         }
                     }
                 }
             }
             .padding(.horizontal, 24)
-
-            Spacer()
-            Spacer()
+            .padding(.bottom, 16)
         }
-        .padding()
+        .scrollBounceBehavior(.basedOnSize)
+    }
+}
+
+private struct DrinkTypeOption: View {
+    let type: DrinkType
+    let brand: BeverageBrand
+    let isSelected: Bool
+    let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// "Fountain Medium" is too long for a half-width tile; size is a detail
+    /// the add-drink form handles.
+    private var label: String {
+        type == .fountainMedium ? "Fountain" : type.displayName
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                DrinkIconView(drinkType: type, size: DrinkIconSize.md)
+                    .frame(width: 26, height: 26)
+                    .foregroundColor(brand.color)
+
+                Text(label)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.dietCokeCharcoal)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected
+                          ? brand.color.opacity(colorScheme == .dark ? 0.15 : 0.08)
+                          : (colorScheme == .dark ? Color(white: 0.12) : Color.white))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? brand.color.opacity(0.5) : Color.dietCokeSilver.opacity(0.15), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -391,20 +534,14 @@ private struct BrandOptionRow: View {
                         )
                         .frame(width: 44, height: 44)
 
-                    BrandIconView(brand: brand, size: DrinkIconSize.sm)
+                    BrandIconView(brand: brand, size: DrinkIconSize.lg)
                         .foregroundColor(brand.color)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(brand.rawValue)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .foregroundColor(.dietCokeCharcoal)
-
-                    Text(brand.shortName)
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
-                }
+                Text(brand.rawValue)
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .foregroundColor(.dietCokeCharcoal)
 
                 Spacer()
 
@@ -420,7 +557,7 @@ private struct BrandOptionRow: View {
                         .font(.title2)
                 }
             }
-            .padding(14)
+            .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 14)
                     .fill(isSelected
@@ -433,419 +570,13 @@ private struct BrandOptionRow: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-// MARK: - Leaderboard Page
-
-private struct LeaderboardPage: View {
-    @ObservedObject var identityService: IdentityService
-    @EnvironmentObject var cloudKitManager: CloudKitManager
-    @State private var displayName = ""
-    @State private var isCreating = false
-    @State private var hasJoined = false
-    @State private var showError = false
-    @FocusState private var isNameFocused: Bool
-
-    @State private var selectedEmoji: String?
-    @State private var selectedImage: UIImage?
-    @State private var showingAvatarOptions = false
-    @State private var showingPhotoPicker = false
-    @State private var showingCamera = false
-    @State private var showingEmojiPicker = false
-    @State private var selectedPhoto: PhotosPickerItem?
-    @State private var cameraImage: UIImage?
-
-    private var canJoin: Bool {
-        !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            // Avatar picker
-            Button {
-                showingAvatarOptions = true
-            } label: {
-                VStack(spacing: 8) {
-                    ZStack(alignment: .bottomTrailing) {
-                        onboardingAvatarPreview
-
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 28, height: 28)
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                        .offset(x: 4, y: 4)
-                    }
-
-                    Text("Add Profile Photo")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.blue)
-                }
-            }
-            .disabled(hasJoined)
-            .confirmationDialog("Profile Picture", isPresented: $showingAvatarOptions) {
-                Button("Choose Photo") { showingPhotoPicker = true }
-                Button("Take Photo") { showingCamera = true }
-                Button("Pick Emoji") { showingEmojiPicker = true }
-                Button("Cancel", role: .cancel) {}
-            }
-            .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhoto, matching: .images)
-            .onChange(of: selectedPhoto) { _, newItem in
-                guard let newItem else { return }
-                Task {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        selectedImage = image
-                        selectedEmoji = nil
-                    }
-                }
-            }
-            .fullScreenCover(isPresented: $showingCamera) {
-                CameraView(capturedImage: $cameraImage)
-            }
-            .onChange(of: cameraImage) { _, newImage in
-                guard let newImage else { return }
-                selectedImage = newImage
-                selectedEmoji = nil
-                cameraImage = nil
-            }
-            .sheet(isPresented: $showingEmojiPicker) {
-                EmojiPickerSheet { emoji in
-                    selectedEmoji = emoji
-                    selectedImage = nil
-                }
-            }
-
-            VStack(spacing: 12) {
-                Text("Join the Leaderboard")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.dietCokeCharcoal)
-
-                Text("Compete globally and see how you rank against other DC fans")
-                    .font(.body)
-                    .foregroundColor(.dietCokeDarkSilver)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-
-            if hasJoined {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("You're on the leaderboard!")
-                        .font(.subheadline)
-                        .foregroundColor(.green)
-                }
-            } else {
-                VStack(spacing: 12) {
-                    TextField("Display Name", text: $displayName)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(Color.dietCokeCardBackground)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.dietCokeSilver.opacity(0.3), lineWidth: 1)
-                        )
-                        .focused($isNameFocused)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            if canJoin { joinLeaderboard() }
-                        }
-
-                    Button {
-                        joinLeaderboard()
-                    } label: {
-                        HStack {
-                            if isCreating {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "person.crop.circle.badge.plus")
-                                Text("Join Leaderboard")
-                            }
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: canJoin ? [.blue, .purple] : [.gray, .gray],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(Capsule())
-                    }
-                    .disabled(!canJoin || isCreating)
-
-                    Text("You can also join later from the Social tab")
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
-                }
-                .padding(.horizontal, 24)
-            }
-
-            Spacer()
-            Spacer()
-        }
-        .padding()
-        .alert("Error", isPresented: $showError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(identityService.error?.localizedDescription ?? "Something went wrong. You can try again later from the Social tab.")
-        }
-    }
-
-    @ViewBuilder
-    private var onboardingAvatarPreview: some View {
-        ZStack {
-            if let image = selectedImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-            } else if let emoji = selectedEmoji {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 100, height: 100)
-                Text(emoji)
-                    .font(.system(size: 50))
-            } else if let initial = displayName.trimmingCharacters(in: .whitespacesAndNewlines).first {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.08)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 100, height: 100)
-                Text(String(initial).uppercased())
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            } else {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 100, height: 100)
-                Image(systemName: "person.crop.circle.badge.plus")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
-        }
-    }
-
-    private func joinLeaderboard() {
-        guard canJoin else { return }
-        isCreating = true
-        Task {
-            do {
-                let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-                try await identityService.createIdentity(displayName: name)
-
-                if let image = selectedImage {
-                    await uploadOnboardingPhoto(image)
-                } else if let emoji = selectedEmoji {
-                    await setOnboardingEmoji(emoji)
-                }
-
-                hasJoined = true
-            } catch {
-                showError = true
-            }
-            isCreating = false
-        }
-    }
-
-    private func uploadOnboardingPhoto(_ image: UIImage) async {
-        guard let compressed = image.jpegData(compressionQuality: 0.7) else { return }
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("jpg")
-
-        do {
-            try compressed.write(to: tempURL)
-            let asset = CKAsset(fileURL: tempURL)
-            let record = CKRecord(recordType: "ProfilePhoto")
-            record["photo"] = asset
-            record["userID"] = identityService.currentIdentity?.userIDString
-
-            let saved = try await cloudKitManager.saveToPublicAndReturn(record)
-            try? FileManager.default.removeItem(at: tempURL)
-
-            let photoID = saved.recordID.recordName
-            ProfilePhotoCache.shared.setPhoto(image, for: photoID)
-
-            if var profile = identityService.currentProfile {
-                profile.profilePhotoID = photoID
-                identityService.currentProfile = profile
-                try await identityService.saveProfile()
-            }
-        } catch {
-            try? FileManager.default.removeItem(at: tempURL)
-        }
-    }
-
-    private func setOnboardingEmoji(_ emoji: String) async {
-        if var profile = identityService.currentProfile {
-            profile.profileEmoji = emoji
-            identityService.currentProfile = profile
-            try? await identityService.saveProfile()
-        }
-    }
-}
-
-// MARK: - Global Feed Page
-
-private struct GlobalFeedPage: View {
-    @ObservedObject var activityService: ActivityFeedService
-    @ObservedObject var identityService: IdentityService
-    @ObservedObject var cloudKitManager: CloudKitManager
-    @State private var hasOptedIn = false
-
-    var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.green.opacity(0.2), Color.green.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 140, height: 140)
-
-                Image(systemName: "globe")
-                    .font(.system(size: 60, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.green, .mint],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
-
-            VStack(spacing: 12) {
-                Text("Join the Global Feed")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.dietCokeCharcoal)
-
-                Text("Share your drink photos with the entire community. Photos are screened for safety before appearing.")
-                    .font(.body)
-                    .foregroundColor(.dietCokeDarkSilver)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-
-            if hasOptedIn {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("You're sharing globally!")
-                        .font(.subheadline)
-                        .foregroundColor(.green)
-                }
-            } else {
-                VStack(spacing: 12) {
-                    Button {
-                        enableGlobalSharing()
-                    } label: {
-                        HStack {
-                            Image(systemName: "globe")
-                            Text("Join Global Feed")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: [.green, .mint],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(Capsule())
-                    }
-
-                    Text("You can change this anytime in Sharing Settings")
-                        .font(.caption)
-                        .foregroundColor(.dietCokeDarkSilver)
-                }
-            }
-
-            Spacer()
-            Spacer()
-        }
-        .padding()
-    }
-
-    private func enableGlobalSharing() {
-        var prefs = activityService.sharingPreferences
-        prefs.sharePhotosGlobally = true
-        activityService.updatePreferences(prefs)
-
-        if var profile = identityService.currentProfile {
-            profile.sharePhotosGlobally = true
-            Task {
-                if let record = try? await cloudKitManager.fetchUserProfile(byUserID: profile.userIDString) {
-                    record["sharePhotosGlobally"] = 1
-                    try? await cloudKitManager.saveToPublic(record)
-                }
-            }
-        }
-
-        withAnimation {
-            hasOptedIn = true
-        }
-    }
-}
-
+#if DEBUG
 #Preview {
-    let ckManager = CloudKitManager()
-    OnboardingView(onComplete: {})
-        .environmentObject(UserPreferences())
-        .environmentObject(NotificationService(cloudKitManager: ckManager))
-        .environmentObject(IdentityService(cloudKitManager: ckManager))
-        .environmentObject(ActivityFeedService(cloudKitManager: ckManager))
-        .environmentObject(ckManager)
+    OnboardingView(onComplete: { _ in })
+        .withPreviewEnvironment(populated: false)
 }
+#endif

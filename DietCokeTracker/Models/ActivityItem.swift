@@ -243,6 +243,8 @@ struct UserSharingPreferences: Codable {
     var shareStreakMilestones: Bool
     var shareDrinkLogs: Bool
     var showPhotosInFeed: Bool
+    /// Whether Global is offered when logging a photo. On by default — the
+    /// per-post "Post to" choice is the consent; this is the off switch.
     var sharePhotosGlobally: Bool
 
     init(
@@ -250,7 +252,7 @@ struct UserSharingPreferences: Codable {
         shareStreakMilestones: Bool = true,
         shareDrinkLogs: Bool = true,
         showPhotosInFeed: Bool = true,
-        sharePhotosGlobally: Bool = false
+        sharePhotosGlobally: Bool = true
     ) {
         self.shareBadges = shareBadges
         self.shareStreakMilestones = shareStreakMilestones
@@ -268,7 +270,7 @@ struct UserSharingPreferences: Codable {
         shareStreakMilestones = try container.decode(Bool.self, forKey: .shareStreakMilestones)
         shareDrinkLogs = try container.decode(Bool.self, forKey: .shareDrinkLogs)
         showPhotosInFeed = try container.decode(Bool.self, forKey: .showPhotosInFeed)
-        sharePhotosGlobally = try container.decodeIfPresent(Bool.self, forKey: .sharePhotosGlobally) ?? false
+        sharePhotosGlobally = try container.decodeIfPresent(Bool.self, forKey: .sharePhotosGlobally) ?? true
     }
 }
 

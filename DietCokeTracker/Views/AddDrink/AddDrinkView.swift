@@ -8,6 +8,8 @@ struct AddDrinkView: View {
     @EnvironmentObject var preferences: UserPreferences
     @EnvironmentObject var activityService: ActivityFeedService
     @Environment(\.dismiss) private var dismiss
+    /// Overrides the last-logged prefill, e.g. the usual picked in onboarding.
+    var initialType: DrinkType? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var selectedType: DrinkType = .regularCan
@@ -27,10 +29,11 @@ struct AddDrinkView: View {
     @State private var showingValidationAlert = false
     @State private var validationAlertMessage = ""
 
-    @State private var showingGlobalOptInAlert = false
-    // Only auto-prompt for the Global feed once; the Public visibility chip
-    // stays available as the manual path afterwards.
-    @AppStorage("hasSeenGlobalFeedLogPrompt") private var hasSeenGlobalFeedPrompt = false
+    @State private var didApplyLastDrinkDefaults = false
+    @State private var showingMoreDetails = false
+    /// Where the user last posted a photo. Global is the starting default;
+    /// picking Friends or Only Me once makes that their default.
+    @AppStorage("lastPhotoVisibility") private var lastPhotoVisibility: PostVisibility = .public
 
     private var effectiveBrand: BeverageBrand {
         selectedBrand ?? preferences.defaultBrand
@@ -61,7 +64,10 @@ struct AddDrinkView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    SelectedDrinkPreview(
+                    // Photo leads: it's what makes a log worth posting.
+                    PhotoSection(
+                        capturedPhoto: $capturedPhoto,
+                        showingCamera: $showingCamera,
                         type: selectedType,
                         brand: effectiveBrand,
                         specialEdition: selectedSpecialEdition,
@@ -74,80 +80,52 @@ struct AddDrinkView: View {
                         defaultBrand: preferences.defaultBrand
                     )
 
-                    PhotoSection(
-                        capturedPhoto: $capturedPhoto,
-                        showingCamera: $showingCamera
-                    )
-
-                    VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil) {
-                        showingGlobalOptInAlert = true
-                    }
-
-                    RatingSection(selectedRating: $selectedRating)
-
                     DrinkTypesGrid(
                         selectedType: $selectedType,
                         selectedCategory: $selectedCategory
                     )
 
-                    SpecialEditionSection(
-                        showSpecialEditions: $showSpecialEditions,
-                        selectedSpecialEdition: $selectedSpecialEdition
-                    )
+                    RatingSection(selectedRating: $selectedRating)
 
-                    // State can picker — only for America 250 mini cans (the
-                    // 52-can series is mini-can-only).
-                    if selectedSpecialEdition == .america250 && selectedType == .miniCan {
-                        StateCanPickerSection(selectedCode: $selectedStateCanCode)
+                    moreDetailsToggle
+
+                    if showingMoreDetails {
+                        SpecialEditionSection(
+                            showSpecialEditions: $showSpecialEditions,
+                            selectedSpecialEdition: $selectedSpecialEdition
+                        )
+
+                        // State can picker — only for America 250 mini cans (the
+                        // 52-can series is mini-can-only).
+                        if selectedSpecialEdition == .america250 && selectedType == .miniCan {
+                            StateCanPickerSection(selectedCode: $selectedStateCanCode)
+                        }
+
+                        CustomOuncesSection(
+                            useCustomOunces: $useCustomOunces,
+                            customOuncesText: $customOuncesText,
+                            defaultOunces: selectedType.ounces
+                        )
+
+                        NoteInputView(note: $note)
                     }
 
-                    CustomOuncesSection(
-                        useCustomOunces: $useCustomOunces,
-                        customOuncesText: $customOuncesText,
-                        defaultOunces: selectedType.ounces
-                    )
-
-                    NoteInputView(note: $note)
-
-                    Button {
-                        addDrink()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Add \(effectiveBrand.shortName)")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .glassSurface(
-                            in: RoundedRectangle(cornerRadius: 14),
-                            tint: canAddDrink ? effectiveBrand.color : nil,
-                            interactive: canAddDrink
-                        ) {
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(
-                                    canAddDrink
-                                        ? effectiveBrand.buttonGradient
-                                        : LinearGradient(
-                                            colors: [Color.dietCokeSilver, Color.dietCokeSilver],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                )
-                                .shadow(
-                                    color: canAddDrink ? effectiveBrand.color.opacity(0.3) : Color.clear,
-                                    radius: 8,
-                                    y: 4
-                                )
-                        }
-                    }
-                    .disabled(!canAddDrink)
-                    .padding(.top, 8)
+                    // Sits right above the pinned button so where the post
+                    // goes is the last thing decided.
+                    VisibilityPicker(visibility: $visibility, hasPhoto: capturedPhoto != nil)
                 }
                 .padding()
             }
             .background(backgroundColor.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                // Pinned so a quick log never requires scrolling past the
+                // optional fields.
+                addButton
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+                    .background(backgroundColor.ignoresSafeArea())
+            }
             .navigationTitle("Add \(effectiveBrand.shortName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -159,6 +137,8 @@ struct AddDrinkView: View {
                 }
             }
             .onAppear {
+                applyLastDrinkDefaults()
+
                 let prefs = activityService.sharingPreferences
                 if !prefs.shareDrinkLogs {
                     visibility = .onlyMe
@@ -168,23 +148,18 @@ struct AddDrinkView: View {
                     visibility = .friends
                 }
             }
-            .onChange(of: capturedPhoto) { _, newPhoto in
+            .onChange(of: capturedPhoto) { oldPhoto, newPhoto in
                 let prefs = activityService.sharingPreferences
                 if newPhoto == nil && visibility == .public {
                     visibility = .friends
-                } else if newPhoto != nil,
-                          prefs.shareDrinkLogs,
-                          prefs.sharePhotosGlobally,
-                          visibility != .public {
-                    visibility = .public
-                } else if newPhoto != nil,
-                          prefs.shareDrinkLogs,
-                          !prefs.sharePhotosGlobally,
-                          !hasSeenGlobalFeedPrompt {
-                    // First photo ever attached and the user has never decided on
-                    // global sharing — this is the moment to ask, not a settings screen.
-                    hasSeenGlobalFeedPrompt = true
-                    showingGlobalOptInAlert = true
+                } else if oldPhoto == nil, newPhoto != nil, prefs.shareDrinkLogs {
+                    // Fresh photo: use their photo default. Global stays
+                    // visibly labeled in the picker, so this is never silent.
+                    if lastPhotoVisibility == .public && !prefs.sharePhotosGlobally {
+                        visibility = .friends
+                    } else {
+                        visibility = lastPhotoVisibility
+                    }
                 }
             }
             .alert("Too Fast!", isPresented: $showingValidationAlert) {
@@ -192,19 +167,105 @@ struct AddDrinkView: View {
             } message: {
                 Text(validationAlertMessage)
             }
-            .alert("Share to the Global Feed?", isPresented: $showingGlobalOptInAlert) {
-                Button("Join Global Feed") {
-                    var prefs = activityService.sharingPreferences
-                    prefs.shareDrinkLogs = true
-                    prefs.showPhotosInFeed = true
-                    prefs.sharePhotosGlobally = true
-                    activityService.updatePreferences(prefs)
-                    visibility = .public
-                }
-                Button("Not Now", role: .cancel) {}
-            } message: {
-                Text("Your drink photos will appear in the public Global feed for the whole community. Photos are screened for safety first, and you can turn this off anytime in Sharing Settings.")
+        }
+    }
+
+    private var isPostingGlobally: Bool {
+        visibility == .public && capturedPhoto != nil
+    }
+
+    private var hasMoreDetails: Bool {
+        selectedSpecialEdition != nil || useCustomOunces || !note.isEmpty
+    }
+
+    private var moreDetailsToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showingMoreDetails.toggle()
             }
+        } label: {
+            HStack {
+                Text("More details")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.dietCokeCharcoal)
+                Text("Special edition, size, note")
+                    .font(.caption)
+                    .foregroundColor(.dietCokeDarkSilver)
+                Spacer()
+                if hasMoreDetails && !showingMoreDetails {
+                    Circle()
+                        .fill(effectiveBrand.color)
+                        .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
+                }
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.dietCokeDarkSilver)
+                    .rotationEffect(.degrees(showingMoreDetails ? 180 : 0))
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(showingMoreDetails ? "Expanded" : "Collapsed")
+    }
+
+    private var addButton: some View {
+        Button {
+            addDrink()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                Text(isPostingGlobally ? "Post to Global" : "Add \(effectiveBrand.shortName)")
+            }
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .glassSurface(
+                in: RoundedRectangle(cornerRadius: 14),
+                tint: canAddDrink ? effectiveBrand.color : nil,
+                interactive: canAddDrink
+            ) {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        canAddDrink
+                            ? effectiveBrand.buttonGradient
+                            : LinearGradient(
+                                colors: [Color.dietCokeSilver, Color.dietCokeSilver],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                    )
+                    .shadow(
+                        color: canAddDrink ? effectiveBrand.color.opacity(0.3) : Color.clear,
+                        radius: 8,
+                        y: 4
+                    )
+            }
+        }
+        .disabled(!canAddDrink)
+    }
+
+    /// Most people log the same drink every time, so start from their last one
+    /// (or the usual they picked in onboarding).
+    private func applyLastDrinkDefaults() {
+        guard !didApplyLastDrinkDefaults else { return }
+        didApplyLastDrinkDefaults = true
+        if let initialType {
+            selectedType = initialType
+            selectedCategory = initialType.category
+            return
+        }
+        guard let last = store.mostRecentEntry else { return }
+        selectedType = last.type
+        selectedCategory = last.type.category
+        if last.brand != preferences.defaultBrand {
+            selectedBrand = last.brand
         }
     }
 
@@ -220,6 +281,10 @@ struct AddDrinkView: View {
             validationAlertMessage = validation.errorMessage ?? "Please wait before adding another drink."
             showingValidationAlert = true
             return
+        }
+
+        if capturedPhoto != nil && activityService.sharingPreferences.shareDrinkLogs {
+            lastPhotoVisibility = visibility
         }
 
         // Only attach a state code if this is the qualifying America-250 mini-can.

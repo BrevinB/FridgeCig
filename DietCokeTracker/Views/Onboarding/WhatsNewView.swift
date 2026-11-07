@@ -96,6 +96,32 @@ struct WhatsNewRelease: Identifiable {
 
     /// Releases in reverse chronological order — newest first.
     static let allReleases: [WhatsNewRelease] = [
+        WhatsNewRelease(version: "2.5.0", features: [
+            WhatsNewFeature(
+                icon: "camera.fill",
+                iconColor: .red,
+                title: "Snap Your Drink",
+                description: "Logging now starts with a photo. Your usual drink is ready to go, and extras like size and notes are tucked under More Details."
+            ),
+            WhatsNewFeature(
+                icon: "globe",
+                iconColor: .green,
+                title: "Post to Global",
+                description: "Share your drink photo with the whole community in one tap. You choose Global, Friends, or Only Me every time."
+            ),
+            WhatsNewFeature(
+                icon: "flame.fill",
+                iconColor: .orange,
+                title: "Smarter Streak Reminders",
+                description: "Reminders now know your streak and only nudge you on days you haven't logged."
+            ),
+            WhatsNewFeature(
+                icon: "snowflake",
+                iconColor: .cyan,
+                title: "Holiday Creamy Vanilla",
+                description: "This season's Coke Zero Sugar Holiday Creamy Vanilla is now a special edition you can log and collect, plus Orange Cream."
+            )
+        ]),
         WhatsNewRelease(version: "2.2.0", features: [
             WhatsNewFeature(
                 icon: "bell.badge.fill",

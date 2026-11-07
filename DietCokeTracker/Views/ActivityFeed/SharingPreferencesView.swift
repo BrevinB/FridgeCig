@@ -111,9 +111,9 @@ struct SharingPreferencesView: View {
                         )) {
                             Label {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Share Photos Globally")
+                                    Text("Global Feed Posts")
                                         .foregroundColor(.dietCokeCharcoal)
-                                    Text("Your drink photos will appear in the Global feed for all users")
+                                    Text("Offer Global when you log a photo")
                                         .font(.caption)
                                         .foregroundColor(.dietCokeDarkSilver)
                                 }
@@ -125,7 +125,7 @@ struct SharingPreferencesView: View {
                     } header: {
                         Text("Global Feed")
                     } footer: {
-                        Text("Photos shared globally are screened for safety before appearing in the Global tab. You can turn this off at any time.")
+                        Text("You choose where each photo goes when you log it, and Global is always labeled. Turn this off to never post photos to the Global feed. Global photos are screened for safety first.")
                     }
                 }
 
@@ -140,7 +140,7 @@ struct SharingPreferencesView: View {
                                 .foregroundColor(.dietCokeCharcoal)
                         }
 
-                        Text("Activities are only visible to your friends unless you enable global sharing. You can change these settings at any time.")
+                        Text("Photos you post to Global are public. Everything else is visible only to your friends. You can change these settings at any time.")
                             .font(.caption)
                             .foregroundColor(.dietCokeDarkSilver)
                     }

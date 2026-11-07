@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+:root { --w:3840px; --h:2560px; }
+/* Apple's art safe area (from the official template). */
+.safe { left:836px; top:765px; width:2168px; height:1030px; }
+/* What the iPhone search card shows: full width, top ~1670px. */
+.iphone { position:absolute; left:0; top:0; width:3840px; height:1672px; outline:6px dashed #ffe600; display:none; }
+body.debug .iphone { display:block; }
+/* Key content lives where the safe area and the iPhone band overlap (y 765–1672). */
+.copy { position:absolute; left:860px; top:765px; width:1200px; height:907px;
+  display:flex; flex-direction:column; justify-content:center; }
+.headline { font-size:325px; line-height:.88; }
+.headline small { display:block; font-size:156px; line-height:.95; margin-top:34px; letter-spacing:-.01em; }
+#back  { left:2760px; top:290px; width:920px; transform:rotate(9deg); }
+#front { left:2130px; top:340px; width:1010px; transform:rotate(-2deg); }
+</style></head>
+<body>
+<div class="bubbles"></div>
+<img class="phone" id="back"  src="02-badges.png">
+<img class="phone" id="front" src="01-track-your-streak.png">
+<div class="copy">
+  <div class="headline">Track<small>your daily<br>streak</small></div>
+</div>
+<div class="safe"></div><div class="iphone"></div>
+<script src="bubbles.js"></script><script>if(location.hash=="#debug")document.body.classList.add("debug")</script>
+<script>fizz(200, 3840, 2560, 12, 110, [840,700,2080,1700]);</script>
+</body></html>

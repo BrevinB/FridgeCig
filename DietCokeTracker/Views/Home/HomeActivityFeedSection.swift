@@ -14,10 +14,11 @@ struct HomeActivityFeedSection: View {
         Array(activityService.activities.prefix(5))
     }
 
-    /// Friendless users with no activity of their own see recent Global feed
-    /// photos instead of a dead "add friends" empty state.
+    /// Friendless users see recent Global feed photos. Their own posts don't
+    /// count — a list of just your own drinks isn't a feed, and new users now
+    /// post from their first log.
     private var showsCommunity: Bool {
-        recentActivities.isEmpty && friendService.friends.isEmpty && !communityItems.isEmpty
+        friendService.friends.isEmpty && !communityItems.isEmpty
     }
 
     private var communityItems: [ActivityItem] {
@@ -82,15 +83,19 @@ struct HomeActivityFeedSection: View {
             activityService.configure(currentUserID: userID, friendIDs: friendIDs)
             await activityService.fetchActivities()
 
-            // Pull global photos for the community strip when the friends feed
-            // has nothing to show.
-            if activityService.activities.isEmpty && friendIDs.isEmpty {
+            // Friendless users get the community strip instead of a friends feed.
+            if friendIDs.isEmpty {
                 await globalFeedService.refresh()
-                for item in communityItems {
-                    guard let photoURL = item.payload.photoURL, communityPhotos[photoURL] == nil else { continue }
-                    if let image = await globalFeedService.fetchPhoto(recordName: photoURL) {
-                        communityPhotos[photoURL] = image
-                    }
+            }
+        }
+        .task(id: communityItems.map(\.id)) {
+            // Keyed on the items so a freshly posted Global photo (inserted
+            // locally) gets its thumbnail too.
+            guard showsCommunity else { return }
+            for item in communityItems {
+                guard let photoURL = item.payload.photoURL, communityPhotos[photoURL] == nil else { continue }
+                if let image = await globalFeedService.fetchPhoto(recordName: photoURL) {
+                    communityPhotos[photoURL] = image
                 }
             }
         }

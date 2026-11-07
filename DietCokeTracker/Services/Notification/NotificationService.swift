@@ -27,6 +27,7 @@ class NotificationService: ObservableObject {
 
     private enum NotificationID {
         static let streakReminder = "streak_reminder"
+        static func streakReminderDay(_ dayOffset: Int) -> String { "streak_reminder_\(dayOffset)" }
         static let dailySummary = "daily_summary"
         static let weeklySummary = "weekly_summary"
         static let leaderboardRecap = "leaderboard_recap"
@@ -124,48 +125,79 @@ class NotificationService: ObservableObject {
 
     // MARK: - Streak Reminder
 
+    /// How many upcoming un-logged days get a reminder queued. Covers a user
+    /// who stops opening the app for a few days without nagging forever.
+    private static let streakReminderDays = 3
+
+    private var hasLoggedToday = false
+    private var streakAtRisk = 0
+
+    /// Re-plan streak reminders from current drink state. Call on launch,
+    /// foreground, and whenever a drink is added or deleted — reminders are
+    /// one-shot, so anything that changes "logged today" must reschedule.
+    func refreshStreakReminder(hasLoggedToday: Bool, streakAtRisk: Int) async {
+        self.hasLoggedToday = hasLoggedToday
+        self.streakAtRisk = streakAtRisk
+        await scheduleStreakReminder()
+    }
+
     func scheduleStreakReminder() async {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [NotificationID.streakReminder])
+        // Includes the legacy repeating identifier from older builds.
+        let ids = [NotificationID.streakReminder]
+            + (0...Self.streakReminderDays).map(NotificationID.streakReminderDay)
+        center.removePendingNotificationRequests(withIdentifiers: ids)
 
         guard preferences.streakRemindersEnabled else { return }
 
-        let content = UNMutableNotificationContent()
-        content.title = "Don't break your streak!"
-        content.body = "You haven't logged a drink today. Keep that streak going!"
-        content.sound = .default
-
-        // Extract hour and minute from preference time
         let calendar = Calendar.current
+        let now = Date()
         let hour = calendar.component(.hour, from: preferences.streakReminderTime)
         let minute = calendar.component(.minute, from: preferences.streakReminderTime)
 
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(
-            identifier: NotificationID.streakReminder,
-            content: content,
-            trigger: trigger
-        )
-
-        do {
-            try await center.add(request)
-            AppLogger.notifications.info("Scheduled streak reminder for \(hour):\(String(format: "%02d", minute))")
-        } catch {
-            AppLogger.notifications.error("Failed to schedule streak reminder: \(error.localizedDescription)")
+        // Today only qualifies if nothing's logged yet and the time hasn't passed.
+        var reminderToday = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now) ?? now
+        let firstOffset = (hasLoggedToday || reminderToday <= now) ? 1 : 0
+        if firstOffset == 1 {
+            reminderToday = calendar.date(byAdding: .day, value: 1, to: reminderToday) ?? reminderToday
         }
-    }
 
-    /// Cancel streak reminder if user has logged a drink today
-    func cancelStreakReminderIfNeeded(hasLoggedToday: Bool) {
+        // The streak still alive on the first reminder day: today's log extends
+        // it, and skipping a whole day before that first reminder breaks it.
+        let liveStreak: Int
         if hasLoggedToday {
-            UNUserNotificationCenter.current().removePendingNotificationRequests(
-                withIdentifiers: [NotificationID.streakReminder]
-            )
+            liveStreak = streakAtRisk + 1
+        } else {
+            liveStreak = firstOffset == 0 ? streakAtRisk : 0
         }
+
+        for index in 0..<Self.streakReminderDays {
+            guard let fireDate = calendar.date(byAdding: .day, value: index, to: reminderToday) else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.sound = .default
+            if index == 0 && liveStreak > 0 {
+                content.title = "Don't break your \(liveStreak)-day streak! 🔥"
+                content.body = "You haven't logged a drink today. One quick tap keeps it alive."
+            } else {
+                content.title = "Fridge check 🥤"
+                content.body = "Log today's drink and start a new streak."
+            }
+
+            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+            let request = UNNotificationRequest(
+                identifier: NotificationID.streakReminderDay(index),
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            )
+
+            do {
+                try await center.add(request)
+            } catch {
+                AppLogger.notifications.error("Failed to schedule streak reminder: \(error.localizedDescription)")
+            }
+        }
+        AppLogger.notifications.info("Scheduled \(Self.streakReminderDays) streak reminders starting \(reminderToday)")
     }
 
     // MARK: - Daily Summary

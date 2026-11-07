@@ -52,7 +52,10 @@ extension DrinkEntry: Codable {
         brand = try container.decodeIfPresent(BeverageBrand.self, forKey: .brand) ?? .dietCoke
         timestamp = try container.decode(Date.self, forKey: .timestamp)
         note = try container.decodeIfPresent(String.self, forKey: .note)
-        specialEdition = try container.decodeIfPresent(SpecialEdition.self, forKey: .specialEdition)
+        // Decode leniently: editions are added often, and an unknown one from a
+        // newer build shouldn't make the whole entry (and history) unreadable.
+        specialEdition = try container.decodeIfPresent(String.self, forKey: .specialEdition)
+            .flatMap(SpecialEdition.init(rawValue:))
         customOunces = try container.decodeIfPresent(Double.self, forKey: .customOunces)
         rating = try container.decodeIfPresent(DrinkRating.self, forKey: .rating)
         photoFilename = try container.decodeIfPresent(String.self, forKey: .photoFilename)

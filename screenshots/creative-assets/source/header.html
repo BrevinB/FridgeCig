@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+:root { --w:3840px; --h:1646px; }
+/* Apple's art safe area (from the official template). */
+.safe { left:1097px; top:493px; width:1646px; height:661px; }
+/* What a standard iPhone shows: full height, center ~2440px of width. */
+.iphone { position:absolute; left:700px; top:0; width:2440px; height:1646px; outline:6px dashed #ffe600; display:none; }
+body.debug .iphone { display:block; }
+.copy { position:absolute; left:1110px; top:493px; width:900px; height:661px;
+  display:flex; flex-direction:column; justify-content:center; }
+.headline { font-size:158px; line-height:.9; }
+.headline .soft { opacity:.8; }
+#back  { left:2400px; top:300px; width:660px; transform:rotate(10deg); }
+#front { left:2010px; top:370px; width:740px; transform:rotate(-3deg); }
+</style></head>
+<body>
+<div class="bubbles"></div>
+<img class="phone" id="back"  src="02-badges.png">
+<img class="phone" id="front" src="01-track-your-streak.png">
+<div class="copy">
+  <div class="headline">We don't<br>judge.<br><span class="soft">We just</span><br>track.</div>
+</div>
+<div class="safe"></div><div class="iphone"></div>
+<script src="bubbles.js"></script><script>if(location.hash=="#debug")document.body.classList.add("debug")</script>
+<script>fizz(170, 3840, 1646, 10, 95, [1090,420,2000,1230]);</script>
+</body></html>

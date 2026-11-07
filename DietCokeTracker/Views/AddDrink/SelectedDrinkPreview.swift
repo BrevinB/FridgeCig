@@ -6,6 +6,10 @@ struct SelectedDrinkPreview: View {
     var specialEdition: SpecialEdition? = nil
     var customOunces: Double? = nil
     var rating: DrinkRating? = nil
+    /// When set, the card shows a "Snap your drink" button so the preview
+    /// doubles as the photo prompt in the add-drink form.
+    var onTakePhoto: (() -> Void)? = nil
+    var isCameraAvailable: Bool = true
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
@@ -143,6 +147,25 @@ struct SelectedDrinkPreview: View {
                     .background(rating.color.opacity(0.1))
                     .clipShape(Capsule())
                 }
+            }
+
+            if let onTakePhoto {
+                Button(action: onTakePhoto) {
+                    Label(isCameraAvailable ? "Snap your drink" : "Camera Unavailable", systemImage: "camera.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(isClassicTheme ? .white : accentColor)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule().fill(isClassicTheme ? AnyShapeStyle(brand.buttonGradient) : AnyShapeStyle(Color.white))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                }
+                .buttonStyle(.plain)
+                .disabled(!isCameraAvailable)
+                .opacity(isCameraAvailable ? 1 : 0.5)
+                .padding(.top, 4)
+                .accessibilityLabel(isCameraAvailable ? "Take photo of your drink" : "Camera unavailable")
             }
         }
         .padding(.vertical, 16)
